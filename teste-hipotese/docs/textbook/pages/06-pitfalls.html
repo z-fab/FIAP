@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Armadilhas Comuns - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .pitfall-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 0;
+      margin: var(--space-xl) 0;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: box-shadow var(--transition);
+    }
+
+    .pitfall-card:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .pitfall-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem 1.5rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .pitfall-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1rem;
+      font-family: var(--font-heading);
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(212, 85, 107, 0.3);
+    }
+
+    .pitfall-card-header h3 {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      border: none;
+      padding: 0;
+    }
+
+    .pitfall-card-body {
+      padding: 1.5rem;
+    }
+
+    .pitfall-example {
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      line-height: 1.65;
+    }
+
+    .pitfall-example:last-of-type {
+      margin-bottom: 0.75rem;
+    }
+
+    .pitfall-wrong {
+      background: var(--danger-bg);
+      border-left: 4px solid var(--danger);
+    }
+
+    .pitfall-correct {
+      background: var(--success-bg);
+      border-left: 4px solid var(--success);
+    }
+
+    .pitfall-label {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pitfall-wrong .pitfall-label {
+      color: var(--danger);
+    }
+
+    .pitfall-correct .pitfall-label {
+      color: var(--success);
+    }
+
+    .pitfall-example code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 0.1em 0.35em;
+      border-radius: var(--radius-sm);
+    }
+
+    [data-theme="dark"] .pitfall-example code {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .pitfall-explanation {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      padding-top: 0.5rem;
+    }
+
+    .pitfall-explanation p:last-child {
+      margin-bottom: 0;
+    }
+
+    .pitfall-viz {
+      margin-top: 1.25rem;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+    }
+
+    .pitfall-viz canvas {
+      width: 100%;
+      display: block;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+    }
+
+    @media (max-width: 600px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .summary-do, .summary-dont {
+      padding: 1.25rem;
+      border-radius: var(--radius-lg);
+      font-size: 0.88rem;
+    }
+
+    .summary-do {
+      background: var(--success-bg);
+      border: 1px solid rgba(76, 175, 125, 0.3);
+    }
+
+    .summary-dont {
+      background: var(--danger-bg);
+      border: 1px solid rgba(212, 85, 107, 0.3);
+    }
+
+    .summary-do h4, .summary-dont h4 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .summary-do h4 {
+      color: var(--success);
+    }
+
+    .summary-dont h4 {
+      color: var(--danger);
+    }
+
+    .summary-do ul, .summary-dont ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .summary-do li, .summary-dont li {
+      padding: 0.35rem 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      line-height: 1.55;
+    }
+
+    .summary-do li::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+      margin-top: 0.5em;
+    }
+
+    .summary-dont li::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--danger);
+      flex-shrink: 0;
+      margin-top: 0.5em;
+    }
+
+    .golden-rule {
+      background: var(--warning-bg);
+      border: 1px solid rgba(224, 166, 51, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem 1.75rem;
+      margin: var(--space-xl) 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .golden-rule-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      color: var(--warning);
+      margin-top: 0.1rem;
+    }
+
+    .golden-rule-content h4 {
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      font-weight: 700;
+      color: #b8860b;
+      margin-bottom: 0.4rem;
+    }
+
+    [data-theme="dark"] .golden-rule-content h4 {
+      color: var(--warning);
+    }
+
+    .golden-rule-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.6;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h1>Teste de Hipótese em ML</h1><div class="subtitle">Apostila Interativa</div></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="theme-toggle" aria-label="Alternar tema"></button></div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+      <h1 class="page-title">Armadilhas Comuns</h1>
+      <p class="page-subtitle">
+        Sete erros frequentes que comprometem a validade de comparações entre modelos de Machine Learning
+        e como evitá-los na prática.
+      </p>
+
+      <!-- ======== PITFALL 1 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">1</span>
+          <h3>Comparar sem teste estatístico</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"RF = 0.812, MLP = 0.831, logo <mark>MLP é melhor</mark>."</em></p>
+            <p>Comparar números diretamente, sem considerar a <mark>variabilidade</mark> dos resultados entre folds ou seeds.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Executar um <mark>teste estatístico</mark> (ex.: t-test pareado, Wilcoxon) sobre os scores de cada fold e verificar se a diferença é <mark>estatisticamente significativa</mark>.</p>
+          </div>
+          <div class="pitfall-explanation">
+            <p>Uma diferença de 0.019 pode estar dentro da margem de erro. Sem um teste formal, você está tomando decisões com base em <mark>ruído</mark>, não em evidência.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 2 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">2</span>
+          <h3>Splits diferentes entre modelos</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"Modelo A com <code>seed=42</code>, Modelo B com <code>seed=123</code>."</em></p>
+            <p>Cada modelo viu <mark>folds diferentes</mark>, portanto as métricas não são comparáveis.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Usar a <mark>mesma seed</mark> e os <mark>mesmos folds</mark> para todos os modelos. Assim, qualquer diferença observada se deve ao modelo, não à partição dos dados.</p>
+          </div>
+          <div class="pitfall-explanation">
+            <p>O K-Fold com seed fixa garante que cada modelo é avaliado exatamente nos mesmos subconjuntos de treino e teste, eliminando uma fonte importante de variação espúria.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 3 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">3</span>
+          <h3>Cherry-picking de resultados</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"Rodei 10 vezes, <mark>peguei o melhor resultado</mark>."</em></p>
+            <p>Sem seed fixa, cada execução gera splits e inicializações diferentes. Selecionar o melhor resultado infla artificialmente a performance.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Fixar a seed, executar o experimento de forma controlada e reportar <mark>média +/- desvio padrão</mark> dos scores.</p>
+          </div>
+          <div class="pitfall-explanation">
+            <p>Reportar apenas o melhor resultado é equivalente a jogar um dado 10 vezes e dizer que "sempre tira 6". A <mark>reprodutibilidade</mark> exige transparência sobre a distribuição completa dos resultados.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 4 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">4</span>
+          <h3>Acurácia enganosa em dados desbalanceados</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"Meu modelo tem <mark>95% de acurácia</mark>!"</em></p>
+            <p>Com apenas 5% de positivos, um modelo que sempre prediz "negativo" já atinge 95%.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Em dados desbalanceados, usar métricas como <mark>AUC-ROC</mark>, <mark>F1-score</mark> ou <mark>PR-AUC</mark> que refletem a capacidade real de distinguir as classes.</p>
+          </div>
+
+          <div class="pitfall-viz">
+            <canvas id="canvas-accuracy" width="600" height="220"></canvas>
+          </div>
+
+          <div class="pitfall-explanation">
+            <p>A acurácia mascara a incapacidade do modelo de identificar a classe minoritária. Um modelo "dummy" pode ter a mesma acurácia que um modelo treinado, mas com <mark>recall = 0</mark> para positivos.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 5 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">5</span>
+          <h3>Comparações múltiplas sem correção</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"Comparei 10 modelos par a par, todos com <code>p &lt; 0.05</code>."</em></p>
+            <p>Com muitos testes, a probabilidade de encontrar pelo menos um <mark>falso positivo</mark> cresce rapidamente.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Aplicar <mark>correção de Bonferroni</mark> para testes par a par, ou usar testes omnibus como <mark>Friedman + Nemenyi</mark> que já controlam a taxa de erro global.</p>
+          </div>
+
+          <div class="pitfall-viz">
+            <canvas id="canvas-multiple" width="600" height="240"></canvas>
+          </div>
+
+          <div class="pitfall-explanation">
+            <p>Com 10 comparações a alfa = 0.05, a chance de pelo menos um falso positivo sobe para cerca de 40%. Com 45 comparações (10 modelos par a par), passa de 90%.</p>
+          </div>
+
+          <div class="callout callout-warning">
+            <div class="callout-title">Não Polua a Comparação</div>
+            <p>Cada modelo extra incluído na análise <strong>encarece o limiar</strong> do Nemenyi para todos os pares. Com 9 modelos são $C(9,2) = 36$ pares; com 6, apenas $C(6,2) = 15$. Modelos que você já sabe que são inferiores estão dificultando a detecção de diferenças entre os candidatos reais.</p>
+            <p><strong>Regra prática:</strong> inclua apenas candidatos reais na análise global. Use o Nemenyi para triagem, depois faça uma comparação focada (teste pareado único) entre os finalistas.</p>
+          </div>
+
+          <div class="callout callout-example">
+            <div class="callout-title">Prática</div>
+            <p>O <strong>Notebook 02</strong> (Seção 3) demonstra este efeito com um exercício comparando Nemenyi com 9 vs 6 modelos — mostrando como a correção se torna menos severa ao remover modelos desnecessários.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 6 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">6</span>
+          <h3>Data leakage na avaliação</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"Tunei os hiperparâmetros e <mark>reportei a métrica com os mesmos dados</mark>."</em></p>
+            <p>Usar os mesmos dados para tuning e avaliação final gera um viés otimista nos resultados.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Usar <mark>nested cross-validation</mark> (CV interno para tuning, CV externo para avaliação) ou reservar um <mark>holdout final</mark> que nunca é usado durante a seleção de hiperparâmetros.</p>
+          </div>
+          <div class="pitfall-explanation">
+            <p>O data leakage faz o modelo parecer melhor do que realmente é. A performance reportada não reflete o que acontecerá com dados novos em produção.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======== PITFALL 7 ======== -->
+      <div class="pitfall-card reveal">
+        <div class="pitfall-card-header">
+          <span class="pitfall-number">7</span>
+          <h3>Ausência de evidência não é evidência de ausência</h3>
+        </div>
+        <div class="pitfall-card-body">
+          <div class="pitfall-example pitfall-wrong">
+            <div class="pitfall-label"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Errado</div>
+            <p><em>"<code>p = 0.15</code>, portanto os modelos <mark>são iguais</mark>."</em></p>
+            <p>Interpretar um resultado não-significativo como prova de que não há diferença.</p>
+          </div>
+          <div class="pitfall-example pitfall-correct">
+            <div class="pitfall-label"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Correto</div>
+            <p>Dizer que <mark>não há evidência suficiente</mark> para rejeitar H0. Pode ser necessário coletar mais dados, aumentar o número de folds ou usar um teste com maior <mark>poder estatístico</mark>.</p>
+          </div>
+          <div class="pitfall-explanation">
+            <p>Um p-valor alto não prova igualdade. O teste pode simplesmente não ter tido <mark>poder</mark> suficiente para detectar uma diferença real. Considere reportar intervalos de confiança para dar mais contexto.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <h2>6.1 Avaliação Offline vs Online</h2>
+
+      <p>Tudo o que vimos nesta apostila — K-Fold CV, testes pareados, Friedman, Cohen's d — faz parte da <strong>avaliação offline</strong>. Na indústria, esta é a <strong>primeira etapa</strong> (triagem), mas <em>não</em> a decisão final.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">📋 Avaliação Offline (o que fizemos)</div>
+          <p>Treinar múltiplas configurações com K-Fold CV, comparar com testes estatísticos, selecionar o melhor candidato. Usa dados históricos, métricas de ML (AUC, F1).</p>
+          <p><strong>Vantagem:</strong> rápido, barato, reproduzível.</p>
+          <p><strong>Limitação:</strong> não garante performance em produção.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">🚀 Avaliação Online (A/B Testing)</div>
+          <p>Dividir tráfego real entre modelo atual (controle) e candidato (tratamento). Medir KPIs de <strong>negócio</strong> — conversão, receita, engajamento — não apenas métricas de ML.</p>
+          <p><strong>Vantagem:</strong> mede impacto real no negócio.</p>
+          <p><strong>Limitação:</strong> lento, caro, requer infraestrutura.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ O Gap Offline-Online</div>
+        <p>Métricas offline (AUC, F1) <strong>nem sempre correlacionam</strong> com impacto de negócio. Um modelo com AUC 0.01 maior pode não gerar nenhuma melhoria em receita — ou até piorar a experiência do usuário. Empresas como DoorDash documentaram este gap extensivamente.</p>
+      </div>
+
+      <div class="do-dont-grid">
+        <div class="do-card">
+          <div class="card-header">✓ Faça</div>
+          <ul>
+            <li>Use avaliação offline como <strong>primeiro filtro</strong></li>
+            <li>Valide com A/B testing antes de substituir o modelo em produção</li>
+            <li>Meça KPIs de negócio, não apenas métricas de ML</li>
+            <li>Considere shadow deployments e canary releases</li>
+          </ul>
+        </div>
+        <div class="dont-card">
+          <div class="card-header">✗ Não faça</div>
+          <ul>
+            <li>Não faça deploy baseado <strong>apenas</strong> em métricas offline</li>
+            <li>Não assuma que AUC maior = mais receita</li>
+            <li>Não ignore custos computacionais e latência</li>
+            <li>Não esqueça que dados de produção mudam (concept drift)</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>O fluxo completo na indústria:</p>
+
+      <div class="flowchart">
+        <div class="flowchart-node">Avaliação Offline (K-Fold CV + testes)</div>
+        <div class="flowchart-arrow">↓</div>
+        <div class="flowchart-node">Deploy do Candidato (shadow/canary)</div>
+        <div class="flowchart-arrow">↓</div>
+        <div class="flowchart-node">A/B Test em Produção</div>
+        <div class="flowchart-arrow">↓</div>
+        <div class="flowchart-node">Promote Champion ou Rollback</div>
+      </div>
+
+
+      <!-- ======== SUMMARY ======== -->
+      <h2>6.2 Resumo: Faça e não faça</h2>
+
+      <div class="summary-grid">
+        <div class="summary-do">
+          <h4><i data-lucide="check" style="width:18px;height:18px"></i> Faça</h4>
+          <ul>
+            <li>Use a mesma seed e os mesmos folds para todos os modelos</li>
+            <li>Aplique testes estatísticos antes de declarar um vencedor</li>
+            <li>Reporte média e desvio padrão dos scores</li>
+            <li>Use métricas adequadas ao tipo de problema</li>
+            <li>Corrija para comparações múltiplas (Bonferroni, Friedman)</li>
+            <li>Separe dados de tuning e avaliação (nested CV)</li>
+            <li>Reporte intervalos de confiança quando possível</li>
+          </ul>
+        </div>
+        <div class="summary-dont">
+          <h4><i data-lucide="x" style="width:18px;height:18px"></i> Não faça</h4>
+          <ul>
+            <li>Comparar números brutos sem teste de significância</li>
+            <li>Usar seeds ou folds diferentes entre modelos</li>
+            <li>Selecionar o melhor resultado de múltiplas execuções</li>
+            <li>Confiar apenas em acurácia com dados desbalanceados</li>
+            <li>Ignorar o problema de comparações múltiplas</li>
+            <li>Tunar e avaliar com os mesmos dados</li>
+            <li>Interpretar p > 0.05 como "modelos iguais"</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ======== GOLDEN RULE ======== -->
+      <div class="card">
+        <div class="card-header">🏆 Regra de Ouro</div>
+        <p>Na dúvida entre dois modelos com performance estatisticamente equivalente, <mark>escolha o modelo mais simples</mark>. Modelos mais simples são mais fáceis de interpretar, manter e depurar em produção. Essa é a essência do princípio da <mark>parcimônia</mark> (Navalha de Occam).</p>
+      </div>
+
+      <nav class="page-nav"></nav>
+    </div>
+  </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+
+      function getCSSVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      }
+
+      function isDark() {
+        return document.documentElement.getAttribute('data-theme') === 'dark';
+      }
+
+      function chartColors() {
+        return {
+          text: isDark() ? '#a0a0b8' : '#55556a',
+          textStrong: isDark() ? '#d8d8e8' : '#2d2d3a',
+          grid: isDark() ? '#2e2e48' : '#e0ddd8',
+          danger: getCSSVar('--danger') || '#d4556b',
+          success: getCSSVar('--success') || '#4caf7d',
+          accent: getCSSVar('--accent') || '#8b5cf6',
+          warning: getCSSVar('--warning') || '#e0a633',
+          bg: isDark() ? '#1c1c30' : '#faf9f7'
+        };
+      }
+
+      function roundedRect(ctx, x, y, w, h, r) {
+        if (w < 0) return;
+        r = Math.min(r, h / 2, w / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+      }
+
+      /* ======== CANVAS: Accuracy Illusion ======== */
+      function drawAccuracyChart() {
+        var canvas = document.getElementById('canvas-accuracy');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var w = canvas.offsetWidth;
+        var h = 220;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.height = h + 'px';
+        ctx.scale(dpr, dpr);
+
+        var c = chartColors();
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = c.bg;
+        ctx.fillRect(0, 0, w, h);
+
+        var marginLeft = 130;
+        var marginRight = 40;
+        var marginTop = 40;
+        var barHeight = 34;
+        var barGap = 20;
+        var chartWidth = w - marginLeft - marginRight;
+
+        ctx.fillStyle = c.textStrong;
+        ctx.font = 'bold 13px Lato, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Acurácia pode enganar em dados desbalanceados', w / 2, 22);
+
+        var data = [
+          { label: 'Dummy (sempre neg.)', acc: 0.95, f1: 0.00, color: c.danger },
+          { label: 'Modelo treinado', acc: 0.95, f1: 0.72, color: c.success }
+        ];
+
+        for (var i = 0; i < data.length; i++) {
+          var y = marginTop + i * (barHeight * 2 + barGap);
+
+          ctx.fillStyle = c.textStrong;
+          ctx.font = '600 12px Lato, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(data[i].label, marginLeft - 12, y + barHeight / 2 + 4);
+
+          var accWidth = data[i].acc * chartWidth;
+          ctx.globalAlpha = 0.25;
+          roundedRect(ctx, marginLeft, y, accWidth, barHeight, 4);
+          ctx.fillStyle = data[i].color;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          roundedRect(ctx, marginLeft, y, accWidth, barHeight, 4);
+          ctx.strokeStyle = data[i].color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = c.textStrong;
+          ctx.font = 'bold 11px JetBrains Mono, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('Acurácia: ' + (data[i].acc * 100).toFixed(0) + '%', marginLeft + accWidth + 8, y + barHeight / 2 + 4);
+
+          var f1y = y + barHeight + 4;
+          var f1Width = Math.max(data[i].f1 * chartWidth, 2);
+          ctx.globalAlpha = 0.6;
+          roundedRect(ctx, marginLeft, f1y, f1Width, barHeight, 4);
+          ctx.fillStyle = data[i].color;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          ctx.fillStyle = data[i].f1 === 0 ? c.danger : c.textStrong;
+          ctx.font = 'bold 11px JetBrains Mono, monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('F1-score: ' + (data[i].f1 === 0 ? '0.00' : data[i].f1.toFixed(2)), marginLeft + f1Width + 8, f1y + barHeight / 2 + 4);
+        }
+      }
+
+      /* ======== CANVAS: Multiple Comparisons ======== */
+      function drawMultipleChart() {
+        var canvas = document.getElementById('canvas-multiple');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var w = canvas.offsetWidth;
+        var h = 240;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.height = h + 'px';
+        ctx.scale(dpr, dpr);
+
+        var c = chartColors();
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = c.bg;
+        ctx.fillRect(0, 0, w, h);
+
+        var marginLeft = 55;
+        var marginRight = 25;
+        var marginTop = 45;
+        var marginBottom = 50;
+        var chartWidth = w - marginLeft - marginRight;
+        var chartHeight = h - marginTop - marginBottom;
+
+        ctx.fillStyle = c.textStrong;
+        ctx.font = 'bold 13px Lato, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('P(pelo menos 1 falso positivo) vs. número de comparações', w / 2, 22);
+
+        var points = [];
+        var maxK = 50;
+        for (var k = 1; k <= maxK; k++) {
+          points.push({ k: k, p: 1 - Math.pow(0.95, k) });
+        }
+
+        ctx.strokeStyle = c.grid;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(marginLeft, marginTop);
+        ctx.lineTo(marginLeft, marginTop + chartHeight);
+        ctx.lineTo(marginLeft + chartWidth, marginTop + chartHeight);
+        ctx.stroke();
+
+        ctx.fillStyle = c.text;
+        ctx.font = '11px JetBrains Mono, monospace';
+        ctx.textAlign = 'right';
+        for (var p = 0; p <= 1; p += 0.25) {
+          var yy = marginTop + chartHeight - p * chartHeight;
+          ctx.fillText((p * 100).toFixed(0) + '%', marginLeft - 8, yy + 4);
+          ctx.strokeStyle = c.grid;
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.setLineDash([4, 4]);
+          ctx.moveTo(marginLeft, yy);
+          ctx.lineTo(marginLeft + chartWidth, yy);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.textAlign = 'center';
+        var xSteps = [1, 5, 10, 20, 30, 40, 50];
+        for (var xi = 0; xi < xSteps.length; xi++) {
+          var xVal = xSteps[xi];
+          var xx = marginLeft + ((xVal - 1) / (maxK - 1)) * chartWidth;
+          ctx.fillStyle = c.text;
+          ctx.fillText(xVal, xx, marginTop + chartHeight + 18);
+        }
+
+        ctx.fillStyle = c.text;
+        ctx.font = '11px Lato, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Número de comparações (alfa = 0.05)', w / 2, h - 8);
+
+        /* Filled area */
+        ctx.beginPath();
+        for (var i = 0; i < points.length; i++) {
+          var px = marginLeft + (points[i].k - 1) / (maxK - 1) * chartWidth;
+          var py = marginTop + chartHeight - points[i].p * chartHeight;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.lineTo(marginLeft + chartWidth, marginTop + chartHeight);
+        ctx.lineTo(marginLeft, marginTop + chartHeight);
+        ctx.closePath();
+        ctx.fillStyle = c.danger;
+        ctx.globalAlpha = 0.08;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        /* Line */
+        ctx.beginPath();
+        ctx.strokeStyle = c.danger;
+        ctx.lineWidth = 2.5;
+        for (var j = 0; j < points.length; j++) {
+          var lx = marginLeft + (points[j].k - 1) / (maxK - 1) * chartWidth;
+          var ly = marginTop + chartHeight - points[j].p * chartHeight;
+          if (j === 0) ctx.moveTo(lx, ly);
+          else ctx.lineTo(lx, ly);
+        }
+        ctx.stroke();
+
+        /* 5% reference line */
+        var fiveY = marginTop + chartHeight - 0.05 * chartHeight;
+        ctx.strokeStyle = c.success;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(marginLeft, fiveY);
+        ctx.lineTo(marginLeft + chartWidth, fiveY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = c.success;
+        ctx.font = 'bold 10px Lato, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('alfa = 5% (1 teste)', marginLeft + 6, fiveY - 6);
+
+        /* Annotation: 10 comparisons */
+        var k10 = 10;
+        var p10 = 1 - Math.pow(0.95, k10);
+        var x10 = marginLeft + (k10 - 1) / (maxK - 1) * chartWidth;
+        var y10 = marginTop + chartHeight - p10 * chartHeight;
+        ctx.fillStyle = c.danger;
+        ctx.beginPath();
+        ctx.arc(x10, y10, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = c.textStrong;
+        ctx.font = 'bold 11px Lato, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('10 testes: ~40%', x10 + 8, y10 - 6);
+
+        /* Annotation: 45 comparisons */
+        var k45 = 45;
+        var p45 = 1 - Math.pow(0.95, k45);
+        var x45 = marginLeft + (k45 - 1) / (maxK - 1) * chartWidth;
+        var y45 = marginTop + chartHeight - p45 * chartHeight;
+        ctx.fillStyle = c.danger;
+        ctx.beginPath();
+        ctx.arc(x45, y45, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = c.textStrong;
+        ctx.font = 'bold 11px Lato, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('45 testes: ~90%', x45 - 8, y45 - 6);
+      }
+
+      drawAccuracyChart();
+      drawMultipleChart();
+
+      /* Redraw on theme change */
+      var themeObserver = new MutationObserver(function () {
+        setTimeout(function () {
+          drawAccuracyChart();
+          drawMultipleChart();
+        }, 100);
+      });
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+      /* Redraw on resize */
+      var resizeTimer;
+      window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          drawAccuracyChart();
+          drawMultipleChart();
+        }, 200);
+      });
+
+      /* Scroll reveal */
+      var reveals = document.querySelectorAll('.reveal');
+      if (reveals.length > 0) {
+        var revealObserver = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+            }
+          });
+        }, { threshold: 0.1 });
+        reveals.forEach(function (el) {
+          revealObserver.observe(el);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

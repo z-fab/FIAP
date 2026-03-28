@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Por que Teste de Hipótese? - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h1>Teste de Hipótese em ML</h1><div class="subtitle">Apostila Interativa</div></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="theme-toggle" aria-label="Alternar tema"></button></div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+      <h1 class="page-title">Por que Teste de Hipótese em ML?</h1>
+      <p class="page-subtitle">Entendendo por que comparar modelos exige mais do que olhar para um número</p>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: O Cenário -->
+      <!-- ============================================================ -->
+      <section>
+
+        <p>Imagine que você trabalha no time de dados de uma empresa de telecomunicações e recebeu a missão de prever <strong>churn</strong> &mdash; quais clientes vão cancelar o serviço no próximo mês. Você treinou dois modelos:</p>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="trees" class="lucide-icon"></i> Random Forest</div>
+            <div class="metric-box">
+              <div class="metric-value">AUC 0.812</div>
+              <div class="metric-label">Area Under the ROC Curve</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="brain" class="lucide-icon"></i> MLP (Rede Neural)</div>
+            <div class="metric-box">
+              <div class="metric-value">AUC 0.831</div>
+              <div class="metric-label">Area Under the ROC Curve</div>
+            </div>
+          </div>
+        </div>
+
+        <p>A pergunta natural é: <em>o MLP é realmente melhor?</em></p>
+
+        <p>A resposta instintiva é <strong>&ldquo;sim, 0.831 &gt; 0.812&rdquo;</strong>. Afinal, a matemática não mente: 0.831 é maior que 0.812. Mas essa resposta ignora algo fundamental: <mark>variabilidade</mark>.</p>
+
+        <div class="callout callout-warning">
+          <div class="callout-title"><i data-lucide="alert-triangle" class="lucide-icon"></i> O perigo da comparação direta</div>
+          <p>Cada vez que você treina um modelo com dados ligeiramente diferentes &mdash; folds diferentes, seeds diferentes, uma amostra a mais ou a menos &mdash; o resultado muda. Aquele 0.831 poderia ter sido 0.819 em outra rodada, e o 0.812 poderia ter sido 0.825. <strong>Uma única medição não conta a história completa.</strong></p>
+        </div>
+
+        <p>Isso não é uma fraqueza dos modelos; é uma propriedade intrínseca de qualquer processo que depende de dados finitos. Se você medir a altura de 50 pessoas aleatórias em São Paulo e depois medir outras 50, as médias vão ser ligeiramente diferentes. Com modelos de machine learning, o mesmo fenômeno acontece: o desempenho medido é uma <mark>variável aleatória</mark>.</p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Variabilidade + Amostragem Interativa -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.1 Variabilidade: o inimigo invisível</h2>
+
+        <p>Para entender por que a variabilidade importa tanto, vamos começar com um experimento simples. Abaixo temos uma <strong>população</strong> de 150 pessoas, cada uma com sua altura. Se você &ldquo;entrevistar&rdquo; apenas 15 delas para estimar a altura média, qual resultado vai obter?</p>
+
+        <div class="widget" id="sampling-widget">
+          <div class="widget-title"><i data-lucide="users" class="lucide-icon"></i> Amostragem de uma População</div>
+          <div class="widget-subtitle">Cada entrevista seleciona pessoas diferentes. Observe como a média muda.</div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" id="sample-btn"><i data-lucide="user-check" class="lucide-icon"></i> Entrevistar Amostra</button>
+            <button class="btn btn-secondary" id="sample10-btn"><i data-lucide="fast-forward" class="lucide-icon"></i> +10 Amostras</button>
+            <button class="btn btn-secondary" id="sample-reset-btn"><i data-lucide="rotate-ccw" class="lucide-icon"></i> Resetar</button>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="population-canvas" data-height="280"></canvas>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="means-history-canvas" data-height="180"></canvas>
+          </div>
+        </div>
+
+        <p>Percebeu? A cada amostragem, a média muda! Isso acontece porque estamos observando apenas uma <strong>fração</strong> da população. A mesma coisa ocorre quando avaliamos modelos de ML: cada rodada de cross-validation é como uma &ldquo;entrevista&rdquo; diferente dos dados.</p>
+
+        <p>A magnitude dessa variação depende de vários fatores:</p>
+
+        <ul>
+          <li><strong>Tamanho do conjunto de teste:</strong> Conjuntos menores produzem estimativas mais ruidosas. Avaliar com 100 exemplos é muito mais instável do que com 10.000.</li>
+          <li><strong>Seed aleatória:</strong> A divisão train/test, a inicialização de pesos da rede neural, a ordem de processamento dos dados &mdash; tudo isso é controlado por seeds que, quando mudam, alteram o resultado.</li>
+          <li><strong>Complexidade do modelo:</strong> Modelos mais complexos (como redes neurais profundas) tendem a ter maior variância entre execuções.</li>
+          <li><strong>Desbalanceamento de classes:</strong> Em problemas com classes muito desiguais, a métrica pode flutuar bastante dependendo de quais exemplos da classe minoritária caem no teste.</li>
+        </ul>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="scale" class="lucide-icon"></i> Analogia: pesando-se na balança</div>
+          <p>Imagine que você se pesa em duas balanças diferentes. Uma marca 72,3 kg e a outra marca 73,1 kg. Você engordou entre uma pesagem e outra? Claro que não &mdash; a diferença vem da imprecisão dos instrumentos. Com modelos de ML, a &ldquo;balança&rdquo; é o conjunto de teste, e ela também tem imprecisão.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: O Julgamento dos Modelos -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.2 O Julgamento dos Modelos</h2>
+
+        <p>Agora vamos ver a variabilidade acontecer <strong>na prática de ML</strong>. Abaixo, dois modelos estão prontos para serem avaliados repetidamente. Cada clique em <strong>&ldquo;Repetir Experimento&rdquo;</strong> simula uma nova rodada de cross-validation. Observe como os números mudam &mdash; e como, aos poucos, os dados revelam (ou não) quem é o verdadeiro vencedor.</p>
+
+        <div class="widget" id="trial-widget">
+          <div class="widget-title"><i data-lucide="swords" class="lucide-icon"></i> O Julgamento dos Modelos</div>
+          <div class="widget-subtitle">Clique repetidamente para acumular evidências. A história se revela com o tempo.</div>
+
+          <div class="slider-group">
+            <label class="slider-label">
+              <span><i data-lucide="activity" class="lucide-icon"></i> Nível de Ruído</span>
+              <span class="slider-value" id="noise-value">4</span>
+            </label>
+            <input type="range" id="noise-slider" min="1" max="10" value="4" step="1">
+            <div class="slider-hint">Controla a variabilidade entre experimentos. Valores altos simulam cenários com mais incerteza (poucos dados, modelo instável).</div>
+          </div>
+
+          <div class="metrics-grid" id="contestant-metrics">
+            <div class="metric-box" id="rf-box">
+              <div class="metric-value" id="rf-score">&mdash;</div>
+              <div class="metric-label"><i data-lucide="trees" class="lucide-icon"></i> Random Forest</div>
+            </div>
+            <div class="metric-box" id="experiment-count-box">
+              <div class="metric-value" id="experiment-count">0</div>
+              <div class="metric-label"><i data-lucide="flask-conical" class="lucide-icon"></i> Experimentos</div>
+            </div>
+            <div class="metric-box" id="mlp-box">
+              <div class="metric-value" id="mlp-score">&mdash;</div>
+              <div class="metric-label"><i data-lucide="brain" class="lucide-icon"></i> MLP Neural</div>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" id="run-btn"><i data-lucide="play" class="lucide-icon"></i> Repetir Experimento</button>
+            <button class="btn btn-secondary" id="run10-btn"><i data-lucide="fast-forward" class="lucide-icon"></i> +10 Experimentos</button>
+            <button class="btn btn-secondary" id="reset-btn"><i data-lucide="rotate-ccw" class="lucide-icon"></i> Resetar</button>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="history-canvas" data-height="260"></canvas>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="distribution-canvas" data-height="240"></canvas>
+          </div>
+
+          <div id="verdict-area" class="callout callout-info" hidden>
+            <div class="callout-title"><i data-lucide="scale" class="lucide-icon"></i> Veredito Parcial</div>
+            <p id="verdict-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Consequências -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.3 As consequências de ignorar a variabilidade</h2>
+
+        <p>Sem um tratamento formal da variabilidade, equipes de dados cometem erros sistemáticos:</p>
+
+        <div class="card-grid">
+          <div class="card dont-card">
+            <div class="card-header"><i data-lucide="dice-5" class="lucide-icon"></i> Escolher modelo por &ldquo;cara ou coroa&rdquo;</div>
+            <p>Se a diferença observada está dentro da margem de ruído, a escolha do modelo &ldquo;melhor&rdquo; é essencialmente aleatória. Você poderia ter escolhido o outro modelo se tivesse rodado o experimento em outro dia.</p>
+          </div>
+          <div class="card dont-card">
+            <div class="card-header"><i data-lucide="layers" class="lucide-icon"></i> Complexidade desnecessária</div>
+            <p>Frequentemente, o modelo &ldquo;melhor&rdquo; é o mais complexo. Se a diferença não é estatisticamente significativa, você está adicionando complexidade (e custo computacional, e dificuldade de manutenção) sem ganho real.</p>
+          </div>
+          <div class="card dont-card">
+            <div class="card-header"><i data-lucide="file-warning" class="lucide-icon"></i> Publicar resultados não reprodutíveis</div>
+            <p>Em artigos e relatórios, afirmar que &ldquo;o modelo X superou Y em 2%&rdquo; sem evidência estatística é uma afirmação que pode não se sustentar quando outro pesquisador tentar reproduzir o resultado.</p>
+          </div>
+          <div class="card do-card">
+            <div class="card-header"><i data-lucide="check-circle" class="lucide-icon"></i> O que devemos fazer</div>
+            <p>Usar testes de hipótese para quantificar a incerteza e tomar decisões informadas. Ao invés de &ldquo;A é melhor que B&rdquo;, dizemos &ldquo;A é melhor que B com 95% de confiança&rdquo; ou &ldquo;não há evidência de diferença entre A e B&rdquo;.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Teste de Hipótese como Ferramenta -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.4 O Teste de Hipótese como ferramenta de decisão</h2>
+
+        <p>O <mark>teste de hipótese</mark> é a ferramenta estatística que nos permite responder com confiança: <em>essa diferença que eu observei é real, ou é apenas <mark>flutuação aleatória</mark>?</em></p>
+
+        <p>Em termos práticos, o teste de hipótese funciona assim:</p>
+
+        <div class="stepper">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <strong>Formulamos uma <mark>hipótese nula</mark> (H<sub>0</sub>):</strong> assumimos que não há diferença real entre os modelos. Qualquer diferença observada é fruto do acaso.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <strong>Coletamos evidências:</strong> treinamos os modelos múltiplas vezes (por exemplo, com K-Fold Cross-Validation) e registramos as diferenças de desempenho.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <strong>Calculamos a probabilidade:</strong> dado que H<sub>0</sub> é verdadeira, qual a chance de observarmos uma diferença tão grande quanto a que vimos? Essa probabilidade é o <mark>p-valor</mark>.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <strong>Decidimos:</strong> se o p-valor for muito pequeno (tipicamente menor que 0.05), rejeitamos H<sub>0</sub> e concluímos que a diferença é real. Caso contrário, não temos evidência suficiente.
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-title"><i data-lucide="trophy" class="lucide-icon"></i> O ganho concreto</div>
+          <p>Com o teste de hipótese, você deixa de tomar decisões baseadas em intuição e passa a ter um <mark>critério objetivo e reprodutível</mark> para escolher entre modelos. Isso é particularmente importante em ambientes corporativos, onde decisões de modelagem impactam diretamente receita, custos e experiência do cliente.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Contexto em ML -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.5 Por que isso é especialmente importante em ML?</h2>
+
+        <p>Testes de hipótese existem há mais de um século, mas sua aplicação em machine learning tem nuances próprias:</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-header"><i data-lucide="link" class="lucide-icon"></i> Dados não são independentes</div>
+            <p>Em K-Fold CV, os conjuntos de treino se sobrepõem entre folds. Isso viola uma premissa clássica de muitos testes estatísticos e exige testes adaptados, como o <mark>corrected resampled t-test</mark>.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="git-compare" class="lucide-icon"></i> Múltiplas comparações</div>
+            <p>Quando comparamos 5, 10 ou 20 modelos simultaneamente, a chance de encontrar uma diferença &ldquo;significativa&rdquo; por puro acaso cresce. É preciso corrigir para múltiplas comparações (ex: Bonferroni, Nemenyi).</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="bar-chart-3" class="lucide-icon"></i> Métricas não-gaussianas</div>
+            <p>Métricas como AUC, F1-score e accuracy nem sempre seguem uma distribuição normal, especialmente com poucos folds. Testes não-paramétricos podem ser mais adequados.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="shield-alert" class="lucide-icon"></i> Custo da decisão errada</div>
+            <p>Em produção, escolher o modelo errado pode significar milhões em receita perdida. O teste de hipótese quantifica o risco dessa decisão.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SECTION: Resumo -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>1.6 Resumo do capítulo</h2>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="bookmark" class="lucide-icon"></i> Pontos-chave</div>
+          <ul>
+            <li>Comparar modelos olhando apenas para uma única métrica é como jogar cara ou coroa.</li>
+            <li>A <mark>variabilidade</mark> é inerente a qualquer avaliação de modelo &mdash; métricas mudam com folds, seeds e dados diferentes.</li>
+            <li>O <mark>teste de hipótese</mark> é a ferramenta que quantifica se uma diferença observada é real ou apenas ruído.</li>
+            <li>Em ML, testes clássicos precisam de adaptações por causa da dependência entre folds e outras particularidades.</li>
+            <li>O objetivo final é tomar <strong>decisões informadas e reprodutíveis</strong> com <mark>rigor estatístico</mark> sobre qual modelo colocar em produção.</li>
+          </ul>
+        </div>
+
+        <p>No próximo capítulo, vamos mergulhar nos <strong>conceitos fundamentais</strong> do teste de hipótese: H<sub>0</sub>, H<sub>1</sub>, p-valor, alfa, erros Tipo I e II, e poder estatístico. Esses conceitos são a base para tudo o que vem depois.</p>
+      </section>
+
+      <nav class="page-nav"></nav>
+    </div>
+  </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+  (function() {
+    /* ================================================================
+       SHARED UTILITIES
+       ================================================================ */
+    function gaussRandom() {
+      var u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
+
+    function animateNumber(el, from, to, duration, decimals) {
+      var start = performance.now();
+      function tick(now) {
+        var t = Math.min((now - start) / duration, 1);
+        var ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        el.textContent = (from + (to - from) * ease).toFixed(decimals);
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function flashBox(box, color) {
+      box.style.borderColor = color;
+      box.style.boxShadow = '0 0 12px ' + color + '44';
+      setTimeout(function() {
+        box.style.borderColor = '';
+        box.style.boxShadow = '';
+      }, 600);
+    }
+
+    /* ================================================================
+       POPULATION SAMPLING INTERACTIVE
+       ================================================================ */
+    var POP_N = 150;
+    var SAMPLE_N = 15;
+    var TRUE_HEIGHT_MEAN = 172;
+    var TRUE_HEIGHT_STD = 8;
+
+    // Generate fixed population once
+    var population = [];
+    for (var pi = 0; pi < POP_N; pi++) {
+      population.push({
+        val: clamp(TRUE_HEIGHT_MEAN + gaussRandom() * TRUE_HEIGHT_STD, 148, 198),
+        px: 0.06 + Math.random() * 0.88
+      });
+    }
+    // Compute true population mean
+    var popMeanReal = 0;
+    for (var pm = 0; pm < POP_N; pm++) popMeanReal += population[pm].val;
+    popMeanReal /= POP_N;
+
+    var sampledIdx = [];
+    var sampledMeans = [];
+
+    var popCanvas = document.getElementById('population-canvas');
+    var meansCanvas = document.getElementById('means-history-canvas');
+    var sampleBtn = document.getElementById('sample-btn');
+    var sample10Btn = document.getElementById('sample10-btn');
+    var sampleResetBtn = document.getElementById('sample-reset-btn');
+
+    function takeSample() {
+      var avail = [];
+      for (var i = 0; i < POP_N; i++) avail.push(i);
+      var indices = [];
+      for (var j = 0; j < SAMPLE_N; j++) {
+        var r = Math.floor(Math.random() * avail.length);
+        indices.push(avail[r]);
+        avail.splice(r, 1);
+      }
+      sampledIdx = indices;
+      var sum = 0;
+      for (var k = 0; k < indices.length; k++) sum += population[indices[k]].val;
+      sampledMeans.push(sum / SAMPLE_N);
+    }
+
+    function drawPopCanvas() {
+      var canvas = popCanvas;
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var colors = getThemeColors();
+      var dpr = window.devicePixelRatio || 1;
+      var w = canvas.parentElement.getBoundingClientRect().width;
+      var h = parseInt(canvas.dataset.height) || 280;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      var pad = { top: 30, right: 20, bottom: 24, left: 55 };
+      var cw = w - pad.left - pad.right;
+      var ch = h - pad.top - pad.bottom;
+      var yMin = 148, yMax = 198;
+
+      function toX(nx) { return pad.left + nx * cw; }
+      function toY(v) { return pad.top + ch - ((v - yMin) / (yMax - yMin)) * ch; }
+
+      // Title
+      ctx.fillStyle = colors.text;
+      ctx.font = '600 12px Lato, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('População (altura em cm)', w / 2, 16);
+
+      // Y grid + labels
+      ctx.strokeStyle = colors.grid;
+      ctx.lineWidth = 1;
+      ctx.font = '10px JetBrains Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = colors.textMuted;
+      for (var g = 150; g <= 195; g += 10) {
+        var gy = toY(g);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, gy);
+        ctx.lineTo(pad.left + cw, gy);
+        ctx.stroke();
+        ctx.fillText(g, pad.left - 8, gy + 3);
+      }
+
+      // Population mean reference line
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = colors.textMuted;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, toY(popMeanReal));
+      ctx.lineTo(pad.left + cw, toY(popMeanReal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = colors.textMuted;
+      ctx.font = '10px Lato, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('\u03BC pop = ' + popMeanReal.toFixed(1), pad.left + cw, toY(popMeanReal) - 6);
+
+      // Draw dots
+      var hasSample = sampledIdx.length > 0;
+      var isSelected = {};
+      for (var s = 0; s < sampledIdx.length; s++) isSelected[sampledIdx[s]] = true;
+
+      for (var d = 0; d < POP_N; d++) {
+        var dx = toX(population[d].px);
+        var dy = toY(population[d].val);
+        var sel = hasSample && isSelected[d];
+
+        ctx.beginPath();
+        ctx.arc(dx, dy, sel ? 6 : 3.5, 0, Math.PI * 2);
+
+        if (hasSample) {
+          ctx.fillStyle = sel ? CHART_COLORS.primary : colors.textMuted;
+          ctx.globalAlpha = sel ? 0.9 : 0.15;
+        } else {
+          ctx.fillStyle = colors.textMuted;
+          ctx.globalAlpha = 0.45;
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        if (sel) {
+          ctx.strokeStyle = CHART_COLORS.primary;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      // Sample mean line
+      if (sampledMeans.length > 0) {
+        var lastMean = sampledMeans[sampledMeans.length - 1];
+        ctx.setLineDash([6, 3]);
+        ctx.strokeStyle = CHART_COLORS.primary;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, toY(lastMean));
+        ctx.lineTo(pad.left + cw, toY(lastMean));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = CHART_COLORS.primary;
+        ctx.font = '600 11px JetBrains Mono, monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('x\u0304 = ' + lastMean.toFixed(1) + ' cm', pad.left + cw, toY(lastMean) - 6);
+      }
+    }
+
+    function drawMeansCanvas() {
+      var canvas = meansCanvas;
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var colors = getThemeColors();
+      var dpr = window.devicePixelRatio || 1;
+      var w = canvas.parentElement.getBoundingClientRect().width;
+      var h = parseInt(canvas.dataset.height) || 180;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      var pad = { top: 30, right: 20, bottom: 28, left: 55 };
+      var cw = w - pad.left - pad.right;
+      var ch = h - pad.top - pad.bottom;
+
+      // Title
+      ctx.fillStyle = colors.text;
+      ctx.font = '600 12px Lato, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Médias das amostras coletadas', w / 2, 16);
+
+      if (sampledMeans.length === 0) {
+        ctx.fillStyle = colors.textMuted;
+        ctx.font = '13px Lato, sans-serif';
+        ctx.fillText('Clique "Entrevistar Amostra" para começar...', w / 2, h / 2);
+        return;
+      }
+
+      // Y range
+      var yMin, yMax;
+      if (sampledMeans.length === 1) {
+        yMin = sampledMeans[0] - 3; yMax = sampledMeans[0] + 3;
+      } else {
+        yMin = Math.min.apply(null, sampledMeans) - 1.5;
+        yMax = Math.max.apply(null, sampledMeans) + 1.5;
+        if (yMax - yMin < 4) { var mid = (yMin + yMax) / 2; yMin = mid - 2; yMax = mid + 2; }
+      }
+      // Ensure pop mean is visible
+      if (popMeanReal < yMin) yMin = popMeanReal - 1;
+      if (popMeanReal > yMax) yMax = popMeanReal + 1;
+
+      function toX(i) { return pad.left + (sampledMeans.length === 1 ? cw / 2 : (i / (sampledMeans.length - 1)) * cw); }
+      function toY(v) { return pad.top + ch - ((v - yMin) / (yMax - yMin)) * ch; }
+
+      // Grid
+      ctx.strokeStyle = colors.grid;
+      ctx.lineWidth = 1;
+      ctx.font = '10px JetBrains Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = colors.textMuted;
+      var nGrid = 3;
+      for (var g = 0; g <= nGrid; g++) {
+        var gv = yMin + (g / nGrid) * (yMax - yMin);
+        var gy = toY(gv);
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cw, gy); ctx.stroke();
+        ctx.fillText(gv.toFixed(1), pad.left - 8, gy + 3);
+      }
+
+      // Population mean reference
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = colors.textMuted;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, toY(popMeanReal));
+      ctx.lineTo(pad.left + cw, toY(popMeanReal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '10px Lato, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('\u03BC real', pad.left + 4, toY(popMeanReal) - 5);
+
+      // Dots
+      for (var d = 0; d < sampledMeans.length; d++) {
+        var dx = toX(d); var dy = toY(sampledMeans[d]);
+        var isLast = (d === sampledMeans.length - 1);
+        ctx.beginPath();
+        ctx.arc(dx, dy, isLast ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = isLast ? CHART_COLORS.primary : CHART_COLORS.primary + '77';
+        ctx.fill();
+        if (isLast) { ctx.strokeStyle = colors.bg || '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+      }
+
+      // X label
+      ctx.fillStyle = colors.textMuted;
+      ctx.font = '10px Lato, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(sampledMeans.length + ' amostra' + (sampledMeans.length > 1 ? 's' : ''), w / 2, pad.top + ch + 18);
+    }
+
+    // Sampling event handlers
+    function handleSample() { takeSample(); drawPopCanvas(); drawMeansCanvas(); }
+    function handleSample10() {
+      var i = 0;
+      sampleBtn.disabled = true; sample10Btn.disabled = true;
+      function next() {
+        if (i >= 10) { sampleBtn.disabled = false; sample10Btn.disabled = false; return; }
+        takeSample(); drawPopCanvas(); drawMeansCanvas(); i++;
+        setTimeout(next, 150);
+      }
+      next();
+    }
+    function handleSampleReset() {
+      sampledIdx = []; sampledMeans = [];
+      drawPopCanvas(); drawMeansCanvas();
+    }
+
+    if (sampleBtn) sampleBtn.addEventListener('click', handleSample);
+    if (sample10Btn) sample10Btn.addEventListener('click', handleSample10);
+    if (sampleResetBtn) sampleResetBtn.addEventListener('click', handleSampleReset);
+
+    /* ================================================================
+       O JULGAMENTO DOS MODELOS - Interactive Simulation
+       ================================================================ */
+    var TRUE_RF  = 0.820;
+    var TRUE_MLP = 0.822;
+    var experiments = [];
+    var rfWins  = 0;
+    var mlpWins = 0;
+
+    var noiseSlider   = document.getElementById('noise-slider');
+    var noiseValueEl  = document.getElementById('noise-value');
+    var rfScoreEl     = document.getElementById('rf-score');
+    var mlpScoreEl    = document.getElementById('mlp-score');
+    var countEl       = document.getElementById('experiment-count');
+    var rfBox         = document.getElementById('rf-box');
+    var mlpBox        = document.getElementById('mlp-box');
+    var runBtn        = document.getElementById('run-btn');
+    var run10Btn      = document.getElementById('run10-btn');
+    var resetBtn      = document.getElementById('reset-btn');
+    var verdictArea   = document.getElementById('verdict-area');
+    var verdictText   = document.getElementById('verdict-text');
+    var historyCanvas = document.getElementById('history-canvas');
+    var distCanvas    = document.getElementById('distribution-canvas');
+
+    if (noiseSlider) noiseSlider.addEventListener('input', function() { noiseValueEl.textContent = this.value; });
+
+    function runExperiment() {
+      var noise = parseInt(noiseSlider.value) * 0.005;
+      var rf  = clamp(TRUE_RF  + gaussRandom() * noise, 0.5, 1.0);
+      var mlp = clamp(TRUE_MLP + gaussRandom() * noise, 0.5, 1.0);
+      var prevRF  = experiments.length > 0 ? experiments[experiments.length - 1].rf  : rf;
+      var prevMLP = experiments.length > 0 ? experiments[experiments.length - 1].mlp : mlp;
+      experiments.push({ rf: rf, mlp: mlp });
+      if (rf > mlp) rfWins++; else if (mlp > rf) mlpWins++;
+      animateNumber(rfScoreEl,  prevRF,  rf,  400, 3);
+      animateNumber(mlpScoreEl, prevMLP, mlp, 400, 3);
+      countEl.textContent = experiments.length;
+      var colors = getThemeColors();
+      if (rf > mlp) flashBox(rfBox, colors.primary);
+      else flashBox(mlpBox, colors.warning);
+    }
+
+    function redrawTrial() { drawHistory(); drawDistribution(); updateVerdict(); }
+
+    function drawHistory() {
+      var canvas = historyCanvas;
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var colors = getThemeColors();
+      var dpr = window.devicePixelRatio || 1;
+      var w = canvas.parentElement.getBoundingClientRect().width;
+      var h = parseInt(canvas.dataset.height) || 260;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      var pad = { top: 32, right: 16, bottom: 32, left: 52 };
+      var cw = w - pad.left - pad.right;
+      var ch = h - pad.top - pad.bottom;
+
+      ctx.fillStyle = colors.text;
+      ctx.font = '600 12px Lato, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Histórico de AUC por Experimento', w / 2, 18);
+
+      if (experiments.length === 0) {
+        ctx.fillStyle = colors.textMuted; ctx.font = '14px Lato, sans-serif';
+        ctx.fillText('Clique "Repetir Experimento" para começar...', w / 2, h / 2);
+        return;
+      }
+
+      var allVals = [];
+      for (var ei = 0; ei < experiments.length; ei++) { allVals.push(experiments[ei].rf); allVals.push(experiments[ei].mlp); }
+      var yMin = Math.min.apply(null, allVals) - 0.005;
+      var yMax = Math.max.apply(null, allVals) + 0.005;
+      if (yMax - yMin < 0.02) { var mid = (yMin + yMax) / 2; yMin = mid - 0.01; yMax = mid + 0.01; }
+
+      function toX(i) { return pad.left + (experiments.length === 1 ? cw / 2 : (i / (experiments.length - 1)) * cw); }
+      function toY(v) { return pad.top + ch - ((v - yMin) / (yMax - yMin)) * ch; }
+
+      ctx.strokeStyle = colors.grid; ctx.lineWidth = 1;
+      var nGridY = 4;
+      ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right'; ctx.fillStyle = colors.textMuted;
+      for (var gi = 0; gi <= nGridY; gi++) {
+        var gv = yMin + (gi / nGridY) * (yMax - yMin); var gy = toY(gv);
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cw, gy); ctx.stroke();
+        ctx.fillText(gv.toFixed(3), pad.left - 6, gy + 3);
+      }
+
+      ctx.textAlign = 'center'; ctx.fillStyle = colors.textMuted;
+      var step = Math.max(1, Math.floor(experiments.length / 8));
+      for (var xi = 0; xi < experiments.length; xi += step) ctx.fillText(xi + 1, toX(xi), pad.top + ch + 16);
+      if (experiments.length > 1 && (experiments.length - 1) % step !== 0) ctx.fillText(experiments.length, toX(experiments.length - 1), pad.top + ch + 16);
+
+      function drawModelLine(data, color) {
+        if (data.length < 1) return;
+        ctx.beginPath(); ctx.moveTo(toX(0), toY(data[0]));
+        for (var li = 1; li < data.length; li++) {
+          var xc = (toX(li - 1) + toX(li)) / 2; var yc = (toY(data[li - 1]) + toY(data[li])) / 2;
+          ctx.quadraticCurveTo(toX(li - 1), toY(data[li - 1]), xc, yc);
+        }
+        ctx.lineTo(toX(data.length - 1), toY(data[data.length - 1]));
+        ctx.lineTo(toX(data.length - 1), pad.top + ch); ctx.lineTo(toX(0), pad.top + ch); ctx.closePath();
+        ctx.fillStyle = color + '15'; ctx.fill();
+
+        ctx.beginPath(); ctx.moveTo(toX(0), toY(data[0]));
+        for (var si = 1; si < data.length; si++) {
+          var sxc = (toX(si - 1) + toX(si)) / 2; var syc = (toY(data[si - 1]) + toY(data[si])) / 2;
+          ctx.quadraticCurveTo(toX(si - 1), toY(data[si - 1]), sxc, syc);
+        }
+        ctx.lineTo(toX(data.length - 1), toY(data[data.length - 1]));
+        ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+
+        var lastIdx = data.length - 1;
+        ctx.beginPath(); ctx.arc(toX(lastIdx), toY(data[lastIdx]), 4, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.strokeStyle = colors.bg || '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      var rfData = [], mlpData = [];
+      for (var di = 0; di < experiments.length; di++) { rfData.push(experiments[di].rf); mlpData.push(experiments[di].mlp); }
+      drawModelLine(rfData,  CHART_COLORS.primary);
+      drawModelLine(mlpData, CHART_COLORS.warning);
+
+      // Legend
+      var legendY = 18, legendX = w - pad.right;
+      ctx.textAlign = 'right'; ctx.font = '600 11px Lato, sans-serif';
+      ctx.fillStyle = CHART_COLORS.warning; ctx.fillRect(legendX - 120, legendY - 8, 10, 10);
+      ctx.fillText('MLP', legendX - 76, legendY);
+      ctx.fillStyle = CHART_COLORS.primary; ctx.fillRect(legendX - 60, legendY - 8, 10, 10);
+      ctx.fillText('RF', legendX - 26, legendY);
+    }
+
+    function drawDistribution() {
+      var canvas = distCanvas;
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var colors = getThemeColors();
+      var dpr = window.devicePixelRatio || 1;
+      var w = canvas.parentElement.getBoundingClientRect().width;
+      var h = parseInt(canvas.dataset.height) || 240;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = colors.text; ctx.font = '600 12px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Distribuição dos Scores Acumulados', w / 2, 18);
+
+      if (experiments.length < 3) {
+        ctx.fillStyle = colors.textMuted; ctx.font = '13px Lato, sans-serif';
+        ctx.fillText('Acumule pelo menos 3 experimentos para ver as distribuições...', w / 2, h / 2);
+        return;
+      }
+
+      var pad = { top: 30, right: 16, bottom: 28, left: 52 };
+      var cw = w - pad.left - pad.right; var ch = h - pad.top - pad.bottom;
+      var rfVals = [], mlpVals = [];
+      for (var vi = 0; vi < experiments.length; vi++) { rfVals.push(experiments[vi].rf); mlpVals.push(experiments[vi].mlp); }
+      var allVals = rfVals.concat(mlpVals);
+      var globalMin = Math.min.apply(null, allVals) - 0.008;
+      var globalMax = Math.max.apply(null, allVals) + 0.008;
+      var nBins = Math.min(Math.max(8, Math.floor(experiments.length / 2)), 25);
+      var binW = (globalMax - globalMin) / nBins;
+
+      function makeBins(vals) {
+        var bins = []; for (var bi = 0; bi < nBins; bi++) bins.push(0);
+        for (var bj = 0; bj < vals.length; bj++) {
+          var idx = Math.floor((vals[bj] - globalMin) / binW);
+          if (idx >= nBins) idx = nBins - 1; if (idx < 0) idx = 0; bins[idx]++;
+        }
+        return bins;
+      }
+
+      var rfBins = makeBins(rfVals); var mlpBins = makeBins(mlpVals);
+      var maxCount = Math.max(Math.max.apply(null, rfBins), Math.max.apply(null, mlpBins), 1);
+      function toX(i) { return pad.left + (i / nBins) * cw; }
+      var barWpx = cw / nBins;
+      function toBarH(count) { return (count / maxCount) * ch; }
+
+      ctx.strokeStyle = colors.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.left, pad.top + ch); ctx.lineTo(pad.left + cw, pad.top + ch); ctx.stroke();
+
+      for (var hi = 0; hi < nBins; hi++) {
+        var hx = toX(hi);
+        if (rfBins[hi] > 0) {
+          var rfBh = toBarH(rfBins[hi]);
+          ctx.fillStyle = CHART_COLORS.primary + '55';
+          ctx.fillRect(hx + 1, pad.top + ch - rfBh, barWpx / 2 - 1, rfBh);
+          ctx.strokeStyle = CHART_COLORS.primary + '88'; ctx.lineWidth = 1;
+          ctx.strokeRect(hx + 1, pad.top + ch - rfBh, barWpx / 2 - 1, rfBh);
+        }
+        if (mlpBins[hi] > 0) {
+          var mlpBh = toBarH(mlpBins[hi]);
+          ctx.fillStyle = CHART_COLORS.warning + '55';
+          ctx.fillRect(hx + barWpx / 2, pad.top + ch - mlpBh, barWpx / 2 - 1, mlpBh);
+          ctx.strokeStyle = CHART_COLORS.warning + '88'; ctx.lineWidth = 1;
+          ctx.strokeRect(hx + barWpx / 2, pad.top + ch - mlpBh, barWpx / 2 - 1, mlpBh);
+        }
+      }
+
+      if (experiments.length >= 5) {
+        function drawDensity(vals, color) {
+          var sum = 0; for (var di = 0; di < vals.length; di++) sum += vals[di];
+          var mean = sum / vals.length; var variance = 0;
+          for (var dj = 0; dj < vals.length; dj++) variance += (vals[dj] - mean) * (vals[dj] - mean);
+          variance /= vals.length; var std = Math.sqrt(variance) || 0.001;
+          var nPts = 100; var xs = linspace(globalMin, globalMax, nPts); var ys = []; var maxY = 0;
+          for (var dk = 0; dk < nPts; dk++) { var yVal = normalPDF(xs[dk], mean, std); ys.push(yVal); if (yVal > maxY) maxY = yVal; }
+          ctx.beginPath();
+          for (var dl = 0; dl < nPts; dl++) {
+            var px = pad.left + ((xs[dl] - globalMin) / (globalMax - globalMin)) * cw;
+            var py = pad.top + ch - (ys[dl] / maxY) * ch * 0.85;
+            if (dl === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+          var meanX = pad.left + ((mean - globalMin) / (globalMax - globalMin)) * cw;
+          ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(meanX, pad.top); ctx.lineTo(meanX, pad.top + ch);
+          ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = color; ctx.font = '600 9px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+          ctx.fillText(mean.toFixed(3), meanX, pad.top - 2);
+        }
+        drawDensity(rfVals,  CHART_COLORS.primary);
+        drawDensity(mlpVals, CHART_COLORS.warning);
+      }
+
+      ctx.fillStyle = colors.textMuted; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      var labelStep = Math.max(1, Math.floor(nBins / 6));
+      for (var li = 0; li <= nBins; li += labelStep) {
+        var lVal = globalMin + li * binW;
+        ctx.fillText(lVal.toFixed(3), toX(li), pad.top + ch + 14);
+      }
+
+      // Legend
+      ctx.font = '600 11px Lato, sans-serif'; ctx.textAlign = 'right'; var legX = w - pad.right;
+      ctx.fillStyle = CHART_COLORS.warning; ctx.fillRect(legX - 120, 10, 10, 10); ctx.fillText('MLP', legX - 76, 19);
+      ctx.fillStyle = CHART_COLORS.primary; ctx.fillRect(legX - 60, 10, 10, 10); ctx.fillText('RF', legX - 26, 19);
+    }
+
+    function updateVerdict() {
+      if (experiments.length < 10) { verdictArea.hidden = true; return; }
+      verdictArea.hidden = false;
+      var rfSum = 0, mlpSum = 0;
+      for (var vi = 0; vi < experiments.length; vi++) { rfSum += experiments[vi].rf; mlpSum += experiments[vi].mlp; }
+      var rfMean = rfSum / experiments.length; var mlpMean = mlpSum / experiments.length;
+      var diff = Math.abs(mlpMean - rfMean); var winner = mlpMean > rfMean ? 'MLP' : 'Random Forest';
+      verdictText.textContent =
+        'Com ' + experiments.length + ' experimentos, RF venceu ' + rfWins +
+        ' vezes e MLP venceu ' + mlpWins + ' vezes. A diferença média foi ' + diff.toFixed(4) +
+        ' (favorecendo ' + winner + '). Será que isso é suficiente para decidir? ' +
+        'No próximo capítulo, você aprenderá as ferramentas formais para responder essa pergunta.';
+    }
+
+    function handleRun() { runExperiment(); redrawTrial(); }
+    function handleRun10() {
+      var i = 0; runBtn.disabled = true; run10Btn.disabled = true;
+      function next() {
+        if (i >= 10) { runBtn.disabled = false; run10Btn.disabled = false; return; }
+        runExperiment(); redrawTrial(); i++; setTimeout(next, 120);
+      }
+      next();
+    }
+    function handleReset() {
+      experiments = []; rfWins = 0; mlpWins = 0;
+      rfScoreEl.textContent = '\u2014'; mlpScoreEl.textContent = '\u2014'; countEl.textContent = '0';
+      verdictArea.hidden = true;
+      rfBox.style.borderColor = ''; rfBox.style.boxShadow = '';
+      mlpBox.style.borderColor = ''; mlpBox.style.boxShadow = '';
+      redrawTrial();
+    }
+
+    if (runBtn) runBtn.addEventListener('click', handleRun);
+    if (run10Btn) run10Btn.addEventListener('click', handleRun10);
+    if (resetBtn) resetBtn.addEventListener('click', handleReset);
+
+    /* ================================================================
+       THEME & RESIZE OBSERVERS
+       ================================================================ */
+    function redrawAll() { drawPopCanvas(); drawMeansCanvas(); drawHistory(); drawDistribution(); }
+
+    var themeObserver = new MutationObserver(function() { redrawAll(); });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    window.addEventListener('resize', redrawAll);
+
+    // Initial draw
+    drawPopCanvas();
+    drawMeansCanvas();
+    redrawTrial();
+
+    /* ================================================================
+       LUCIDE ICONS INIT
+       ================================================================ */
+    function initLucide() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    }
+    var lucideScript = document.querySelector('script[src*="lucide"]');
+    if (lucideScript) {
+      if (typeof lucide !== 'undefined') initLucide();
+      else lucideScript.addEventListener('load', initLucide);
+    }
+  })();
+  </script>
+</body>
+</html>

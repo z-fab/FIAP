@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O Fluxo Completo - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <style>
+    /* Fix 2: Override step hover padding that causes overflow */
+    .step:hover { padding-left: 0; padding-right: 0; }
+
+    /* Fix 3: Step title alignment with number icon */
+    .step-content h3 { margin-top: 0; }
+    .step-content h4 { margin-top: 0; }
+
+    /* Fix 5: Standardize text font in steps */
+    .step-content p { font-size: 0.92rem; color: var(--text-primary); }
+
+    /* Fix 9: Calculator results alignment */
+    #paired-table ~ .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    @media (max-width: 768px) {
+      #paired-table ~ .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Fix 1: Code header styling */
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e1e2e;
+      color: #a6adc8;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .code-header + pre {
+      margin-top: 0;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Teste de Hipótese em ML</h1>
+      <div class="subtitle">Apostila Interativa</div>
+    </div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+        <h1 class="page-title">O Fluxo Completo</h1>
+        <p class="page-subtitle">Um protocolo de 6 passos para comparar modelos com rigor estatístico usando K-Fold Cross-Validation</p>
+
+        <!-- ============================================================ -->
+        <!-- INTRO -->
+        <!-- ============================================================ -->
+        <section>
+          <p>Nos capítulos anteriores, estabelecemos <em>por que</em> o teste de hipótese é necessário e <em>quais</em> conceitos o fundamentam. Agora é hora de colocar tudo junto em um <strong>fluxo de trabalho completo e prático</strong> que você pode aplicar em qualquer projeto de machine learning.</p>
+
+          <p>O protocolo que vamos detalhar a seguir é baseado na abordagem mais aceita na literatura: <strong>comparação pareada usando <mark>Stratified K-Fold</mark> Cross-Validation</strong>. A ideia central é que ambos os modelos são avaliados nos <em><mark>mesmos folds</mark></em> de dados, o que nos permite calcular <mark>diferenças pareadas</mark> e aplicar testes estatísticos com mais poder.</p>
+
+          <div class="callout callout-info">
+            <div class="callout-title">Por que pareado?</div>
+            <p>Quando dois modelos são avaliados nos mesmos folds, as flutuações causadas pela "dificuldade" de cada fold afetam ambos igualmente. Ao calcular a <strong>diferença</strong> entre os modelos em cada fold, eliminamos essa fonte de variação compartilhada (<mark>diferenças pareadas</mark>). Isso é análogo a um estudo clínico onde cada paciente recebe <em>ambos</em> os tratamentos (crossover), em vez de grupos separados.</p>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- 6-STEP PROCESS -->
+        <!-- ============================================================ -->
+        <section>
+          <h2>3.1 Os 6 Passos</h2>
+
+          <div class="stepper">
+            <!-- STEP 1 -->
+            <div class="step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Definir o <mark>Stratified K-Fold</mark></h3>
+                <p>O primeiro passo é definir a estratégia de validação cruzada. Usamos <strong>Stratified K-Fold</strong> porque:</p>
+                <ul>
+                  <li><strong>Estratificação</strong> garante que cada fold mantém a proporção de classes do dataset original. Isso é especialmente importante em problemas desbalanceados (ex: 95% não-churn, 5% churn).</li>
+                  <li><strong>K = 10</strong> é o valor mais comum na prática. Oferece um bom equilíbrio entre bias (baixo com K alto) e variância (baixa com K baixo). Dietterich (1998) e Demšar (2006) recomendam K = 10.</li>
+                  <li><strong><mark>Mesmos folds</mark> para todos os modelos:</strong> este é o ponto crucial. Usamos a <em>mesma seed</em> e a <em>mesma partição</em> para todos os modelos, garantindo que as comparações sejam pareadas.</li>
+                </ul>
+
+                <div class="code-header"><span>Python</span></div>
+                <pre><code class="language-python">from sklearn.model_selection import StratifiedKFold
+
+skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Os mesmos indices para TODOS os modelos:
+folds = list(skf.split(X, y))</code></pre>
+              </div>
+            </div>
+
+            <!-- STEP 2 -->
+            <div class="step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>Treinar todos os modelos nos mesmos splits</h3>
+                <p>Para cada um dos K folds, treinamos <em>todos</em> os modelos usando o mesmo conjunto de treino e avaliamos no mesmo conjunto de teste. Isso cria uma correspondência 1-a-1 entre as avaliações.</p>
+
+                <p><strong>Cuidados importantes:</strong></p>
+                <ul>
+                  <li><strong>Pré-processamento dentro do fold:</strong> qualquer transformação (scaling, encoding, feature selection) deve ser feita <em>dentro</em> de cada fold, usando apenas os dados de treino. Vazamento de dados aqui invalida todo o experimento.</li>
+                  <li><strong>Hiperparâmetros:</strong> se os modelos já foram tunados, use os hiperparâmetros finais. Se quer comparar pipelines completas (incluindo tuning), faça o tuning <em>dentro</em> de cada fold (nested CV).</li>
+                  <li><strong>Seeds internas:</strong> para modelos estocásticos (redes neurais, random forests), fixe a seed interna para reduzir variância. Mas lembre-se que isso só fixa uma fonte de variação, não elimina a variabilidade dos folds.</li>
+                </ul>
+
+                <div class="code-header"><span>Python</span></div>
+                <pre><code class="language-python">from sklearn.metrics import roc_auc_score
+
+scores_rf = []
+scores_mlp = []
+
+for train_idx, test_idx in folds:
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
+
+    # Treinar e avaliar RF
+    rf.fit(X_train, y_train)
+    scores_rf.append(roc_auc_score(y_test, rf.predict_proba(X_test)[:,1]))
+
+    # Treinar e avaliar MLP
+    mlp.fit(X_train, y_train)
+    scores_mlp.append(roc_auc_score(y_test, mlp.predict_proba(X_test)[:,1]))</code></pre>
+              </div>
+            </div>
+
+            <!-- STEP 3 -->
+            <div class="step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Coletar <mark>scores por fold</mark></h3>
+                <p>Após o loop, temos dois vetores de K scores &mdash; um para cada modelo. Cada posição corresponde ao <em>mesmo</em> fold de teste.</p>
+
+                <table class="editable-table">
+                  <thead>
+                    <tr>
+                      <th>Fold</th>
+                      <th>AUC Random Forest</th>
+                      <th>AUC MLP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1</td><td>0.815</td><td>0.832</td></tr>
+                    <tr><td>2</td><td>0.808</td><td>0.821</td></tr>
+                    <tr><td>3</td><td>0.823</td><td>0.840</td></tr>
+                    <tr><td>4</td><td>0.801</td><td>0.818</td></tr>
+                    <tr><td>5</td><td>0.819</td><td>0.835</td></tr>
+                    <tr><td>...</td><td>...</td><td>...</td></tr>
+                  </tbody>
+                </table>
+
+                <p>Note como os scores variam entre folds. O fold 3, por exemplo, pode ser "mais fácil" para ambos os modelos, enquanto o fold 4 é "mais difícil". Esse efeito do fold é exatamente o que o pareamento nos permite controlar.</p>
+              </div>
+            </div>
+
+            <!-- STEP 4 -->
+            <div class="step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h3>Calcular <mark>diferenças pareadas</mark></h3>
+                <p>Para cada fold, calculamos a diferença: $d_i = \text{score}_{MLP,i} - \text{score}_{RF,i}$. Essas diferenças são a matéria-prima do teste estatístico.</p>
+
+                <div class="formula">$$\bar{d} = \frac{1}{K}\sum_{i=1}^{K} d_i \qquad s_d = \sqrt{\frac{1}{K-1}\sum_{i=1}^{K}(d_i - \bar{d})^2}$$</div>
+
+                <p>Se a <mark>média das diferenças</mark> ($\bar{d}$) é grande em relação a $s_d$, temos evidência de diferença real. Se $\bar{d}$ é pequeno e $s_d$ é grande, a diferença observada é provavelmente ruído.</p>
+
+                <div class="callout callout-info">
+                  <div class="callout-title">Intuição</div>
+                  <p>Pense nas diferenças $d_i$ como "votos". Se todos os folds apontam na mesma direção (todos positivos ou todos negativos), a evidência é forte. Se metade é positiva e metade é negativa, não há consenso &mdash; a diferença pode ser acaso.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 5 -->
+            <div class="step">
+              <div class="step-number">5</div>
+              <div class="step-content">
+                <h3>Aplicar o teste estatístico</h3>
+                <p>O teste mais comum para comparação pareada de dois modelos é o <strong><mark>teste t pareado</mark></strong>:</p>
+
+                <div class="formula">$$t = \frac{\bar{d}}{s_d / \sqrt{K}} \quad \text{com } K-1 \text{ graus de liberdade}$$</div>
+
+                <p>Alternativamente, para evitar premissas de normalidade, pode-se usar o <strong>teste de Wilcoxon signed-rank</strong> (não-paramétrico).</p>
+
+                <div class="code-header"><span>Python</span></div>
+                <pre><code class="language-python">from scipy import stats
+import numpy as np
+
+diffs = np.array(scores_mlp) - np.array(scores_rf)
+
+# Teste t pareado
+t_stat, p_value = stats.ttest_rel(scores_mlp, scores_rf)
+
+# Alternativa nao-parametrica
+w_stat, p_wilcoxon = stats.wilcoxon(diffs)</code></pre>
+
+                <div class="callout callout-warning">
+                  <div class="callout-title">Limitação do teste t pareado com K-Fold</div>
+                  <p>O teste t pareado assume que as observações são independentes, mas os folds do K-Fold CV compartilham dados de treino, violando essa premissa. Isso pode levar a p-valores otimistas (rejeitar $H_0$ com mais frequência do que deveria). Alternativas mais robustas incluem o <strong><mark>corrected resampled t-test</mark></strong> de Nadeau &amp; Bengio (2003) e o <strong>5x2cv paired t-test</strong> de Dietterich (1998).</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 6 -->
+            <div class="step">
+              <div class="step-number">6</div>
+              <div class="step-content">
+                <h3>Interpretar e decidir</h3>
+                <p>Com o p-valor em mãos, a decisão segue a lógica que já conhecemos:</p>
+
+                <div class="card-grid">
+                  <div class="card">
+                    <h4>Se p &lt; &alpha; (ex: p = 0.02, &alpha; = 0.05)</h4>
+                    <p><strong>Rejeitar $H_0$.</strong> Há evidência estatística de que os modelos têm desempenho diferente. Verifique a direção ($\bar{d} > 0$ ou $\bar{d} < 0$) para saber qual é melhor. Considere também o <strong>tamanho do efeito</strong>: a diferença é prática e relevante?</p>
+                  </div>
+                  <div class="card">
+                    <h4>Se p &ge; &alpha; (ex: p = 0.38, &alpha; = 0.05)</h4>
+                    <p><strong>Não rejeitar $H_0$.</strong> Não há evidência suficiente de diferença. Nessa situação, prefira o modelo mais simples, mais rápido ou mais interpretável &mdash; já que não há ganho estatisticamente comprovado em usar o mais complexo.</p>
+                  </div>
+                </div>
+
+                <div class="callout callout-danger">
+                  <div class="callout-title">Significância estatística não é significância prática</div>
+                  <p>Um p-valor de 0.001 com diferença média de 0.002 em AUC pode ser estatisticamente significativo, mas praticamente irrelevante. Sempre avalie se a magnitude da diferença justifica a troca de modelo, considerando custos computacionais, complexidade de deploy, interpretabilidade, etc.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- K-Fold Visualizer -->
+        <!-- ============================================================ -->
+        <section>
+          <h2>3.2 Visualizando o K-Fold Cross-Validation</h2>
+
+          <p>O visualizador abaixo mostra como o dataset é dividido em K segmentos. Em cada iteração, um segmento diferente é usado como teste (vermelho) e o restante como treino (azul). Ambos os modelos são treinados e avaliados nessa mesma divisão.</p>
+
+          <div class="widget">
+            <div class="widget-title">Estratificação K-Fold (K=5)</div>
+            <div style="display:grid; gap:0.3rem; margin-top:0.75rem;">
+              <div style="display:flex; gap:2px; border-radius:var(--radius-md); overflow:hidden; font-size:0.72rem; text-align:center; font-weight:600;">
+                <div style="flex:1; padding:0.5rem; background:var(--accent); color:#fff;">Test</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+              </div>
+              <div style="display:flex; gap:2px; border-radius:var(--radius-md); overflow:hidden; font-size:0.72rem; text-align:center; font-weight:600;">
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--accent); color:#fff;">Test</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+              </div>
+              <div style="display:flex; gap:2px; border-radius:var(--radius-md); overflow:hidden; font-size:0.72rem; text-align:center; font-weight:600;">
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--accent); color:#fff;">Test</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+              </div>
+              <div style="display:flex; gap:2px; border-radius:var(--radius-md); overflow:hidden; font-size:0.72rem; text-align:center; font-weight:600;">
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--accent); color:#fff;">Test</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+              </div>
+              <div style="display:flex; gap:2px; border-radius:var(--radius-md); overflow:hidden; font-size:0.72rem; text-align:center; font-weight:600;">
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--bg-tertiary);">Train</div>
+                <div style="flex:1; padding:0.5rem; background:var(--accent); color:#fff;">Test</div>
+              </div>
+            </div>
+            <p style="font-size:0.82rem; color:var(--text-muted); margin-top:0.5rem; text-align:center;">Cada fold serve como teste uma vez. Todos os modelos usam os <strong>mesmos splits</strong>.</p>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Paired Differences Table -->
+        <!-- ============================================================ -->
+        <section>
+          <h2>3.3 Tabela de Diferenças Pareadas</h2>
+
+          <p>A tabela abaixo simula o resultado de um 10-Fold CV com dois modelos. Os valores de AUC para Random Forest e MLP estão pré-preenchidos, mas você pode <strong>editar qualquer célula</strong> para explorar como as diferenças mudam. A média, desvio-padrão e estatística t são calculados automaticamente.</p>
+
+          <div class="widget">
+            <div class="widget-title">Calculadora de Diferenças Pareadas</div>
+            <div class="widget-subtitle">Edite os scores para ver o impacto nas estatísticas</div>
+
+            <table class="editable-table" id="paired-table">
+              <thead>
+                <tr>
+                  <th>Fold</th>
+                  <th>AUC Random Forest</th>
+                  <th>AUC MLP</th>
+                  <th>Diferença (MLP - RF)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><input type="number" step="0.001" value="0.815" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.832" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td><input type="number" step="0.001" value="0.808" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.821" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td><input type="number" step="0.001" value="0.823" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.840" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td><input type="number" step="0.001" value="0.801" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.818" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td><input type="number" step="0.001" value="0.819" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.835" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td><input type="number" step="0.001" value="0.812" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.828" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>7</td>
+                  <td><input type="number" step="0.001" value="0.826" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.838" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>8</td>
+                  <td><input type="number" step="0.001" value="0.805" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.815" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>9</td>
+                  <td><input type="number" step="0.001" value="0.818" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.830" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td><input type="number" step="0.001" value="0.811" class="rf-score"></td>
+                  <td><input type="number" step="0.001" value="0.829" class="mlp-score"></td>
+                  <td class="diff-cell">--</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="metrics-grid">
+              <div class="metric-box">
+                <div class="metric-value" id="mean-diff">--</div>
+                <div class="metric-label">Média das diferenças (d&#772;)</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-value" id="std-diff">--</div>
+                <div class="metric-label">Desvio-padrão (s<sub>d</sub>)</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-value" id="t-stat">--</div>
+                <div class="metric-label">Estatística t</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-value" id="p-val-table">--</div>
+                <div class="metric-label">P-valor (bilateral)</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-value" id="decision-table">--</div>
+                <div class="metric-label">Decisão (&alpha; = 0.05)</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Checklist -->
+        <!-- ============================================================ -->
+        <section>
+          <h2>3.4 Checklist final</h2>
+
+          <p>Antes de reportar os resultados de qualquer comparação de modelos, verifique:</p>
+
+          <div class="callout callout-success">
+            <div class="callout-title">Verificações essenciais</div>
+            <ul>
+              <li>Os modelos foram avaliados nos <strong>mesmos folds</strong> (mesma seed, mesma partição)?</li>
+              <li>O pré-processamento foi feito <strong>dentro de cada fold</strong>, sem vazamento?</li>
+              <li>O <strong>&alpha;</strong> foi definido <strong>antes</strong> de rodar o teste?</li>
+              <li>O teste estatístico é <strong>apropriado</strong> para a situação (pareado, quantidade de modelos, premissas)?</li>
+              <li>Além do p-valor, você reportou o <strong>tamanho do efeito</strong> (magnitude da diferença)?</li>
+              <li>Se comparou mais de 2 modelos, aplicou <strong>correção para múltiplas comparações</strong>?</li>
+              <li>Os resultados são <strong>reprodutíveis</strong> (seeds documentadas, código disponível)?</li>
+            </ul>
+          </div>
+        </section>
+
+        <div class="callout callout-info">
+          <div class="callout-title">Para 3+ Modelos</div>
+          <p>Este fluxo de 6 passos é para comparação de <strong>2 modelos</strong>. Para 3 ou mais modelos simultâneos, use o teste de Friedman + Nemenyi post-hoc (Capítulo 4, Seção 4.4). O <strong>Notebook 02</strong> implementa este cenário com 9 configurações.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Resumo -->
+        <!-- ============================================================ -->
+        <section>
+          <h2>3.5 Resumo do capítulo</h2>
+
+          <div class="callout callout-info">
+            <div class="callout-title">O fluxo em uma frase</div>
+            <p><strong>Divida os dados &rarr; Treine nos <mark>mesmos folds</mark> &rarr; Colete <mark>scores por fold</mark> &rarr; Calcule <mark>diferenças pareadas</mark> &rarr; Aplique o teste &rarr; Interprete com cuidado.</strong></p>
+          </div>
+
+          <p>Com este protocolo, você tem uma base sólida para comparar quaisquer dois modelos com rigor estatístico. Nos próximos capítulos, exploraremos testes específicos em detalhe (t-test pareado, Wilcoxon, McNemar, 5x2cv), bem como a comparação de múltiplos modelos simultaneamente (Friedman + Nemenyi).</p>
+        </section>
+
+        <nav class="page-nav"></nav>
+      </div>
+    </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+
+  <script>
+  (function() {
+    // ================================================================
+    // PAIRED DIFFERENCES TABLE
+    // ================================================================
+    const table = document.getElementById('paired-table');
+    const meanDiffEl = document.getElementById('mean-diff');
+    const stdDiffEl = document.getElementById('std-diff');
+    const tStatEl = document.getElementById('t-stat');
+    const pValEl = document.getElementById('p-val-table');
+    const decisionEl = document.getElementById('decision-table');
+
+    // Approximate two-sided p-value from t-distribution using normal approx for large df
+    // For df=9, use a better approximation
+    function tCDF(t, df) {
+      // Use regularized incomplete beta function approximation
+      // For simplicity, use normal approximation with correction
+      const x = df / (df + t * t);
+      // Regularized incomplete beta via continued fraction is complex;
+      // use a simple approximation: for df >= 5, t-distribution is close to normal
+      // with a small correction
+      const z = t * (1 - 1 / (4 * df)) / Math.sqrt(1 + t * t / (2 * df));
+      // Standard normal CDF
+      const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+      const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+      const sign = z < 0 ? -1 : 1;
+      const az = Math.abs(z) / Math.sqrt(2);
+      const tt = 1.0 / (1.0 + p * az);
+      const y = 1.0 - (((((a5 * tt + a4) * tt) + a3) * tt + a2) * tt + a1) * tt * Math.exp(-az * az);
+      return 0.5 * (1.0 + sign * y);
+    }
+
+    function computeTable() {
+      const rfInputs = table.querySelectorAll('.rf-score');
+      const mlpInputs = table.querySelectorAll('.mlp-score');
+      const diffCells = table.querySelectorAll('.diff-cell');
+      const diffs = [];
+
+      for (let i = 0; i < rfInputs.length; i++) {
+        const rf = parseFloat(rfInputs[i].value);
+        const mlp = parseFloat(mlpInputs[i].value);
+        if (isNaN(rf) || isNaN(mlp)) {
+          diffCells[i].textContent = '--';
+          continue;
+        }
+        const d = mlp - rf;
+        diffs.push(d);
+        diffCells[i].textContent = d >= 0 ? '+' + d.toFixed(4) : d.toFixed(4);
+        diffCells[i].style.color = d >= 0 ? '#22c55e' : '#ef4444';
+        diffCells[i].style.fontWeight = '600';
+      }
+
+      if (diffs.length < 2) return;
+
+      const n = diffs.length;
+      const mean = diffs.reduce((a, b) => a + b, 0) / n;
+      const variance = diffs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / (n - 1);
+      const std = Math.sqrt(variance);
+      const se = std / Math.sqrt(n);
+      const tStat = se > 0 ? mean / se : 0;
+      const df = n - 1;
+
+      // Two-sided p-value
+      const pVal = 2 * (1 - tCDF(Math.abs(tStat), df));
+
+      meanDiffEl.textContent = mean.toFixed(4);
+      stdDiffEl.textContent = std.toFixed(4);
+      tStatEl.textContent = tStat.toFixed(3);
+      pValEl.textContent = pVal < 0.0001 ? '< 0.0001' : pVal.toFixed(4);
+
+      const reject = pVal < 0.05;
+      decisionEl.textContent = reject ? 'Rejeitar H₀' : 'Nao rejeitar H₀';
+      decisionEl.style.color = reject ? '#22c55e' : '#f59e0b';
+    }
+
+    table.addEventListener('input', computeTable);
+
+    computeTable();
+  })();
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

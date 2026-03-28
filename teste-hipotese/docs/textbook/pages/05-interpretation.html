@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interpretação de Resultados - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h1>Teste de Hipótese em ML</h1><div class="subtitle">Apostila Interativa</div></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="theme-toggle" aria-label="Alternar tema"></button></div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+      <h1 class="page-title">Interpretação de Resultados</h1>
+      <p class="page-subtitle">Um p-valor baixo não é o fim da análise &mdash; é o começo. Nesta seção, você aprende a traduzir números em decisões de negócio.</p>
+
+      <!-- ========== 7.1 QUANDO p < alpha ========== -->
+
+      <h2>5.1 Quando p &lt; &alpha;: Resultado Significativo</h2>
+
+      <p>Rejeitar H<sub>0</sub> significa que a diferença observada é <strong>improvável sob a hipótese nula</strong>. Porém, <mark>significância estatística não implica relevância prática</mark>. Antes de celebrar, faça três perguntas:</p>
+
+      <ol>
+        <li><strong>A diferença é grande o suficiente?</strong> Um p=0.001 com diferença de 0.002 em AUC é estatisticamente significativo mas <strong>irrelevante na prática</strong>. A <mark class="mark-blue">magnitude</mark> importa mais que o p-valor.</li>
+        <li><strong>É consistente entre <mark class="mark-blue">métricas</mark>?</strong> Se o modelo A é melhor em F1 mas pior em Recall, a "superioridade" depende do que você prioriza. Verifique múltiplas métricas antes de decidir.</li>
+        <li><strong>O custo compensa?</strong> Um ganho de 0.5% em acurácia pode não justificar um modelo 10x mais lento em produção, 3x mais caro em GPU, ou impossível de explicar ao regulador.</li>
+      </ol>
+
+      <p>Para organizar essas perguntas, podemos mapear qualquer resultado em um <mark>quadrante de decisão</mark> baseado em duas dimensões: o p-valor e o tamanho do efeito (diferença prática).</p>
+
+      <!-- QUADRANT CANVAS -->
+      <div class="widget" id="quadrant-widget">
+        <div class="widget-title">Quadrante de Decisão: P-valor vs. Tamanho do Efeito</div>
+        <div class="widget-subtitle">Cada combinação leva a uma recomendação diferente</div>
+        <div class="canvas-wrapper">
+          <canvas id="quadrant-canvas" data-height="420"></canvas>
+        </div>
+      </div>
+
+      <!-- ========== 7.2 SIGNIFICANCIA ESTATISTICA vs PRATICA ========== -->
+
+      <h2>5.2 Significância Estatística vs. Significância Prática</h2>
+
+      <p>Este é o erro mais comum: confundir <mark>significância estatística</mark> com <mark class="mark-green">significância prática</mark>. Com amostras grandes (muitos folds ou repetições), o teste ganha poder para detectar diferenças <strong>minúsculas</strong> &mdash; que podem ser reais mas completamente irrelevantes.</p>
+
+      <div class="callout callout-danger">
+        <div class="callout-title">Armadilha Clássica</div>
+        <p><strong>p=0.001, diferença AUC=0.002</strong>. O teste detectou uma diferença real, mas tão pequena que nenhuma decisão de negócio deveria se basear nela. Sempre reporte a <mark class="mark-blue">magnitude da diferença</mark> junto com o p-valor.</p>
+      </div>
+
+      <!-- BALANCE VISUALIZATION -->
+      <div class="widget" id="balance-widget">
+        <div class="widget-title">Balança: Estatística vs. Prática</div>
+        <div class="widget-subtitle">Uma diferença pode ser estatisticamente significativa sem ser praticamente relevante</div>
+        <div class="canvas-wrapper">
+          <canvas id="balance-canvas" data-height="380"></canvas>
+        </div>
+      </div>
+
+      <div class="callout callout-example">
+        <div class="callout-title">Exemplo de Boa Interpretação</div>
+        <p>"O teste t pareado indica diferença significativa (p=0.003). A diferença média de 3.2 pontos percentuais em F1-score (IC 95%: [1.8, 4.6]) é relevante para o caso de uso, onde cada ponto percentual representa ~R$50k em fraudes detectadas."</p>
+      </div>
+
+      <!-- ========== 7.2.1 INTERVALOS DE CONFIANÇA ========== -->
+
+      <h3>Intervalos de Confiança</h3>
+
+      <p>O exemplo acima menciona "IC 95%: [1.8, 4.6]". Mas o que exatamente é esse intervalo, como calculá-lo, e por que ele é tão importante quanto o p-valor?</p>
+
+      <div class="callout callout-info">
+        <div class="callout-title">Fórmula do Intervalo de Confiança</div>
+        <p>Para diferenças pareadas com K folds:</p>
+        <div class="formula">$$IC = \bar{d} \pm t_{\alpha/2,\; K-1} \times SE \qquad \text{onde } SE = \frac{SD(d)}{\sqrt{K}}$$</div>
+        <p>Onde <strong>d̄</strong> é a média das diferenças, <strong>SD(d)</strong> é o desvio padrão, e <strong>K</strong> é o número de folds.</p>
+      </div>
+
+      <p>O intervalo de confiança de 95% significa: <em>"Temos 95% de confiança de que a verdadeira diferença de desempenho entre os modelos está entre [limite inferior, limite superior]"</em>.</p>
+
+      <div class="code-header"><span>Python</span></div>
+      <pre><code class="language-python">import numpy as np
+from scipy import stats
+
+differences = scores_a - scores_b
+mean_diff = np.mean(differences)
+se = stats.sem(differences)
+ci = stats.t.interval(0.95, df=len(differences)-1, loc=mean_diff, scale=se)
+print(f"Diferença média: {mean_diff:.4f}")
+print(f"IC 95%: [{ci[0]:.4f}, {ci[1]:.4f}]")</code></pre>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">Conexão com o p-valor</div>
+        <p>Se o intervalo de confiança de 95% <strong>inclui zero</strong>, isso é consistente com p ≥ 0.05 — não há evidência de diferença significativa. Se o IC <strong>não inclui zero</strong>, a diferença é significativa ao nível de 5%.</p>
+      </div>
+
+      <!-- ========== 7.3 QUANDO p >= alpha ========== -->
+
+      <h2>5.3 Quando p &ge; &alpha;: Ausência de Evidência</h2>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">O que p &ge; &alpha; NÃO significa</div>
+        <p><strong>"Os modelos são iguais"</strong> &mdash; ERRADO. <mark class="mark-red">Não rejeitar H<sub>0</sub> não significa que H<sub>0</sub> é verdadeira</mark>. Significa apenas que <strong>não há evidência suficiente</strong> para concluir que são diferentes. <mark class="mark-red">Ausência de evidência não é evidência de ausência</mark>.</p>
+      </div>
+
+      <p>Existem três razões principais pelas quais um teste pode não rejeitar H<sub>0</sub>:</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">1. Poder estatístico insuficiente</div>
+          <p>Com poucos folds (ex: K=5), o teste pode simplesmente <strong>não ter sensibilidade</strong> para detectar diferenças reais. Aumente K (10 ou 30) ou use <mark class="mark-blue">repeated K-fold</mark> para ganhar poder.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">2. A diferença realmente não existe</div>
+          <p>Os modelos podem ter desempenho genuinamente equivalente. Nesse caso, <strong>prefira o <mark class="mark-green">modelo mais simples</mark></strong>: menos parâmetros, mais rápido, mais interpretável.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">3. Alta variabilidade nos dados</div>
+          <p>Se os folds produzem resultados muito diferentes entre si (alto desvio-padrão), o "ruído" mascara o "sinal". Considere <mark class="mark-blue">estratificação</mark> ou aumento de dados.</p>
+        </div>
+      </div>
+
+
+      <!-- ========== 7.4 COMO REPORTAR ========== -->
+
+      <h2>5.4 Como Reportar Resultados</h2>
+
+      <p>Um bom relatório de comparação de modelos deve incluir todos os elementos essenciais de forma clara e reproduzível. Veja abaixo um exemplo completo:</p>
+
+      <div class="widget" id="report-example">
+        <div class="widget-title">Exemplo de Relatório Completo</div>
+        <div class="widget-subtitle">Modelo de parágrafo com todos os elementos necessários</div>
+
+        <div class="card">
+          <div class="card-header">Comparação: Random Forest vs. XGBoost</div>
+          <p>Comparamos <strong>Random Forest</strong> e <strong>XGBoost</strong> utilizando <mark class="mark-blue">F1-score</mark> como métrica principal, avaliada por <strong>10-fold cross-validation estratificado</strong> (seed=42).</p>
+          <p>Random Forest obteve média de <code>0.812 (+/- 0.023)</code> e XGBoost obteve média de <code>0.841 (+/- 0.019)</code>, resultando em uma diferença de <strong>2.9 pontos percentuais</strong>.</p>
+          <p>O <mark class="mark-blue">teste t pareado</mark> indicou diferença estatisticamente significativa (<code>t=-3.42</code>, <code>p=0.003</code>, <code>&alpha;=0.05</code>). A diferença média de 2.9pp em F1-score é relevante para o caso de uso de detecção de fraude, onde cada ponto percentual representa aproximadamente R$50k em fraudes detectadas.</p>
+          <p><strong>Conclusão:</strong> Recomendamos adotar o XGBoost, dado que a diferença é tanto estatisticamente significativa quanto praticamente relevante para o negócio.</p>
+        </div>
+
+        <h4>Elementos obrigatórios</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Elemento</th>
+              <th>Exemplo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Métrica</strong></td>
+              <td>F1-score</td>
+            </tr>
+            <tr>
+              <td><strong>Média +/- desvio-padrão</strong></td>
+              <td>0.841 +/- 0.019</td>
+            </tr>
+            <tr>
+              <td><strong>Teste utilizado</strong></td>
+              <td>Teste t pareado</td>
+            </tr>
+            <tr>
+              <td><strong>Estatística do teste</strong></td>
+              <td>t = -3.42</td>
+            </tr>
+            <tr>
+              <td><strong>P-valor</strong></td>
+              <td>p = 0.003</td>
+            </tr>
+            <tr>
+              <td><strong>Nível de significância</strong></td>
+              <td>&alpha; = 0.05</td>
+            </tr>
+            <tr>
+              <td><strong>Interpretação prática</strong></td>
+              <td>Magnitude da diferença + impacto no negócio</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-success">
+        <div class="callout-title">Dica para o Tech Challenge</div>
+        <p>Use o modelo de relatório acima como base para a seção de "Comparação de Modelos" do seu Model Card. Substitua os valores pelos resultados dos seus próprios experimentos e sempre inclua a interpretação prática da diferença.</p>
+      </div>
+
+<div class="separator"></div>
+
+<h2>5.5 Quando Resultados Divergem</h2>
+
+<p>É comum que um <strong>paired t-test</strong> entre dois modelos dê significativo, mas o <strong>Nemenyi post-hoc</strong> mostre o mesmo par como não significativo. Isso não é um erro — são perguntas diferentes:</p>
+
+<div class="table-responsive">
+<table>
+  <thead>
+    <tr><th></th><th>Paired t-test</th><th>Nemenyi</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Pergunta</strong></td><td>Esses 2 modelos específicos diferem?</td><td>Quais pares diferem entre TODOS?</td></tr>
+    <tr><td><strong>Correção</strong></td><td>Nenhuma (1 comparação)</td><td>Corrige para $C(k,2)$ comparações</td></tr>
+    <tr><td><strong>Quando usar</strong></td><td>Comparação única, pré-planejada</td><td>Exploração entre múltiplos modelos</td></tr>
+    <tr><td><strong>Poder</strong></td><td>Maior (limiar mais baixo)</td><td>Menor (limiar mais alto)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">Em qual confiar?</div>
+  <p>Se você <strong>planejou</strong> comparar exatamente 2 modelos desde o início → <strong>t-test</strong> (comparação pré-planejada, sem correção).</p>
+  <p>Se você está <strong>explorando</strong> entre vários modelos → <strong>Nemenyi</strong> (controla falsos positivos globais).</p>
+  <p>Na dúvida, o Nemenyi é mais conservador.</p>
+</div>
+
+<div class="callout callout-example">
+  <div class="callout-title">Prática</div>
+  <p>O <strong>Notebook 02</strong> (Seção 5) demonstra este cenário ao vivo e explica por que os resultados podem divergir.</p>
+</div>
+
+      <nav class="page-nav"></nav>
+    </div>
+  </main>
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // ========================================
+    // 1. QUADRANT DIAGRAM (Canvas)
+    // ========================================
+    (function() {
+      const canvas = document.getElementById('quadrant-canvas');
+      if (!canvas) return;
+
+      function draw(ctx, w, h) {
+        const c = getThemeColors();
+        const pad = { top: 50, right: 30, bottom: 55, left: 60 };
+        const cw = w - pad.left - pad.right;
+        const ch = h - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = c.bg;
+        ctx.fillRect(0, 0, w, h);
+
+        const midX = pad.left + cw / 2;
+        const midY = pad.top + ch / 2;
+        const halfW = cw / 2;
+        const halfH = ch / 2;
+
+        // Quadrant fills
+        ctx.fillStyle = c.success + '22';
+        ctx.fillRect(midX, pad.top, halfW, halfH);
+
+        ctx.fillStyle = c.warning + '22';
+        ctx.fillRect(pad.left, pad.top, halfW, halfH);
+
+        ctx.fillStyle = c.info + '22';
+        ctx.fillRect(midX, midY, halfW, halfH);
+
+        ctx.fillStyle = c.textMuted + '18';
+        ctx.fillRect(pad.left, midY, halfW, halfH);
+
+        // Divider lines
+        ctx.strokeStyle = c.grid;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, midY);
+        ctx.lineTo(pad.left + cw, midY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(midX, pad.top);
+        ctx.lineTo(midX, pad.top + ch);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Outer border
+        ctx.strokeStyle = c.grid;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(pad.left, pad.top, cw, ch);
+
+        // Threshold labels
+        ctx.font = '600 11px "JetBrains Mono", monospace';
+        ctx.fillStyle = c.danger;
+        ctx.textAlign = 'right';
+        ctx.fillText('p = \u03B1', pad.left - 8, midY + 4);
+
+        ctx.fillStyle = c.primary;
+        ctx.textAlign = 'center';
+        ctx.fillText('limiar de efeito', midX, pad.top + ch + 14);
+
+        // Axis labels
+        ctx.font = '700 12px "Lato", sans-serif';
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'center';
+        ctx.fillText('Tamanho do Efeito (diferença prática)', pad.left + cw / 2, h - 8);
+
+        ctx.save();
+        ctx.translate(14, pad.top + ch / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText('P-valor', 0, 0);
+        ctx.restore();
+
+        // Axis direction hints
+        ctx.font = '500 10px "Lato", sans-serif';
+        ctx.fillStyle = c.textMuted;
+        ctx.textAlign = 'left';
+        ctx.fillText('pequeno', pad.left + 6, pad.top + ch + 14);
+        ctx.textAlign = 'right';
+        ctx.fillText('grande', pad.left + cw - 6, pad.top + ch + 14);
+
+        ctx.save();
+        ctx.translate(28, pad.top + ch - 8);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.fillText('alto (n.s.)', 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(28, pad.top + 18);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'right';
+        ctx.fillText('baixo (sig.)', 0, 0);
+        ctx.restore();
+
+        // Quadrant content helper with word wrap
+        var fontSize = Math.max(11, Math.min(14, w * 0.02));
+        var titleSize = Math.max(12, Math.min(15, w * 0.022));
+        var qPad = 14;
+
+        function drawQuadrant(x, y, qw, qh, title, subtitle, icon, color) {
+          ctx.font = '800 ' + (titleSize + 4) + 'px "Lato", sans-serif';
+          ctx.fillStyle = color;
+          ctx.textAlign = 'center';
+          ctx.fillText(icon, x + qw / 2, y + qPad + titleSize + 6);
+
+          ctx.font = '700 ' + titleSize + 'px "Lato", sans-serif';
+          ctx.fillText(title, x + qw / 2, y + qPad + titleSize * 2 + 14);
+
+          ctx.font = '400 ' + fontSize + 'px "Lato", sans-serif';
+          var words = subtitle.split(' ');
+          var lines = [];
+          var line = '';
+          var maxW = qw - 24;
+          words.forEach(function(word) {
+            var test = line ? line + ' ' + word : word;
+            if (ctx.measureText(test).width > maxW && line) {
+              lines.push(line);
+              line = word;
+            } else {
+              line = test;
+            }
+          });
+          if (line) lines.push(line);
+
+          var startY = y + qPad + titleSize * 2 + 28;
+          ctx.textAlign = 'center';
+          ctx.fillStyle = c.textMuted;
+          lines.forEach(function(l, i) {
+            ctx.fillText(l, x + qw / 2, startY + i * (fontSize + 4));
+          });
+        }
+
+        drawQuadrant(midX, pad.top, halfW, halfH,
+          'Adotar modelo superior',
+          'Diferença significativa e relevante. Documente e implante.',
+          '\u2714', c.success);
+
+        drawQuadrant(pad.left, pad.top, halfW, halfH,
+          'Avaliar custo-benefício',
+          'Significativo mas pequeno. O ganho justifica a complexidade?',
+          '\u2696', c.warning);
+
+        drawQuadrant(midX, midY, halfW, halfH,
+          'Coletar mais dados',
+          'Efeito aparente sem significância. Pode faltar poder estatístico.',
+          '\u26A0', c.info);
+
+        drawQuadrant(pad.left, midY, halfW, halfH,
+          'Manter mais simples',
+          'Sem diferença significativa nem prática. Escolha pela simplicidade.',
+          '\u2261', c.textMuted);
+
+        // Title
+        ctx.font = '700 13px "Merriweather", serif';
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'center';
+        ctx.fillText('Quadrante de Decisão', w / 2, 26);
+      }
+
+      makeCanvasResponsive(canvas, draw);
+
+      new MutationObserver(function() {
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw(ctx, canvas._logicalWidth, canvas._logicalHeight);
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    })();
+
+    // ========================================
+    // 2. BALANCE VISUALIZATION (Canvas)
+    // ========================================
+    (function() {
+      const canvas = document.getElementById('balance-canvas');
+      if (!canvas) return;
+
+      function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      function draw(ctx, w, h) {
+        const c = getThemeColors();
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = c.bg;
+        ctx.fillRect(0, 0, w, h);
+
+        var centerX = w / 2;
+        var pivotY = h * 0.44;
+
+        // Title
+        ctx.font = '700 13px "Merriweather", serif';
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'center';
+        ctx.fillText('Significância Estatística vs. Significância Prática', centerX, 26);
+
+        // Fulcrum triangle
+        ctx.beginPath();
+        ctx.moveTo(centerX, pivotY);
+        ctx.lineTo(centerX - 20, pivotY + 28);
+        ctx.lineTo(centerX + 20, pivotY + 28);
+        ctx.closePath();
+        ctx.fillStyle = c.textMuted + '80';
+        ctx.fill();
+
+        // Balance beam
+        var beamLen = Math.min(w * 0.36, 220);
+        var tiltAngle = -0.06;
+
+        ctx.save();
+        ctx.translate(centerX, pivotY);
+        ctx.rotate(tiltAngle);
+
+        // Beam bar
+        ctx.fillStyle = c.text + '30';
+        roundRect(ctx, -beamLen - 4, -4, beamLen * 2 + 8, 8, 4);
+        ctx.fill();
+
+        // Hanging wires
+        ctx.strokeStyle = c.textMuted + '60';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-beamLen, 0);
+        ctx.lineTo(-beamLen, -55);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(beamLen, 0);
+        ctx.lineTo(beamLen, -55);
+        ctx.stroke();
+
+        // Left box (statistical significance)
+        var boxW = Math.min(w * 0.28, 160);
+        var boxH = 72;
+        var boxY = -55 - boxH;
+
+        ctx.fillStyle = c.danger + '15';
+        ctx.strokeStyle = c.danger + '50';
+        ctx.lineWidth = 2;
+        roundRect(ctx, -beamLen - boxW / 2, boxY, boxW, boxH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '700 12px "Lato", sans-serif';
+        ctx.fillStyle = c.danger;
+        ctx.textAlign = 'center';
+        ctx.fillText('Estatisticamente', -beamLen, boxY + 24);
+        ctx.fillText('Significativo', -beamLen, boxY + 40);
+        ctx.font = '600 11px "JetBrains Mono", monospace';
+        ctx.fillStyle = c.textMuted;
+        ctx.fillText('p < 0.05', -beamLen, boxY + 58);
+
+        // Right box (practical relevance)
+        ctx.fillStyle = c.success + '15';
+        ctx.strokeStyle = c.success + '50';
+        ctx.lineWidth = 2;
+        roundRect(ctx, beamLen - boxW / 2, boxY, boxW, boxH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '700 12px "Lato", sans-serif';
+        ctx.fillStyle = c.success;
+        ctx.textAlign = 'center';
+        ctx.fillText('Praticamente', beamLen, boxY + 24);
+        ctx.fillText('Relevante', beamLen, boxY + 40);
+        ctx.font = '600 11px "JetBrains Mono", monospace';
+        ctx.fillStyle = c.textMuted;
+        ctx.fillText('Vale a complexidade?', beamLen, boxY + 58);
+
+        ctx.restore();
+
+        // Examples section at bottom
+        var exY = pivotY + 50;
+        var exW = Math.min(w * 0.40, 240);
+        var exGap = 24;
+
+        // Example: NOT worth it
+        ctx.fillStyle = c.danger + '10';
+        ctx.strokeStyle = c.danger + '35';
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, centerX - exW - exGap / 2, exY, exW, 95, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        var exCenterL = centerX - exW / 2 - exGap / 2;
+        ctx.font = '700 11px "Lato", sans-serif';
+        ctx.fillStyle = c.danger;
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2717  Não vale a pena', exCenterL, exY + 20);
+        ctx.font = '400 11px "Lato", sans-serif';
+        ctx.fillStyle = c.text;
+        ctx.fillText('Modelo B é 0.2% melhor (p=0.01)', exCenterL, exY + 42);
+        ctx.fillText('Mas é 10x mais complexo,', exCenterL, exY + 58);
+        ctx.fillText('3x mais lento em produção', exCenterL, exY + 74);
+
+        // Example: WORTH it
+        ctx.fillStyle = c.success + '10';
+        ctx.strokeStyle = c.success + '35';
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, centerX + exGap / 2, exY, exW, 95, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        var exCenterR = centerX + exW / 2 + exGap / 2;
+        ctx.font = '700 11px "Lato", sans-serif';
+        ctx.fillStyle = c.success;
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2714  Vale a pena', exCenterR, exY + 20);
+        ctx.font = '400 11px "Lato", sans-serif';
+        ctx.fillStyle = c.text;
+        ctx.fillText('Modelo B é 3.2% melhor (p=0.003)', exCenterR, exY + 42);
+        ctx.fillText('Complexidade similar,', exCenterR, exY + 58);
+        ctx.fillText('cada 1% = R$50k em fraudes', exCenterR, exY + 74);
+      }
+
+      makeCanvasResponsive(canvas, draw);
+
+      new MutationObserver(function() {
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw(ctx, canvas._logicalWidth, canvas._logicalHeight);
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    })();
+
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

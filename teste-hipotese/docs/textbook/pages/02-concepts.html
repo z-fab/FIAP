@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conceitos Fundamentais - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <style>
+    /* Airport Security Simulator */
+    /* Full-width canvas on top, then controls below */
+    .airport-controls {
+      display: grid; grid-template-columns: 1fr 260px; gap: 0.85rem; margin-top: 0.75rem;
+    }
+    @media (max-width: 680px) { .airport-controls { grid-template-columns: 1fr; } }
+    .airport-left { display: flex; flex-direction: column; gap: 0.65rem; min-width: 0; }
+    .airport-right { display: flex; flex-direction: column; gap: 0.65rem; }
+
+    /* Bag display - horizontal compact */
+    .airport-bag {
+      display: flex; align-items: center; gap: 0.85rem;
+      padding: 0.75rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .airport-bag-icon {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 800; color: var(--text-muted); font-family: var(--font-mono);
+      transition: all 0.3s;
+    }
+    .airport-bag-icon.is-normal { background: #8b5cf620; color: #8b5cf6; }
+    .airport-bag-icon.is-contra { background: #e0a63320; color: #e0a633; }
+    .airport-bag-info { flex: 1; }
+    .airport-bag-score {
+      font-size: 1.6rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary);
+      line-height: 1;
+    }
+    .airport-bag-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; margin-top: 0.1rem; }
+
+    /* Decision buttons - prominent pair */
+    .airport-decisions {
+      display: flex; gap: 0.5rem;
+    }
+    .airport-decisions .btn { flex: 1; justify-content: center; padding: 0.6rem 0.75rem; font-size: 0.82rem; }
+    .btn-danger {
+      background: var(--danger); color: #fff; border: none; cursor: pointer;
+      padding: 0.5rem 1rem; border-radius: var(--radius-md); font-size: 0.82rem;
+      font-weight: 600; font-family: var(--font-body); transition: all var(--transition);
+      display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .btn-danger:hover { background: #c04058; }
+    .btn-danger:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-info {
+      background: var(--info); color: #fff; border: none; cursor: pointer;
+      padding: 0.5rem 1rem; border-radius: var(--radius-md); font-size: 0.82rem;
+      font-weight: 600; font-family: var(--font-body); transition: all var(--transition);
+      display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .btn-info:hover { background: #3d7a9e; }
+    .btn-info:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* Utility row */
+    .airport-utils { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .airport-utils .btn { font-size: 0.75rem; padding: 0.4rem 0.7rem; }
+
+    /* Message */
+    .airport-msg {
+      padding: 0.75rem 0.85rem; border-radius: var(--radius-md); font-size: 0.8rem; line-height: 1.5;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      transition: background 0.3s, border-color 0.3s; min-height: 3.5rem;
+    }
+    .airport-msg.msg-correct { background: var(--success-bg); border-color: var(--success); }
+    .airport-msg.msg-type1 { background: var(--danger-bg); border-color: var(--danger); }
+    .airport-msg.msg-type2 { background: var(--warning-bg); border-color: var(--warning); }
+
+    /* Scoreboard */
+    .airport-score {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 0.6rem 0.75rem; font-size: 0.76rem;
+    }
+    .airport-score-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.25rem 0; border-bottom: 1px solid var(--border-light);
+    }
+    .airport-score-row:last-child { border-bottom: none; }
+    .airport-score-row strong { font-family: var(--font-mono); font-size: 0.82rem; }
+    .ap-correct strong { color: var(--success); }
+    .ap-type1 strong { color: var(--danger); }
+    .ap-type2 strong { color: var(--warning); }
+
+    /* History dots */
+    .airport-history {
+      display: flex; flex-wrap: wrap; gap: 3px; padding: 0.4rem;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+      min-height: 28px; align-content: flex-start;
+    }
+    .airport-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .airport-dot:last-child { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px currentColor; }
+    .airport-dot.dot-correct { background: var(--success); color: var(--success); }
+    .airport-dot.dot-type1 { background: var(--danger); color: var(--danger); }
+    .airport-dot.dot-type2 { background: var(--warning); color: var(--warning); }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h1>Teste de Hipótese em ML</h1><div class="subtitle">Apostila Interativa</div></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="theme-toggle" aria-label="Alternar tema"></button></div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+      <h1 class="page-title">Conceitos Fundamentais</h1>
+      <p class="page-subtitle">H<sub>0</sub>, H<sub>1</sub>, p-valor, alfa, erros e poder estatístico &mdash; a base teórica completa, com visualizações interativas</p>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 1: H₀ e H₁ -->
+      <!-- ============================================================ -->
+      <section>
+        <p>O teste de hipótese é estruturado em torno de duas afirmações mutuamente exclusivas. Todo experimento começa com uma <mark>hipótese nula (H<sub>0</sub>)</mark> que representa o <em>status quo</em> &mdash; a ideia de que nada de especial está acontecendo &mdash; e uma <mark>hipótese alternativa (H<sub>1</sub>)</mark> que expressa o que gostaríamos de demonstrar.</p>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="shield" class="lucide-icon"></i> Hipótese Nula (H<sub>0</sub>)</div>
+            <p>Não há diferença real entre os modelos. Qualquer diferença observada é fruto do acaso.</p>
+            <div class="formula">$H_0: \mu_A = \mu_B$</div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="zap" class="lucide-icon"></i> Hipótese Alternativa (H<sub>1</sub>)</div>
+            <p>Existe uma diferença real. O desempenho de um modelo é genuinamente diferente do outro.</p>
+            <div class="formula">$H_1: \mu_A \neq \mu_B$</div>
+          </div>
+        </div>
+
+        <h3>A analogia do tribunal</h3>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="scale" class="lucide-icon"></i> Presunção de inocência</div>
+            <p>Em um julgamento, o réu é considerado <strong>inocente até prova em contrário</strong>. Da mesma forma, em estatística, assumimos que H<sub>0</sub> é verdadeira até que as evidências demonstrem o contrário com confiança suficiente.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="gavel" class="lucide-icon"></i> O veredicto</div>
+            <p>O júri pode <strong>condenar</strong> (rejeitar H<sub>0</sub>) ou <strong>absolver</strong> (não rejeitar H<sub>0</sub>). Note: absolver não é o mesmo que &ldquo;provar inocência&rdquo; &mdash; é apenas dizer que não há evidência suficiente para condenar.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-title"><i data-lucide="alert-triangle" class="lucide-icon"></i> Atenção</div>
+          <p>&ldquo;Não rejeitar H<sub>0</sub>&rdquo; <strong>NÃO</strong> é o mesmo que &ldquo;aceitar H<sub>0</sub>&rdquo;. Assim como absolver um réu não prova sua inocência, não rejeitar H<sub>0</sub> significa apenas que não temos evidência suficiente contra ela.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 2: Por que múltiplas medições -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.1 Por que precisamos de múltiplas medições?</h2>
+
+        <p>Imagine que o Random Forest obteve <strong>AUC = 0.832</strong> e o MLP obteve <strong>AUC = 0.845</strong> em um único conjunto de teste. O MLP é melhor?</p>
+
+        <p><strong>Impossível dizer com apenas um número.</strong> Com uma única medição por modelo, não temos informação sobre <mark>variabilidade</mark>. Não sabemos se aquela diferença de 0.013 é estável ou se, ao repetir o experimento, ela poderia se inverter.</p>
+
+        <div class="canvas-wrapper">
+          <canvas id="cv-why-canvas" data-height="200"></canvas>
+        </div>
+
+        <p>Com <strong>K-Fold Cross-Validation</strong>, treinamos e avaliamos cada modelo K vezes, obtendo K medições pareadas. Agora sim temos informação suficiente para calcular:</p>
+
+        <div class="stepper">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>Média das diferenças ($\bar{d}$):</strong> quanto, em média, um modelo supera o outro ao longo dos folds.</div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>Desvio padrão das diferenças ($s_d$):</strong> quão estável é essa vantagem &mdash; se varia muito entre folds, a diferença pode ser ruído.</div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>Estatística de teste:</strong> combina $\bar{d}$ e $s_d$ para quantificar se a diferença é significativa dado o tamanho da amostra.</div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="lightbulb" class="lucide-icon"></i> Pense assim</div>
+          <p>Com uma única medição, você tem um ponto no espaço. Sem referência, é impossível saber se ele está &ldquo;longe&rdquo; ou &ldquo;perto&rdquo; de algo. Com múltiplas medições, você vê a <strong>dispersão</strong> e pode inferir se um padrão é real ou apenas acaso.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 3: Teorema Central do Limite -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.2 O Teorema Central do Limite</h2>
+
+        <p>O <mark>Teorema Central do Limite (TCL)</mark> afirma que, <strong>independentemente da forma da distribuição original dos dados</strong>, a distribuição das médias amostrais converge para uma <mark>distribuição normal</mark> conforme o número de amostras aumenta.</p>
+
+        <div class="formula">$$\sigma_{\bar{x}} = \frac{\sigma}{\sqrt{n}}$$</div>
+
+        <p>Onde &sigma; é o desvio padrão da população e <em>n</em> é o tamanho de cada amostra. Quanto maior <em>n</em>, menor a variabilidade das médias amostrais.</p>
+
+        <div class="widget" id="clt-widget">
+          <div class="widget-title"><i data-lucide="bar-chart-2" class="lucide-icon"></i> Demonstração do Teorema Central do Limite</div>
+          <div class="widget-subtitle">A população tem distribuição uniforme (não-normal). Observe como as médias amostrais formam uma curva normal.</div>
+
+          <div class="slider-group">
+            <label class="slider-label">
+              <span>Tamanho da amostra (n)</span>
+              <span class="slider-value" id="clt-n-display">10</span>
+            </label>
+            <input type="range" id="clt-n-slider" min="2" max="50" value="10" step="1">
+            <div class="slider-hint">Amostras maiores produzem médias mais concentradas ao redor da média real.</div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" id="clt-sample-btn"><i data-lucide="play" class="lucide-icon"></i> Coletar Amostra</button>
+            <button class="btn btn-secondary" id="clt-sample10-btn"><i data-lucide="fast-forward" class="lucide-icon"></i> +10 Amostras</button>
+            <button class="btn btn-secondary" id="clt-sample50-btn"><i data-lucide="zap" class="lucide-icon"></i> +50 Amostras</button>
+            <button class="btn btn-secondary" id="clt-reset-btn"><i data-lucide="rotate-ccw" class="lucide-icon"></i> Resetar</button>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="clt-population-canvas" data-height="200"></canvas>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="clt-histogram-canvas" data-height="240"></canvas>
+          </div>
+        </div>
+
+        <p>Quanto mais amostras você coleta, mais o histograma se aproxima de uma curva normal &mdash; mesmo que a população original seja uniforme. Esta é a essência do Teorema Central do Limite.</p>
+
+        <div class="callout callout-success">
+          <div class="callout-title"><i data-lucide="check-circle" class="lucide-icon"></i> Por que isso importa?</div>
+          <p>O TCL é a razão pela qual podemos usar testes como o t-test mesmo quando os dados originais não seguem uma distribuição normal. As médias dos folds do K-Fold CV aproximam-se de uma normal, justificando o uso de testes paramétricos.</p>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="info" class="lucide-icon"></i> Regra prática</div>
+          <p>Para amostras de tamanho n &ge; 30, a aproximação normal é geralmente adequada. Em K-Fold CV com k = 10, temos apenas 10 medições &mdash; por isso usamos a <mark>distribuição t</mark> (que tem caudas mais largas) em vez da normal.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 4: O P-valor -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.3 O P-valor</h2>
+
+        <p>O <mark>p-valor</mark> é provavelmente o conceito mais importante &mdash; e mais mal-interpretado &mdash; da estatística. Vamos desdobrá-lo com cuidado.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="book-open" class="lucide-icon"></i> Definição formal</div>
+          <p>O <strong>p-valor</strong> é a probabilidade de observarmos um resultado <strong>tão ou mais extremo</strong> que o obtido, <strong>assumindo que H<sub>0</sub> é verdadeira</strong> &mdash; ou seja, que não há diferença real entre os modelos.</p>
+        </div>
+
+        <h3>Desdobrando a definição</h3>
+        <ol>
+          <li><strong>Assumimos que H<sub>0</sub> é verdadeira:</strong> começamos supondo que os modelos são iguais.</li>
+          <li><strong>Calculamos a probabilidade:</strong> dado que são iguais, qual a chance de vermos uma diferença tão grande?</li>
+          <li><strong>Se essa probabilidade for muito baixa:</strong> concluímos que os resultados seriam improváveis sob H<sub>0</sub>, e portanto rejeitamos H<sub>0</sub>.</li>
+        </ol>
+
+        <h3>Exemplo concreto</h3>
+        <p>Suponha que a diferença média de AUC entre MLP e Random Forest em 10 folds foi <strong>0.015</strong>. O p-valor = <strong>0.032</strong> nos diz: <em>se os modelos fossem realmente iguais, haveria apenas 3,2% de chance de observarmos uma diferença de 0.015 ou maior</em>. Como 3,2% é menor que nosso limiar de 5%, rejeitamos H<sub>0</sub>.</p>
+
+        <h3>O que o p-valor NÃO é</h3>
+        <div class="">
+          <div class="card">
+            <div class="card-header"><i data-lucide="x-circle" class="lucide-icon"></i> NÃO é a probabilidade de H<sub>0</sub> ser verdadeira</div>
+            <p>P = 0.03 não significa &ldquo;3% de chance de H<sub>0</sub> ser verdadeira&rdquo;. O p-valor é calculado <strong>assumindo</strong> que H<sub>0</sub> é verdadeira &mdash; ele não mede a probabilidade de H<sub>0</sub> em si.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="x-circle" class="lucide-icon"></i> NÃO indica tamanho do efeito</div>
+            <p>P = 0.001 não significa que a diferença é grande. Um p-valor pequeno com uma diferença minúscula de AUC (ex: 0.001) pode não ter <mark>relevância prática</mark> alguma.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="x-circle" class="lucide-icon"></i> NÃO é binário</div>
+            <p>P = 0.049 e P = 0.051 são praticamente a mesma evidência. Tratar 0.05 como limiar rígido é uma simplificação &mdash; o p-valor é um <strong>espectro contínuo</strong> de evidência.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 5: O Teste t Pareado -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.4 O Teste t Pareado</h2>
+
+        <p>Agora que entendemos o p-valor conceitualmente, como calculamos ele na prática? O <mark>teste t pareado</mark> é o método mais comum para comparar dois modelos usando K-Fold CV.</p>
+
+        <h3>A intuição</h3>
+        <p>O teste t responde uma pergunta simples: a média das diferenças observadas é <strong>grande o suficiente</strong>, considerando a variabilidade, para ser improvável sob H<sub>0</sub>?</p>
+
+        <h3>Passo a passo do cálculo</h3>
+        <div class="stepper">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>Calcule as diferenças pareadas:</strong> para cada fold $i$, compute $d_i = \text{score}_A(i) - \text{score}_B(i)$</div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>Calcule a média das diferenças:</strong> $\bar{d} = \frac{1}{k} \sum d_i$</div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>Calcule o desvio padrão:</strong> $s_d = \sqrt{\frac{1}{k-1} \sum (d_i - \bar{d})^2}$</div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>Calcule a estatística t:</strong> <span class="">$t = \frac{\bar{d}}{s_d / \sqrt{k}}$</span></div>
+          </div>
+          <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content"><strong>Graus de liberdade:</strong> $df = k - 1$</div>
+          </div>
+          <div class="step">
+            <div class="step-number">6</div>
+            <div class="step-content"><strong>Consulte a distribuição t</strong> com df graus de liberdade para obter o p-valor.</div>
+          </div>
+        </div>
+
+        <h3>Graus de liberdade (df)</h3>
+        <p>Com $k$ medições e 1 parâmetro estimado (a média), restam <strong>$k - 1$ valores &ldquo;livres&rdquo;</strong>. Quanto menor $df$, mais largas são as caudas da distribuição $t$ &mdash; exigindo uma diferença maior para rejeitar H<sub>0</sub>. Com $df \to \infty$, a distribuição $t$ converge para a normal.</p>
+
+        <h3>Exemplo numérico</h3>
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="table" class="lucide-icon"></i> Cálculo passo a passo</div>
+          <p>Diferenças de F1-score em 10 folds:<br><code>[0.012, -0.003, 0.018, 0.005, 0.021, -0.001, 0.015, 0.008, 0.011, 0.007]</code></p>
+          <ul>
+            <li>$\bar{d} = 0.0093$</li>
+            <li>$s_d = 0.0082$</li>
+            <li>$t = 0.0093 / (0.0082 / \sqrt{10}) = $ <strong>3.59</strong></li>
+            <li>$df = 9$, $p \approx$ <strong>0.006</strong></li>
+          </ul>
+          <p>Com p = 0.006 &lt; 0.05, <mark>rejeitamos H<sub>0</sub></mark>: há evidência de diferença significativa entre os modelos.</p>
+        </div>
+
+        <h3>Visualizador interativo</h3>
+        <div class="widget" id="pvalue-widget">
+          <div class="widget-title"><i data-lucide="eye" class="lucide-icon"></i> Visualizador de P-valor</div>
+          <div class="widget-subtitle">Ajuste a estatística t e veja como o p-valor muda na distribuição.</div>
+
+          <div class="slider-group">
+            <label class="slider-label"><span>Estatística t observada</span><span class="slider-value" id="t-display">1.00</span></label>
+            <input type="range" id="t-slider" min="-40" max="40" value="10" step="1">
+          </div>
+          <div class="slider-group">
+            <label class="slider-label"><span>Nível de significância (&alpha;)</span><span class="slider-value" id="alpha-pv-display">0.05</span></label>
+            <input type="range" id="alpha-pv-slider" min="1" max="10" value="5" step="1">
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-box"><div class="metric-value" id="pv-display">&mdash;</div><div class="metric-label">P-valor (bilateral)</div></div>
+            <div class="metric-box"><div class="metric-value" id="decision-display">&mdash;</div><div class="metric-label">Decisão</div></div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="pvalue-canvas" data-height="320"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 6: Teste Unilateral vs. Bilateral -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.5 Teste Unilateral vs. Bilateral</h2>
+
+        <p>Até agora, usamos testes <strong>bilaterais</strong> (two-tailed) &mdash; testamos se há diferença em <em>qualquer</em> direção. Porém, existem situações onde faz sentido testar apenas uma direção.</p>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="columns" class="lucide-icon"></i> Bilateral (two-tailed)</div>
+            <div class="formula">$H_1: \mu_A \neq \mu_B$</div>
+            <p>A região de rejeição está dividida nas duas caudas. Mais conservador, <strong>mais comum em ML</strong> comparativo.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="arrow-right" class="lucide-icon"></i> Unilateral (one-tailed)</div>
+            <div class="formula">$H_1: \mu_B > \mu_A$</div>
+            <p>Toda a região de rejeição está em uma cauda. Mais poder para detectar diferenças na direção esperada.</p>
+          </div>
+        </div>
+
+        <div class="canvas-wrapper">
+          <canvas id="tails-canvas" data-height="300"></canvas>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="compass" class="lucide-icon"></i> Recomendação</div>
+          <p>Na maioria dos casos em ML, use o teste <strong>bilateral</strong>. Use unilateral apenas quando há uma hipótese clara <em>a priori</em> de que um modelo específico é superior &mdash; e registre essa decisão <strong>antes</strong> de ver os resultados.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 7: Nível de Significância (α) -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.6 O Nível de Significância (&alpha;)</h2>
+
+        <p>O nível de significância &alpha; é o limiar que usamos para decidir se o p-valor é &ldquo;pequeno o suficiente&rdquo; para rejeitar H<sub>0</sub>.</p>
+
+        <div class="formula">$p < \alpha \rightarrow \text{rejeitar } H_0$ &nbsp;&nbsp;|&nbsp;&nbsp; $p \ge \alpha \rightarrow \text{não rejeitar } H_0$</div>
+
+        <p>O valor <strong>&alpha; = 0.05</strong> é uma convenção amplamente usada, mas não é uma lei da natureza. Significa que aceitamos um risco de <mark>5% de cometer um erro Tipo I</mark> (rejeitar H<sub>0</sub> quando ela é verdadeira).</p>
+
+        <div class="canvas-wrapper">
+          <canvas id="alpha-ruler-canvas" data-height="180"></canvas>
+        </div>
+
+        <p>Áreas mais rigorosas usam &alpha; = 0.01. Estudos exploratórios podem usar &alpha; = 0.10. A escolha deve ser feita <strong>ANTES</strong> de analisar os dados.</p>
+
+        <div class="callout callout-danger">
+          <div class="callout-title"><i data-lucide="alert-octagon" class="lucide-icon"></i> Cuidado com o p-hacking</div>
+          <p>Nunca ajuste &alpha; depois de ver o p-valor. Definir &alpha; = 0.06 porque seu p-valor deu 0.058 é <strong>manipulação estatística</strong> (p-hacking). O nível de significância deve ser pré-registrado.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 8: Erros Tipo I e Tipo II -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.7 Erros Tipo I e Tipo II</h2>
+
+        <p>Qualquer decisão baseada em dados pode estar errada. Em testes de hipótese, existem exatamente <strong>dois tipos de erro</strong> possíveis.</p>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="alert-triangle" class="lucide-icon"></i> Erro Tipo I &mdash; Falso Positivo</div>
+            <p>Rejeitar H<sub>0</sub> quando ela é <strong>verdadeira</strong>. Afirmar que existe diferença entre os modelos quando, na realidade, eles são equivalentes.</p>
+            <div class="formula">$P(\text{Erro Tipo I}) = \alpha$</div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="eye-off" class="lucide-icon"></i> Erro Tipo II &mdash; Falso Negativo</div>
+            <p>Não rejeitar H<sub>0</sub> quando ela é <strong>falsa</strong>. Concluir que os modelos são equivalentes quando, na verdade, um é melhor que o outro.</p>
+            <div class="formula">$P(\text{Erro Tipo II}) = \beta$</div>
+          </div>
+        </div>
+
+        <h3>Analogias do dia a dia</h3>
+
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="flame" class="lucide-icon"></i> Alarme de incêndio</div>
+          <p><strong>Tipo I:</strong> alarme dispara sem fogo (falso alarme &mdash; incômodo mas seguro).<br><strong>Tipo II:</strong> alarme NÃO dispara com fogo (perigo real &mdash; consequências graves).</p>
+        </div>
+        <div class="callout callout-info">
+          <div class="callout-title"><i data-lucide="stethoscope" class="lucide-icon"></i> Teste médico</div>
+          <p><strong>Tipo I:</strong> diagnosticar doença em paciente saudável (tratamento desnecessário, ansiedade).<br><strong>Tipo II:</strong> não diagnosticar doença real (sem tratamento, progressão da doença).</p>
+        </div>
+
+        <p>Em medicina, o Tipo II costuma ser mais grave. Em ML, depende do contexto: em um sistema de fraude, um falso negativo (fraude não detectada) pode ser pior que um falso positivo (transação legítima bloqueada).</p>
+
+        <h3>Tabela de decisão</h3>
+        <table class="decision-table">
+          <thead><tr><th></th><th>H<sub>0</sub> verdadeira<br><small>(modelos iguais)</small></th><th>H<sub>0</sub> falsa<br><small>(modelos diferentes)</small></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Rejeitar H<sub>0</sub></strong></td><td class="cell-danger">Erro Tipo I (&alpha;)<br>Falso Positivo</td><td class="cell-success">Decisão Correta<br>Poder (1&minus;&beta;)</td></tr>
+            <tr><td><strong>Não rejeitar H<sub>0</sub></strong></td><td class="cell-success">Decisão Correta<br>(1&minus;&alpha;)</td><td class="cell-warning">Erro Tipo II (&beta;)<br>Falso Negativo</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout callout-danger">
+          <div class="callout-title"><i data-lucide="scale" class="lucide-icon"></i> O tradeoff inevitável</div>
+          <p>Reduzir &alpha; (menos falsos positivos) automaticamente <strong>aumenta &beta;</strong> (mais falsos negativos), e vice-versa. A única forma de reduzir ambos simultaneamente é <mark>aumentar o tamanho da amostra</mark> (mais folds, mais repetições).</p>
+        </div>
+
+        <h3><i data-lucide="shield-check" class="lucide-icon"></i> Simulador: O Segurança do Aeroporto</h3>
+
+        <p>Para construir intuição sobre esses erros, vamos usar uma analogia: você é um <strong>segurança de aeroporto</strong>. Cada mala que passa no scanner recebe uma <mark>nota de suspeita</mark> de 0 a 100. Malas normais (H<sub>0</sub>) geram notas baixas, e malas com contrabando (H<sub>1</sub>) geram notas altas &mdash; mas há sobreposição. Sua missão: decidir se abre ou deixa passar.</p>
+
+        <div class="widget" id="airport-widget">
+          <div class="widget-title"><i data-lucide="shield-check" class="lucide-icon"></i> O Segurança do Aeroporto</div>
+          <div class="widget-subtitle">Limiar = 48. Nota &ge; 48 &rarr; abrir mala (rejeitar H<sub>0</sub>). Nota &lt; 48 &rarr; deixar passar.</div>
+
+          <!-- Canvas full-width on top -->
+          <div class="canvas-wrapper">
+            <canvas id="airport-canvas" data-height="320"></canvas>
+          </div>
+
+          <!-- Controls grid below -->
+          <div class="airport-controls">
+            <div class="airport-left">
+              <!-- Bag display + decision buttons -->
+              <div class="airport-bag" id="airport-bag">
+                <div class="airport-bag-icon" id="airport-bag-icon">?</div>
+                <div class="airport-bag-info">
+                  <div class="airport-bag-score" id="airport-bag-score">&mdash;</div>
+                  <div class="airport-bag-label" id="airport-bag-label">nota do scanner</div>
+                </div>
+              </div>
+
+              <div class="airport-decisions">
+                <button class="btn btn-danger" id="airport-open-btn" disabled><i data-lucide="lock-open" class="lucide-icon"></i> Abrir mala</button>
+                <button class="btn btn-info" id="airport-pass-btn" disabled><i data-lucide="check" class="lucide-icon"></i> Deixar passar</button>
+              </div>
+
+              <!-- Message -->
+              <div class="airport-msg" id="airport-msg">
+                Clique <strong>&ldquo;Nova mala&rdquo;</strong> para começar. Notas altas sugerem contrabando, mas há incerteza &mdash; malas normais às vezes tiram notas altas e malas com contrabando às vezes tiram notas baixas.
+              </div>
+
+              <!-- Utility buttons -->
+              <div class="airport-utils">
+                <button class="btn btn-primary" id="airport-new-btn"><i data-lucide="package" class="lucide-icon"></i> Nova mala</button>
+                <button class="btn btn-secondary" id="airport-auto-btn"><i data-lucide="fast-forward" class="lucide-icon"></i> Rodar 50</button>
+                <button class="btn btn-secondary" id="airport-reset-btn"><i data-lucide="rotate-ccw" class="lucide-icon"></i> Resetar</button>
+              </div>
+            </div>
+
+            <div class="airport-right">
+              <div class="airport-score">
+                <div class="airport-score-row"><span>Malas vistas</span><strong id="ap-total">0</strong></div>
+                <div class="airport-score-row ap-correct"><span>Decisões corretas</span><strong id="ap-correct">0</strong></div>
+                <div class="airport-score-row ap-type1"><span>Erro Tipo I (abriu normal)</span><strong id="ap-type1">0</strong></div>
+                <div class="airport-score-row ap-type2"><span>Erro Tipo II (passou contrabando)</span><strong id="ap-type2">0</strong></div>
+              </div>
+              <div class="airport-history" id="airport-history"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 9: Poder Estatístico -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.8 Poder Estatístico</h2>
+
+        <p>O <mark>poder estatístico</mark> é a probabilidade de rejeitar H<sub>0</sub> quando ela é <strong>realmente falsa</strong> &mdash; ou seja, a capacidade do teste de detectar uma diferença real quando ela existe.</p>
+
+        <div class="formula">$$\text{Poder} = 1 - \beta = P(\text{rejeitar } H_0 \mid H_1 \text{ verdadeira})$$</div>
+
+        <p>Convenção: um teste deve ter poder <strong>&ge; 0.80</strong> (80%). Um teste com poder de 0.60 significa que, mesmo que os modelos SEJAM diferentes, você tem <mark>40% de chance de não perceber</mark>.</p>
+
+        <h3>Os quatro fatores que afetam o poder</h3>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="move-horizontal" class="lucide-icon"></i> Tamanho do efeito (d)</div>
+            <p>Diferenças maiores são mais fáceis de detectar. Se um modelo é muito melhor, o teste precisa de menos evidência.</p>
+            <div class="canvas-wrapper"><canvas id="power-factor-1" data-height="140"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="activity" class="lucide-icon"></i> Variabilidade (&sigma;)</div>
+            <p>Menos ruído nos dados facilita a detecção. Se os scores variam pouco entre folds, pequenas diferenças ficam evidentes.</p>
+            <div class="canvas-wrapper"><canvas id="power-factor-2" data-height="140"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="hash" class="lucide-icon"></i> Tamanho da amostra (k)</div>
+            <p>Mais medições (mais folds) fornecem mais informação. Por isso 10-fold CV é preferível a 5-fold quando possível.</p>
+            <div class="canvas-wrapper"><canvas id="power-factor-3" data-height="140"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="sliders-horizontal" class="lucide-icon"></i> Nível de significância (&alpha;)</div>
+            <p>Valores maiores de &alpha; (ex: 0.10 vs 0.05) aumentam o poder, mas também aumentam o risco de erro Tipo I. É um tradeoff.</p>
+          </div>
+        </div>
+
+        <h3>Visualizador interativo: Erros e Poder</h3>
+
+        <div class="widget" id="error-widget">
+          <div class="widget-title"><i data-lucide="sliders-horizontal" class="lucide-icon"></i> Tradeoff de Erros &mdash; Visualizador Interativo</div>
+          <div class="widget-subtitle">Ajuste os parâmetros e observe como erros e poder se relacionam.</div>
+
+          <div class="slider-group">
+            <label class="slider-label"><span>Nível &alpha;</span><span class="slider-value" id="alpha-display">0.05</span></label>
+            <input type="range" id="alpha-slider" min="1" max="20" value="5" step="1">
+            <div class="slider-hint">Probabilidade de erro Tipo I. Valores menores são mais conservadores.</div>
+          </div>
+          <div class="slider-group">
+            <label class="slider-label"><span>Tamanho do efeito (&delta;)</span><span class="slider-value" id="delta-display">1.50</span></label>
+            <input type="range" id="delta-slider" min="0" max="40" value="15" step="1">
+            <div class="slider-hint">Distância entre H<sub>0</sub> e H<sub>1</sub>. Efeitos maiores são mais fáceis de detectar.</div>
+          </div>
+          <div class="slider-group">
+            <label class="slider-label"><span>Tamanho da amostra (n)</span><span class="slider-value" id="n-display">10</span></label>
+            <input type="range" id="n-slider" min="5" max="100" value="10" step="1">
+            <div class="slider-hint">Número de medições (ex: folds no K-Fold CV).</div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-box"><div class="metric-value" id="alpha-val">&mdash;</div><div class="metric-label">Erro Tipo I (&alpha;)</div></div>
+            <div class="metric-box"><div class="metric-value" id="beta-val">&mdash;</div><div class="metric-label">Erro Tipo II (&beta;)</div></div>
+            <div class="metric-box"><div class="metric-value" id="power-val">&mdash;</div><div class="metric-label">Poder (1&minus;&beta;)</div></div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="error-canvas" data-height="400"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 10: Análise de Poder -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.9 Análise de Poder (Power Analysis)</h2>
+
+        <p>A análise de poder permite planejar seu experimento <strong>ANTES</strong> de executá-lo, determinando quantas medições são necessárias para ter uma chance razoável de detectar uma diferença real.</p>
+
+        <h3>Os quatro parâmetros interligados</h3>
+        <p>São quatro grandezas interdependentes &mdash; dados três, calculamos o quarto:</p>
+
+        <div class="card-grid grid-2">
+          <div class="card">
+            <div class="card-header"><i data-lucide="ruler" class="lucide-icon"></i> Tamanho do efeito (d)</div>
+            <p><span class="">$d = \frac{\mu_1 - \mu_2}{\sigma}$</span></p>
+            <p>Convenções de Cohen: <strong>pequeno</strong> (0.2), <strong>médio</strong> (0.5), <strong>grande</strong> (0.8)</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="shield" class="lucide-icon"></i> Nível $\alpha$</div>
+            <p><span class="">$\alpha = 0.05$</span></p>
+            <p>Geralmente 0.05. Controla a taxa de falsos positivos.</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="zap" class="lucide-icon"></i> Poder desejado</div>
+            <p><span class="">$1 - \beta \ge 0.80$</span></p>
+            <p>Geralmente 0.80 (mínimo recomendado) ou 0.90 (ideal).</p>
+          </div>
+          <div class="card">
+            <div class="card-header"><i data-lucide="hash" class="lucide-icon"></i> Tamanho da amostra ($n$)</div>
+            <p><span class="">$n = ?$</span></p>
+            <p>O que geralmente queremos calcular. Quantos folds ou repetições precisamos?</p>
+          </div>
+        </div>
+
+        <h3>Workflow prático</h3>
+        <div class="stepper">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content"><strong>Defina o efeito mínimo relevante:</strong> qual a menor diferença de desempenho que justifica escolher um modelo sobre outro? Ex: se 0.5% de diferença em AUC não muda nada na prática, o efeito mínimo pode ser d = 0.3.</div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content"><strong>Fixe &alpha; = 0.05</strong> (ou o valor adequado ao seu contexto).</div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content"><strong>Escolha o poder desejado:</strong> 0.80 é o mínimo recomendado, 0.90 é ideal.</div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content"><strong>Calcule n:</strong> use a fórmula ou ferramentas como statsmodels em Python.</div>
+          </div>
+        </div>
+
+        <h3>Implementação em Python</h3>
+        <div class="code-header"><span>Python</span></div>
+        <pre><code class="language-python">from statsmodels.stats.power import TTestIndPower
+
+# Criar o analisador de poder
+analysis = TTestIndPower()
+
+# Calcular o tamanho da amostra necessário
+n = analysis.solve_power(
+    effect_size=0.5,   # Efeito médio (Cohen)
+    alpha=0.05,        # Nível de significância
+    power=0.80,        # Poder desejado
+    ratio=1.0          # Razão entre grupos
+)
+print(f"Amostras necessárias por grupo: {n:.0f}")  # ~64
+
+# Calcular o poder dado n fixo
+power = analysis.solve_power(
+    effect_size=0.5,
+    alpha=0.05,
+    nobs1=10,          # Ex: 10-fold CV
+    ratio=1.0
+)
+print(f"Poder com k=10 folds: {power:.3f}")  # ~0.29</code></pre>
+
+        <div class="callout callout-warning">
+          <div class="callout-title"><i data-lucide="alert-triangle" class="lucide-icon"></i> Limitação do K-Fold CV</div>
+          <p>Com k = 10 folds, o poder para detectar efeitos médios (d = 0.5) é de apenas <strong>~29%</strong>. Para detectar diferenças pequenas entre modelos, considere usar <mark>5&times;2 CV</mark> (5 repetições de 2-fold), <mark>repeated k-fold</mark> (múltiplas repetições do 10-fold), ou <mark>bootstrap pareado</mark>.</p>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-title"><i data-lucide="lightbulb" class="lucide-icon"></i> Dica prática</div>
+          <p>Antes de comparar modelos, faça uma power analysis. Se o poder for muito baixo com o design experimental escolhido, aumente k, use repetições, ou aceite que só poderá detectar diferenças grandes.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- SEÇÃO 11: Resumo -->
+      <!-- ============================================================ -->
+      <section>
+        <h2>2.10 Resumo do capítulo</h2>
+
+        <div class="callout callout-success">
+          <div class="callout-title"><i data-lucide="bookmark" class="lucide-icon"></i> Conceitos fundamentais para levar</div>
+          <ul>
+            <li><strong>H<sub>0</sub></strong> assume que não há diferença; <strong>H<sub>1</sub></strong> propõe que a diferença é real.</li>
+            <li>Precisamos de <mark>múltiplas medições</mark> (K-Fold CV) para ter variabilidade e poder testar hipóteses.</li>
+            <li>O <mark>Teorema Central do Limite</mark> justifica o uso de testes paramétricos com médias amostrais.</li>
+            <li>O <mark>p-valor</mark> mede a probabilidade dos dados sob H<sub>0</sub> &mdash; NÃO a probabilidade de H<sub>0</sub> ser verdadeira.</li>
+            <li>O <mark>teste t pareado</mark> transforma diferenças observadas em uma estatística comparável.</li>
+            <li>&alpha; controla o erro Tipo I; &beta; controla o erro Tipo II; há um <strong>tradeoff inevitável</strong> entre eles.</li>
+            <li><mark>Poder</mark> = 1 &minus; &beta; é a capacidade de detectar diferenças reais &mdash; mire em &ge; 0.80.</li>
+            <li><mark>Power analysis</mark> antes do experimento evita testes com poder insuficiente.</li>
+          </ul>
+        </div>
+
+        <p>No próximo capítulo, veremos o <strong>fluxo completo</strong> de comparação de modelos usando K-Fold Cross-Validation e diferenças pareadas &mdash; da coleta de dados até a decisão final.</p>
+      </section>
+
+      <nav class="page-nav"></nav>
+    </div>
+  </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ================================================================
+    // UTILITY FUNCTIONS
+    // ================================================================
+    function invNorm(p) {
+      var a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+      var b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+      var c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+      var d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+      var pLow = 0.02425, pHigh = 1 - pLow, q, r;
+      if (p < pLow) { q = Math.sqrt(-2 * Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+      else if (p <= pHigh) { q = p - 0.5; r = q * q; return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); }
+      else { q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+    }
+    function phi(x) { return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI); }
+    function normCDF(x) {
+      var a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+      var sign = x < 0 ? -1 : 1; x = Math.abs(x)/Math.sqrt(2);
+      var t = 1/(1+p*x); var y = 1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+      return 0.5*(1+sign*y);
+    }
+    function tc() { return getThemeColors(); }
+    function gaussRandom() { var u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+    // ================================================================
+    // FLOW DIAGRAM (rewritten for no overlap)
+    // ================================================================
+    function drawFlow(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var boxes = [
+        {label: 'Formular', sub: 'H\u2080 e H\u2081'},
+        {label: 'Coletar dados', sub: 'K-Fold CV'},
+        {label: 'Calcular', sub: 't e p-valor'},
+        {label: 'Decidir', sub: ''}
+      ];
+      var bw = Math.min(130, (w - 60) / 4 - 10), bh = 48, y = 30, gap = (w - boxes.length * bw) / (boxes.length + 1);
+      ctx.font = '600 11px Lato, sans-serif'; ctx.textAlign = 'center';
+      for (var i = 0; i < boxes.length; i++) {
+        var x = gap + i * (bw + gap);
+        ctx.fillStyle = i === 3 ? CHART_COLORS.primary + '20' : c.bg || '#fff';
+        ctx.strokeStyle = i === 3 ? CHART_COLORS.primary : c.grid;
+        ctx.lineWidth = i === 3 ? 2 : 1;
+        ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 8); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = c.text; ctx.fillText(boxes[i].label, x + bw/2, y + 20);
+        if (boxes[i].sub) { ctx.font = '10px Lato, sans-serif'; ctx.fillStyle = c.textMuted; ctx.fillText(boxes[i].sub, x + bw/2, y + 35); ctx.font = '600 11px Lato, sans-serif'; }
+        if (i < boxes.length - 1) { var ax = x + bw + 4, ax2 = ax + gap - 8; ctx.strokeStyle = c.textMuted; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(ax, y + bh/2); ctx.lineTo(ax2, y + bh/2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ax2 - 6, y + bh/2 - 4); ctx.lineTo(ax2, y + bh/2); ctx.lineTo(ax2 - 6, y + bh/2 + 4); ctx.stroke(); }
+      }
+      var lastX = gap + 3 * (bw + gap), by = y + bh + 16;
+      ctx.font = '10px Lato, sans-serif';
+      ctx.fillStyle = CHART_COLORS.success; ctx.fillText('p < \u03B1 \u2192 Rejeitar H\u2080', lastX + bw * 0.3, by + 14);
+      ctx.fillStyle = CHART_COLORS.warning; ctx.fillText('p \u2265 \u03B1 \u2192 N\u00E3o rejeitar H\u2080', lastX + bw * 0.7, by + 30);
+      ctx.strokeStyle = c.textMuted; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lastX + bw * 0.3, y + bh); ctx.lineTo(lastX + bw * 0.3, by + 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lastX + bw * 0.7, y + bh); ctx.lineTo(lastX + bw * 0.7, by + 18); ctx.stroke();
+    }
+    // flow-canvas: no HTML element exists for this; skipping.
+
+    // ================================================================
+    // CV WHY CANVAS (simple comparison)
+    // ================================================================
+    function drawCvWhy(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var halfW = w / 2 - 10, pad = 30, ch = h - 60;
+      // Left: 1 measurement
+      ctx.font = '600 11px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = c.text; ctx.fillText('1 m\u00E9trica do teste', halfW / 2, 18);
+      ctx.beginPath(); ctx.arc(halfW / 2, pad + ch / 2, 8, 0, Math.PI * 2);
+      ctx.fillStyle = CHART_COLORS.primary; ctx.fill();
+      ctx.fillStyle = c.textMuted; ctx.font = '24px Lato, sans-serif'; ctx.fillText('?', halfW / 2 + 20, pad + ch / 2 + 8);
+      ctx.font = '10px Lato, sans-serif'; ctx.fillStyle = CHART_COLORS.danger;
+      ctx.fillText('Imposs\u00EDvel calcular variabilidade', halfW / 2, h - 10);
+      // Divider
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(w / 2, 10); ctx.lineTo(w / 2, h - 10); ctx.stroke(); ctx.setLineDash([]);
+      // Right: K measurements
+      ctx.font = '600 11px Lato, sans-serif'; ctx.fillStyle = c.text;
+      ctx.fillText('10 folds do K-Fold CV', w / 2 + halfW / 2, 18);
+      var cx = w / 2 + halfW / 2, baseY = pad + ch / 2;
+      var seed = 42;
+      for (var i = 0; i < 10; i++) {
+        seed = (seed * 16807) % 2147483647;
+        var dy = (seed / 2147483647 - 0.5) * ch * 0.7;
+        ctx.beginPath(); ctx.arc(cx + (i - 4.5) * (halfW / 12), baseY + dy * 0.3, 4, 0, Math.PI * 2);
+        ctx.fillStyle = CHART_COLORS.primary + 'aa'; ctx.fill();
+      }
+      ctx.setLineDash([5, 3]); ctx.strokeStyle = CHART_COLORS.primary; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(w / 2 + 20, baseY); ctx.lineTo(w - 20, baseY); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = '10px Lato, sans-serif'; ctx.fillStyle = CHART_COLORS.success;
+      ctx.fillText('M\u00E9dia, desvio, teste t \u2192 decis\u00E3o!', w / 2 + halfW / 2, h - 10);
+    }
+    var cvWhyEl = document.getElementById('cv-why-canvas');
+    if (cvWhyEl) makeCanvasResponsive(cvWhyEl, drawCvWhy);
+
+    // ================================================================
+    // CLT INTERACTIVE
+    // ================================================================
+    var CLT_POP = []; for (var ci = 0; ci < 200; ci++) CLT_POP.push(Math.random() * 100);
+    var cltMeans = [], cltSelected = [];
+    var cltNSlider = document.getElementById('clt-n-slider'), cltNDisplay = document.getElementById('clt-n-display');
+    if (cltNSlider) cltNSlider.addEventListener('input', function() { cltNDisplay.textContent = this.value; });
+
+    function cltTakeSample() {
+      var n = parseInt(cltNSlider.value);
+      var indices = [], avail = [];
+      for (var i = 0; i < CLT_POP.length; i++) avail.push(i);
+      for (var j = 0; j < Math.min(n, avail.length); j++) { var r = Math.floor(Math.random() * avail.length); indices.push(avail[r]); avail.splice(r, 1); }
+      cltSelected = indices;
+      var sum = 0; for (var k = 0; k < indices.length; k++) sum += CLT_POP[indices[k]];
+      cltMeans.push(sum / indices.length);
+    }
+
+    function drawCltPop(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var pad = {top: 28, bottom: 20, left: 40, right: 20};
+      var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+      ctx.fillStyle = c.text; ctx.font = '600 11px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Popula\u00E7\u00E3o (distribui\u00E7\u00E3o uniforme 0\u2013100)', w / 2, 16);
+      // X axis
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.left, pad.top + ch); ctx.lineTo(pad.left + cw, pad.top + ch); ctx.stroke();
+      ctx.fillStyle = c.textMuted; ctx.font = '9px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      for (var lbl = 0; lbl <= 100; lbl += 25) {
+        var lx = pad.left + (lbl / 100) * cw;
+        ctx.fillText(lbl, lx, pad.top + ch + 14);
+      }
+      var isSelected = {};
+      for (var s = 0; s < cltSelected.length; s++) isSelected[cltSelected[s]] = true;
+      var hasSel = cltSelected.length > 0;
+      // Draw dots (strip chart with jitter)
+      var seed = 7;
+      for (var d = 0; d < CLT_POP.length; d++) {
+        seed = (seed * 16807) % 2147483647;
+        var jitter = (seed / 2147483647 - 0.5) * ch * 0.7;
+        var dx = pad.left + (CLT_POP[d] / 100) * cw;
+        var dy = pad.top + ch / 2 + jitter;
+        var sel = hasSel && isSelected[d];
+        ctx.beginPath(); ctx.arc(dx, dy, sel ? 5 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = sel ? CHART_COLORS.primary : c.textMuted;
+        ctx.globalAlpha = hasSel ? (sel ? 0.9 : 0.12) : 0.35;
+        ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Sample mean line
+      if (cltMeans.length > 0) {
+        var lastM = cltMeans[cltMeans.length - 1];
+        var mx = pad.left + (lastM / 100) * cw;
+        ctx.setLineDash([6, 3]); ctx.strokeStyle = CHART_COLORS.primary; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(mx, pad.top); ctx.lineTo(mx, pad.top + ch); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = CHART_COLORS.primary; ctx.font = '600 10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+        ctx.fillText('x\u0304=' + lastM.toFixed(1), mx, pad.top - 4);
+      }
+      // Pop mean
+      var popM = 0; for (var pm = 0; pm < CLT_POP.length; pm++) popM += CLT_POP[pm]; popM /= CLT_POP.length;
+      var pmx = pad.left + (popM / 100) * cw;
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = c.textMuted; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pmx, pad.top); ctx.lineTo(pmx, pad.top + ch); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    function drawCltHist(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var pad = {top: 28, bottom: 28, left: 40, right: 20};
+      var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+      ctx.fillStyle = c.text; ctx.font = '600 11px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Distribui\u00E7\u00E3o das m\u00E9dias amostrais (' + cltMeans.length + ' amostras)', w / 2, 16);
+      if (cltMeans.length === 0) {
+        ctx.fillStyle = c.textMuted; ctx.font = '13px Lato, sans-serif';
+        ctx.fillText('Clique "Coletar Amostra" para come\u00E7ar...', w / 2, h / 2);
+        return;
+      }
+      var nBins = 25, binMin = 20, binMax = 80;
+      var binW = (binMax - binMin) / nBins;
+      var bins = []; for (var bi = 0; bi < nBins; bi++) bins.push(0);
+      for (var mi = 0; mi < cltMeans.length; mi++) {
+        var idx = Math.floor((cltMeans[mi] - binMin) / binW);
+        if (idx >= nBins) idx = nBins - 1; if (idx < 0) idx = 0;
+        bins[idx]++;
+      }
+      var maxB = Math.max.apply(null, bins) || 1;
+      var barPx = cw / nBins;
+      // Bars
+      for (var bi2 = 0; bi2 < nBins; bi2++) {
+        if (bins[bi2] === 0) continue;
+        var bx = pad.left + bi2 * barPx;
+        var bh2 = (bins[bi2] / maxB) * ch;
+        ctx.fillStyle = CHART_COLORS.primary + '55';
+        ctx.fillRect(bx + 1, pad.top + ch - bh2, barPx - 2, bh2);
+        ctx.strokeStyle = CHART_COLORS.primary + '88'; ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 1, pad.top + ch - bh2, barPx - 2, bh2);
+      }
+      // Normal overlay if enough samples
+      if (cltMeans.length >= 20) {
+        var sum = 0, sum2 = 0;
+        for (var ni = 0; ni < cltMeans.length; ni++) { sum += cltMeans[ni]; sum2 += cltMeans[ni] * cltMeans[ni]; }
+        var mean = sum / cltMeans.length;
+        var std = Math.sqrt(sum2 / cltMeans.length - mean * mean) || 1;
+        ctx.beginPath();
+        for (var xi = 0; xi <= 200; xi++) {
+          var xv = binMin + (xi / 200) * (binMax - binMin);
+          var yv = normalPDF(xv, mean, std);
+          var px = pad.left + (xi / 200) * cw;
+          var maxPDF = normalPDF(mean, mean, std);
+          var py = pad.top + ch - (yv / maxPDF) * ch * 0.9;
+          if (xi === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = CHART_COLORS.danger; ctx.lineWidth = 2.5; ctx.stroke();
+      }
+      // X axis
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.left, pad.top + ch); ctx.lineTo(pad.left + cw, pad.top + ch); ctx.stroke();
+      ctx.fillStyle = c.textMuted; ctx.font = '9px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      for (var xl = binMin; xl <= binMax; xl += 10) {
+        ctx.fillText(xl, pad.left + ((xl - binMin) / (binMax - binMin)) * cw, pad.top + ch + 14);
+      }
+    }
+
+    var cltPopEl = document.getElementById('clt-population-canvas');
+    var cltHistEl = document.getElementById('clt-histogram-canvas');
+    var cltPopRedraw = cltPopEl ? makeCanvasResponsive(cltPopEl, drawCltPop) : null;
+    var cltHistRedraw = cltHistEl ? makeCanvasResponsive(cltHistEl, drawCltHist) : null;
+
+    function cltRedrawAll() { if (cltPopRedraw) cltPopRedraw(); if (cltHistRedraw) cltHistRedraw(); }
+
+    function handleCltSample() { cltTakeSample(); cltRedrawAll(); }
+    function handleCltMulti(count, delay) {
+      var i = 0; var btns = [document.getElementById('clt-sample-btn'), document.getElementById('clt-sample10-btn'), document.getElementById('clt-sample50-btn')];
+      btns.forEach(function(b) { if (b) b.disabled = true; });
+      function next() { if (i >= count) { btns.forEach(function(b) { if (b) b.disabled = false; }); return; } cltTakeSample(); cltRedrawAll(); i++; setTimeout(next, delay); }
+      next();
+    }
+
+    var cltSampleBtn = document.getElementById('clt-sample-btn');
+    var cltS10Btn = document.getElementById('clt-sample10-btn');
+    var cltS50Btn = document.getElementById('clt-sample50-btn');
+    var cltResetBtn = document.getElementById('clt-reset-btn');
+    if (cltSampleBtn) cltSampleBtn.addEventListener('click', handleCltSample);
+    if (cltS10Btn) cltS10Btn.addEventListener('click', function() { handleCltMulti(10, 100); });
+    if (cltS50Btn) cltS50Btn.addEventListener('click', function() { handleCltMulti(50, 30); });
+    if (cltResetBtn) cltResetBtn.addEventListener('click', function() { cltMeans = []; cltSelected = []; cltRedrawAll(); });
+
+    // ================================================================
+    // P-VALUE VISUALIZER
+    // ================================================================
+    var tSlider = document.getElementById('t-slider'), tDisplay = document.getElementById('t-display');
+    var alphaPvSlider = document.getElementById('alpha-pv-slider'), alphaPvDisplay = document.getElementById('alpha-pv-display');
+    var pvDisplay = document.getElementById('pv-display'), decisionDisplay = document.getElementById('decision-display');
+
+    function drawPValue(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var tVal = parseInt(tSlider.value) / 10;
+      var alpha = parseInt(alphaPvSlider.value) / 100;
+      var pVal = 2 * (1 - normCDF(Math.abs(tVal)));
+      var zCrit = invNorm(1 - alpha / 2);
+      tDisplay.textContent = tVal.toFixed(2);
+      alphaPvDisplay.textContent = alpha.toFixed(2);
+      pvDisplay.textContent = pVal < 0.0001 ? '< 0.0001' : pVal.toFixed(4);
+      var reject = pVal < alpha;
+      decisionDisplay.textContent = reject ? 'Rejeitar H\u2080' : 'N\u00E3o rejeitar H\u2080';
+      decisionDisplay.style.color = reject ? CHART_COLORS.success : CHART_COLORS.warning;
+
+      var pad = {top: 20, bottom: 36, left: 40, right: 20};
+      var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+      var xMin = -4, xMax = 4, yMax = 0.45, step = 0.02;
+      function toX(v) { return pad.left + ((v - xMin) / (xMax - xMin)) * cw; }
+      function toY(v) { return pad.top + ch - (v / yMax) * ch; }
+
+      // Rejection regions
+      ctx.fillStyle = CHART_COLORS.danger + '25';
+      ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0));
+      for (var x1 = xMin; x1 <= -zCrit; x1 += step) ctx.lineTo(toX(x1), toY(phi(x1)));
+      ctx.lineTo(toX(-zCrit), toY(0)); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(toX(zCrit), toY(0));
+      for (var x2 = zCrit; x2 <= xMax; x2 += step) ctx.lineTo(toX(x2), toY(phi(x2)));
+      ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+
+      // P-value area
+      var shadeColor = reject ? 'rgba(212, 85, 107, 0.45)' : 'rgba(139, 92, 246, 0.3)';
+      ctx.fillStyle = shadeColor;
+      if (Math.abs(tVal) < xMax) {
+        ctx.beginPath(); ctx.moveTo(toX(-xMax), toY(0));
+        for (var x3 = -xMax; x3 <= -Math.abs(tVal); x3 += step) ctx.lineTo(toX(x3), toY(phi(x3)));
+        ctx.lineTo(toX(-Math.abs(tVal)), toY(0)); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(toX(Math.abs(tVal)), toY(0));
+        for (var x4 = Math.abs(tVal); x4 <= xMax; x4 += step) ctx.lineTo(toX(x4), toY(phi(x4)));
+        ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+      }
+
+      // Curve
+      ctx.beginPath();
+      for (var x5 = xMin; x5 <= xMax; x5 += step) { var px = toX(x5), py = toY(phi(x5)); if (x5 === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+      ctx.strokeStyle = c.text; ctx.lineWidth = 2; ctx.stroke();
+
+      // Critical lines
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = CHART_COLORS.danger; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(toX(-zCrit), toY(0)); ctx.lineTo(toX(-zCrit), toY(phi(-zCrit) + 0.05)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(toX(zCrit), toY(0)); ctx.lineTo(toX(zCrit), toY(phi(zCrit) + 0.05)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Observed t line
+      if (Math.abs(tVal) <= xMax) {
+        ctx.strokeStyle = CHART_COLORS.primary; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(toX(tVal), toY(0)); ctx.lineTo(toX(tVal), toY(phi(tVal) + 0.08)); ctx.stroke();
+        ctx.fillStyle = CHART_COLORS.primary; ctx.font = '600 11px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+        ctx.fillText('t = ' + tVal.toFixed(2), toX(tVal), toY(phi(tVal) + 0.08) - 6);
+      }
+
+      // X axis labels
+      ctx.fillStyle = c.textMuted; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      for (var xl = -4; xl <= 4; xl++) ctx.fillText(xl, toX(xl), pad.top + ch + 16);
+
+      // Labels
+      ctx.font = '9px Lato, sans-serif'; ctx.fillStyle = CHART_COLORS.danger;
+      ctx.fillText('Rejeitar H\u2080', toX(-3.2), toY(0.03));
+      ctx.fillText('Rejeitar H\u2080', toX(3.2), toY(0.03));
+      ctx.fillStyle = c.textMuted; ctx.fillText('N\u00E3o rejeitar H\u2080', toX(0), toY(0.03));
+    }
+
+    if (tSlider) {
+      tSlider.addEventListener('input', function() { pvRedraw(); });
+      alphaPvSlider.addEventListener('input', function() { pvRedraw(); });
+    }
+    var pvEl = document.getElementById('pvalue-canvas');
+    var pvRedraw = pvEl ? makeCanvasResponsive(pvEl, drawPValue) : function() {};
+
+    // ================================================================
+    // TAILS CANVAS (bilateral vs unilateral)
+    // ================================================================
+    function drawTails(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var halfW = w / 2 - 20, pad = {top: 40, bottom: 40, side: 30};
+      var ch = h - pad.top - pad.bottom;
+      var xMin = -4, xMax = 4, yMax = 0.45, step = 0.02, alpha = 0.05;
+      function drawPanel(offsetX, panelW, title, subtitle, mode) {
+        ctx.fillStyle = c.text; ctx.font = '600 12px Lato, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(title, offsetX + panelW / 2, 16);
+        ctx.fillStyle = c.textMuted; ctx.font = '10px Lato, sans-serif';
+        ctx.fillText(subtitle, offsetX + panelW / 2, 30);
+        function tX(v) { return offsetX + ((v - xMin) / (xMax - xMin)) * panelW; }
+        function tY(v) { return pad.top + ch - (v / yMax) * ch; }
+        if (mode === 'two') {
+          var zc = invNorm(1 - alpha / 2);
+          ctx.fillStyle = CHART_COLORS.danger + '30';
+          ctx.beginPath(); ctx.moveTo(tX(xMin), tY(0));
+          for (var x = xMin; x <= -zc; x += step) ctx.lineTo(tX(x), tY(phi(x)));
+          ctx.lineTo(tX(-zc), tY(0)); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(tX(zc), tY(0));
+          for (var x2 = zc; x2 <= xMax; x2 += step) ctx.lineTo(tX(x2), tY(phi(x2)));
+          ctx.lineTo(tX(xMax), tY(0)); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = c.textMuted; ctx.font = '9px Lato, sans-serif';
+          ctx.fillText('\u03B1/2', tX(-3), tY(0.06)); ctx.fillText('\u03B1/2', tX(3), tY(0.06));
+        } else {
+          var zc1 = invNorm(1 - alpha);
+          ctx.fillStyle = CHART_COLORS.danger + '30';
+          ctx.beginPath(); ctx.moveTo(tX(zc1), tY(0));
+          for (var x3 = zc1; x3 <= xMax; x3 += step) ctx.lineTo(tX(x3), tY(phi(x3)));
+          ctx.lineTo(tX(xMax), tY(0)); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = c.textMuted; ctx.font = '9px Lato, sans-serif';
+          ctx.fillText('\u03B1', tX(2.5), tY(0.06));
+        }
+        ctx.beginPath();
+        for (var x4 = xMin; x4 <= xMax; x4 += step) { var px = tX(x4), py = tY(phi(x4)); if (x4 === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+        ctx.strokeStyle = c.text; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(tX(xMin), tY(0)); ctx.lineTo(tX(xMax), tY(0)); ctx.stroke();
+      }
+      drawPanel(pad.side, halfW, 'Bilateral (two-tailed)', 'H\u2081: \u03BC\u2090 \u2260 \u03BC\u1D47', 'two');
+      drawPanel(w / 2 + 10, halfW, 'Unilateral (one-tailed)', 'H\u2081: \u03BC\u1D47 > \u03BC\u2090', 'one');
+    }
+    var tailsEl = document.getElementById('tails-canvas');
+    if (tailsEl) makeCanvasResponsive(tailsEl, drawTails);
+
+    // ================================================================
+    // ALPHA RULER
+    // ================================================================
+    function drawAlphaRuler(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var pad = {left: 40, right: 40, top: 40, bottom: 60};
+      var rw = w - pad.left - pad.right, rh = 24, ry = pad.top;
+      var grad = ctx.createLinearGradient(pad.left, 0, pad.left + rw, 0);
+      grad.addColorStop(0, CHART_COLORS.success); grad.addColorStop(0.5, CHART_COLORS.warning); grad.addColorStop(1, CHART_COLORS.danger);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.roundRect(pad.left, ry, rw, rh, 6); ctx.fill();
+      var markers = [{v: 0.01, label: '0.01', desc: 'Rigoroso'}, {v: 0.05, label: '0.05', desc: 'Convencional'}, {v: 0.10, label: '0.10', desc: 'Explorat\u00F3rio'}];
+      for (var i = 0; i < markers.length; i++) {
+        var mx = pad.left + (markers[i].v / 0.12) * rw;
+        ctx.strokeStyle = c.text; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(mx, ry - 4); ctx.lineTo(mx, ry + rh + 4); ctx.stroke();
+        ctx.beginPath(); ctx.arc(mx, ry - 8, 4, 0, Math.PI * 2); ctx.fillStyle = c.text; ctx.fill();
+        ctx.fillStyle = c.text; ctx.font = '700 11px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+        ctx.fillText(markers[i].label, mx, ry + rh + 22);
+        ctx.font = '10px Lato, sans-serif'; ctx.fillStyle = c.textMuted;
+        ctx.fillText(markers[i].desc, mx, ry + rh + 36);
+      }
+      ctx.fillStyle = c.textMuted; ctx.font = '10px Lato, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('\u2190 Mais conservador', pad.left, ry - 16);
+      ctx.textAlign = 'right'; ctx.fillText('Mais permissivo \u2192', w - pad.right, ry - 16);
+    }
+    var alphaRulerEl = document.getElementById('alpha-ruler-canvas');
+    if (alphaRulerEl) makeCanvasResponsive(alphaRulerEl, drawAlphaRuler);
+
+    // ================================================================
+    // ERROR TRADEOFF WIDGET
+    // ================================================================
+    var alphaSlider = document.getElementById('alpha-slider'), alphaDisplay = document.getElementById('alpha-display');
+    var deltaSlider = document.getElementById('delta-slider'), deltaDisplay = document.getElementById('delta-display');
+    var nSlider = document.getElementById('n-slider'), nDisplay = document.getElementById('n-display');
+    var alphaVal = document.getElementById('alpha-val'), betaVal = document.getElementById('beta-val'), powerVal = document.getElementById('power-val');
+
+    function drawErrors(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var alpha = parseInt(alphaSlider.value) / 100;
+      var delta = parseInt(deltaSlider.value) / 10;
+      var n = parseInt(nSlider.value);
+      alphaDisplay.textContent = alpha.toFixed(2);
+      deltaDisplay.textContent = delta.toFixed(2);
+      nDisplay.textContent = n;
+      var se = 1 / Math.sqrt(n);
+      var zCrit = invNorm(1 - alpha / 2);
+      var shiftedDelta = delta / se;
+      var beta = normCDF(zCrit - shiftedDelta) - normCDF(-zCrit - shiftedDelta);
+      var power = 1 - beta;
+      alphaVal.textContent = alpha.toFixed(2); alphaVal.style.color = CHART_COLORS.danger;
+      betaVal.textContent = beta.toFixed(3); betaVal.style.color = CHART_COLORS.warning;
+      powerVal.textContent = power.toFixed(3); powerVal.style.color = power >= 0.8 ? CHART_COLORS.success : CHART_COLORS.danger;
+
+      var pad = {top: 20, bottom: 60, left: 40, right: 20};
+      var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+      var xMin = -4, xMax = Math.max(shiftedDelta + 4, 5), yMax = 0.45, step = 0.05;
+      function toX(v) { return pad.left + ((v - xMin) / (xMax - xMin)) * cw; }
+      function toY(v) { return pad.top + ch - (v / yMax) * ch; }
+
+      // Type I (alpha) regions
+      ctx.fillStyle = CHART_COLORS.danger + '30';
+      ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0));
+      for (var a1 = xMin; a1 <= -zCrit; a1 += step) ctx.lineTo(toX(a1), toY(phi(a1)));
+      ctx.lineTo(toX(-zCrit), toY(0)); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(toX(zCrit), toY(0));
+      for (var a2 = zCrit; a2 <= xMax; a2 += step) ctx.lineTo(toX(a2), toY(phi(a2)));
+      ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+
+      // Type II (beta) region
+      if (shiftedDelta > 0) {
+        ctx.fillStyle = CHART_COLORS.warning + '30';
+        ctx.beginPath(); ctx.moveTo(toX(-zCrit), toY(0));
+        for (var b1 = -zCrit; b1 <= zCrit; b1 += step) ctx.lineTo(toX(b1), toY(phi(b1 - shiftedDelta)));
+        ctx.lineTo(toX(zCrit), toY(0)); ctx.closePath(); ctx.fill();
+        // Power region
+        ctx.fillStyle = CHART_COLORS.success + '25';
+        ctx.beginPath(); ctx.moveTo(toX(zCrit), toY(0));
+        for (var p1 = zCrit; p1 <= xMax; p1 += step) ctx.lineTo(toX(p1), toY(phi(p1 - shiftedDelta)));
+        ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+      }
+
+      // H0 curve
+      ctx.beginPath();
+      for (var h0 = xMin; h0 <= xMax; h0 += step) { if (h0 === xMin) ctx.moveTo(toX(h0), toY(phi(h0))); else ctx.lineTo(toX(h0), toY(phi(h0))); }
+      ctx.strokeStyle = CHART_COLORS.primary; ctx.lineWidth = 2; ctx.stroke();
+
+      // H1 curve
+      if (shiftedDelta > 0) {
+        ctx.beginPath();
+        for (var h1 = xMin; h1 <= xMax; h1 += step) { var yv = phi(h1 - shiftedDelta); if (h1 === xMin) ctx.moveTo(toX(h1), toY(yv)); else ctx.lineTo(toX(h1), toY(yv)); }
+        ctx.strokeStyle = CHART_COLORS.warning; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Critical lines
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = c.textMuted; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(toX(-zCrit), toY(0)); ctx.lineTo(toX(-zCrit), toY(yMax * 0.9)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(toX(zCrit), toY(0)); ctx.lineTo(toX(zCrit), toY(yMax * 0.9)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Legend
+      var ly = h - 40; ctx.font = '10px Lato, sans-serif'; ctx.textAlign = 'left';
+      var items = [
+        {color: CHART_COLORS.primary, label: 'H\u2080 (sem efeito)'},
+        {color: CHART_COLORS.warning, label: 'H\u2081 (com efeito)'},
+        {color: CHART_COLORS.danger, label: 'Erro Tipo I (\u03B1)'},
+        {color: CHART_COLORS.warning + '80', label: 'Erro Tipo II (\u03B2)'},
+        {color: CHART_COLORS.success, label: 'Poder (1-\u03B2)'}
+      ];
+      var lx = pad.left;
+      for (var li = 0; li < items.length; li++) {
+        ctx.fillStyle = items[li].color; ctx.fillRect(lx, ly, 10, 10);
+        ctx.fillStyle = c.text; ctx.fillText(items[li].label, lx + 14, ly + 9);
+        lx += ctx.measureText(items[li].label).width + 28;
+      }
+    }
+
+    if (alphaSlider) {
+      alphaSlider.addEventListener('input', function() { errRedraw(); });
+      deltaSlider.addEventListener('input', function() { errRedraw(); });
+      nSlider.addEventListener('input', function() { errRedraw(); });
+    }
+    var errEl = document.getElementById('error-canvas');
+    var errRedraw = errEl ? makeCanvasResponsive(errEl, drawErrors) : function() {};
+
+    // ================================================================
+    // POWER FACTOR MINI CANVASES
+    // ================================================================
+    function drawPF1(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var ch = h - 30, mid = h / 2 + 5;
+      function curve(cx, std, color, alpha) {
+        ctx.globalAlpha = alpha; ctx.beginPath();
+        for (var x = -4; x <= 4; x += 0.1) { var px = w/2 + cx + x * 20; var py = mid - phi(x) * std * 200 +35; if (x === -4) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = c.textMuted; ctx.font = '10px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Efeito pequeno', w * 0.3, 14); ctx.fillText('Efeito grande', w * 0.7, 14);
+      curve(-30, 1, CHART_COLORS.primary, 0.3); curve(10, 1, CHART_COLORS.warning, 0.3);
+      curve(-60, 1, CHART_COLORS.primary, 1); curve(60, 1, CHART_COLORS.warning, 1);
+      ctx.fillStyle = CHART_COLORS.success; ctx.font = '600 16px Lato, sans-serif';
+      ctx.fillText('\u2194', w * 0.7, mid + 30);
+    }
+    function drawPF2(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var mid = h / 2 + 5;
+      function curve(cx, spread, color, alpha) {
+        ctx.globalAlpha = alpha; ctx.beginPath();
+        for (var x = -4; x <= 4; x += 0.1) { var px = w/2 + cx + x * spread; var py = mid - phi(x) * 120 +35; if (x === -4) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = c.textMuted; ctx.font = '10px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Alta vari\u00E2ncia', w * 0.3, 14); ctx.fillText('Baixa vari\u00E2ncia', w * 0.7, 14);
+      curve(-20, 28, CHART_COLORS.primary, 0.3); curve(20, 28, CHART_COLORS.warning, 0.3);
+      curve(-20, 14, CHART_COLORS.primary, 1); curve(20, 14, CHART_COLORS.warning, 1);
+    }
+    function drawPF3(ctx, w, h) {
+      var c = tc(); ctx.clearRect(0, 0, w, h);
+      var mid = h / 2 + 5;
+      ctx.fillStyle = c.textMuted; ctx.font = '10px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('n = 5', w * 0.25, 14); ctx.fillText('n = 30', w * 0.75, 14);
+      var seed = 42;
+      function dot(cx, cy, count) {
+        for (var i = 0; i < count; i++) {
+          seed = (seed * 16807) % 2147483647; var dx = (seed / 2147483647 - 0.5) * 60;
+          seed = (seed * 16807) % 2147483647; var dy = (seed / 2147483647 - 0.5) * 60;
+          ctx.beginPath(); ctx.arc(cx + dx, cy + dy, 3, 0, Math.PI * 2);
+          ctx.fillStyle = CHART_COLORS.primary + '88'; ctx.fill();
+        }
+      }
+      dot(w * 0.25, mid, 5); dot(w * 0.75, mid, 30);
+    }
+    var pf1El = document.getElementById('power-factor-1');
+    var pf2El = document.getElementById('power-factor-2');
+    var pf3El = document.getElementById('power-factor-3');
+    if (pf1El) makeCanvasResponsive(pf1El, drawPF1);
+    if (pf2El) makeCanvasResponsive(pf2El, drawPF2);
+    if (pf3El) makeCanvasResponsive(pf3El, drawPF3);
+
+    // ================================================================
+    // THEME / RESIZE OBSERVERS
+    // ================================================================
+    function redrawAll() {
+      var ids = ['cv-why-canvas','clt-population-canvas','clt-histogram-canvas','pvalue-canvas','tails-canvas','alpha-ruler-canvas','error-canvas','power-factor-1','power-factor-2','power-factor-3'];
+      ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el._redraw) el._redraw();
+      });
+    }
+    var themeObs = new MutationObserver(redrawAll);
+    themeObs.observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+
+    // ================================================================
+    // AIRPORT SECURITY SIMULATOR
+    // ================================================================
+    var AP_H0_MEAN = 32, AP_H0_STD = 12, AP_H1_MEAN = 62, AP_H1_STD = 13, AP_THRESHOLD = 48;
+    var AP_CONTRA_PROB = 0.35;
+    var apState = 'idle', apCurrent = null, apHistory = [];
+    var apStats = {total: 0, correct: 0, type1: 0, type2: 0};
+    var apCanvas = document.getElementById('airport-canvas');
+    var apMsg = document.getElementById('airport-msg');
+    var apBagIcon = document.getElementById('airport-bag-icon');
+    var apBagScore = document.getElementById('airport-bag-score');
+    var apBagLabel = document.getElementById('airport-bag-label');
+    var apNewBtn = document.getElementById('airport-new-btn');
+    var apOpenBtn = document.getElementById('airport-open-btn');
+    var apPassBtn = document.getElementById('airport-pass-btn');
+    var apAutoBtn = document.getElementById('airport-auto-btn');
+    var apResetBtn = document.getElementById('airport-reset-btn');
+    var apHistoryEl = document.getElementById('airport-history');
+    var apTotalEl = document.getElementById('ap-total'), apCorrectEl = document.getElementById('ap-correct');
+    var apType1El = document.getElementById('ap-type1'), apType2El = document.getElementById('ap-type2');
+
+    function apGauss(mean, std) { return Math.round(Math.max(0, Math.min(100, mean + gaussRandom() * std))); }
+
+    // Note: All textContent assignments below use only hardcoded strings (no user input).
+    function apSetMsg(text, cls) { apMsg.textContent = ''; apMsg.className = 'airport-msg' + (cls ? ' ' + cls : ''); apMsg.textContent = text; }
+
+    function apNewBag() {
+      var isContra = Math.random() < AP_CONTRA_PROB;
+      var score = isContra ? apGauss(AP_H1_MEAN, AP_H1_STD) : apGauss(AP_H0_MEAN, AP_H0_STD);
+      apCurrent = {score: score, isContra: isContra, result: null};
+      apState = 'waiting';
+      apBagIcon.textContent = '?'; apBagIcon.className = 'airport-bag-icon';
+      apBagScore.textContent = score;
+      apBagLabel.textContent = 'nota do scanner'; apBagLabel.style.color = '';
+      var above = score >= AP_THRESHOLD;
+      apSetMsg('A mala recebeu nota ' + score + '. ' + (above ? 'Est\u00E1 ACIMA do limiar (48) \u2014 parece suspeita.' : 'Est\u00E1 ABAIXO do limiar (48) \u2014 parece normal.') + ' Mas lembre-se: h\u00E1 incerteza! O que voc\u00EA faz?', '');
+      apNewBtn.disabled = true; apOpenBtn.disabled = false; apPassBtn.disabled = false; apAutoBtn.disabled = true;
+      apDrawCanvas();
+    }
+
+    function apDecide(action) {
+      var c = apCurrent;
+      c.result = (action === 'open') ? (c.isContra ? 'correct' : 'type1') : (c.isContra ? 'type2' : 'correct');
+      apHistory.push({score: c.score, isContra: c.isContra, result: c.result});
+      apStats.total++; apStats[c.result === 'correct' ? 'correct' : c.result]++;
+      apState = 'revealed';
+      apBagIcon.textContent = c.isContra ? '!' : '~';
+      apBagIcon.className = 'airport-bag-icon ' + (c.isContra ? 'is-contra' : 'is-normal');
+      apBagLabel.textContent = c.isContra ? 'TINHA contrabando' : 'era normal';
+      apBagLabel.style.color = c.isContra ? CHART_COLORS.warning : CHART_COLORS.primary;
+      if (c.result === 'correct') {
+        apSetMsg(action === 'open' ? 'Acertou! A mala realmente tinha contrabando. A nota ' + c.score + ' veio da distribui\u00E7\u00E3o H\u2081. Boa captura!' : 'Acertou! A mala era normal. A nota ' + c.score + ' veio da distribui\u00E7\u00E3o H\u2080. Passageiro segue viagem sem inc\u00F4modo.', 'msg-correct');
+      } else if (c.result === 'type1') {
+        apSetMsg('Erro Tipo I (Falso Positivo)! A mala era normal, mas a nota ' + c.score + ' caiu alta por azar \u2014 veio da cauda direita da curva H\u2080. Voc\u00EA abriu e n\u00E3o tinha nada. Em ML, seria declarar que um modelo \u00E9 melhor quando n\u00E3o \u00E9.', 'msg-type1');
+      } else {
+        apSetMsg('Erro Tipo II (Falso Negativo)! A mala tinha contrabando, mas a nota ' + c.score + ' caiu baixa \u2014 o item estava bem escondido (cauda esquerda da curva H\u2081). Em ML, seria concluir que os modelos s\u00E3o iguais quando um era melhor.', 'msg-type2');
+      }
+      apTotalEl.textContent = apStats.total; apCorrectEl.textContent = apStats.correct;
+      apType1El.textContent = apStats.type1; apType2El.textContent = apStats.type2;
+      var dot = document.createElement('div');
+      dot.className = 'airport-dot dot-' + c.result;
+      dot.title = 'Nota ' + c.score + (c.isContra ? ' (contrabando)' : ' (normal)');
+      apHistoryEl.appendChild(dot);
+      apNewBtn.disabled = false; apOpenBtn.disabled = true; apPassBtn.disabled = true; apAutoBtn.disabled = false;
+      apDrawCanvas();
+    }
+
+    function apAutoRun() {
+      var count = 0;
+      apNewBtn.disabled = true; apAutoBtn.disabled = true; apResetBtn.disabled = true;
+      function next() {
+        if (count >= 50) { apNewBtn.disabled = false; apAutoBtn.disabled = false; apResetBtn.disabled = false; return; }
+        var isContra = Math.random() < AP_CONTRA_PROB;
+        var score = isContra ? apGauss(AP_H1_MEAN, AP_H1_STD) : apGauss(AP_H0_MEAN, AP_H0_STD);
+        apCurrent = {score: score, isContra: isContra, result: null};
+        apDecide(score >= AP_THRESHOLD ? 'open' : 'pass');
+        count++; setTimeout(next, 80);
+      }
+      next();
+    }
+
+    function apReset() {
+      apState = 'idle'; apCurrent = null; apHistory = [];
+      apStats = {total: 0, correct: 0, type1: 0, type2: 0};
+      apBagIcon.textContent = '?'; apBagIcon.className = 'airport-bag-icon';
+      apBagScore.textContent = '\u2014'; apBagLabel.textContent = 'nota do scanner'; apBagLabel.style.color = '';
+      apSetMsg('Clique "Nova mala" para come\u00E7ar. Cada mala recebe uma nota do scanner. Notas altas sugerem contrabando, mas h\u00E1 incerteza.', '');
+      apTotalEl.textContent = '0'; apCorrectEl.textContent = '0'; apType1El.textContent = '0'; apType2El.textContent = '0';
+      while (apHistoryEl.firstChild) apHistoryEl.removeChild(apHistoryEl.firstChild);
+      apNewBtn.disabled = false; apOpenBtn.disabled = true; apPassBtn.disabled = true; apAutoBtn.disabled = false;
+      apDrawCanvas();
+    }
+
+    function apDrawCanvas() {
+      if (!apCanvas) return;
+      var ctx = apCanvas.getContext('2d'); var c = tc();
+      var dpr = window.devicePixelRatio || 1;
+      var w = apCanvas.parentElement.getBoundingClientRect().width;
+      var h = parseInt(apCanvas.dataset.height) || 300;
+      apCanvas.width = w * dpr; apCanvas.height = h * dpr;
+      apCanvas.style.width = w + 'px'; apCanvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+      var pad = {top: 36, bottom: 36, left: 36, right: 16};
+      var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+      function toX(v) { return pad.left + (v / 100) * cw; }
+      var yPeak = Math.max(phi(0) / AP_H0_STD, phi(0) / AP_H1_STD);
+      function toY(v) { return pad.top + ch - (v / (yPeak * 1.15)) * ch; }
+      function gPDF(x, m, s) { return phi((x - m) / s) / s; }
+      var step = 0.5;
+      // Type I region
+      ctx.fillStyle = 'rgba(212,85,107,0.15)'; ctx.beginPath(); ctx.moveTo(toX(AP_THRESHOLD), toY(0));
+      for (var x1 = AP_THRESHOLD; x1 <= 100; x1 += step) ctx.lineTo(toX(x1), toY(gPDF(x1, AP_H0_MEAN, AP_H0_STD)));
+      ctx.lineTo(toX(100), toY(0)); ctx.closePath(); ctx.fill();
+      // Type II region
+      ctx.fillStyle = 'rgba(224,166,51,0.15)'; ctx.beginPath(); ctx.moveTo(toX(0), toY(0));
+      for (var x2 = 0; x2 <= AP_THRESHOLD; x2 += step) ctx.lineTo(toX(x2), toY(gPDF(x2, AP_H1_MEAN, AP_H1_STD)));
+      ctx.lineTo(toX(AP_THRESHOLD), toY(0)); ctx.closePath(); ctx.fill();
+      // Power region
+      ctx.fillStyle = 'rgba(76,175,125,0.12)'; ctx.beginPath(); ctx.moveTo(toX(AP_THRESHOLD), toY(0));
+      for (var x3 = AP_THRESHOLD; x3 <= 100; x3 += step) ctx.lineTo(toX(x3), toY(gPDF(x3, AP_H1_MEAN, AP_H1_STD)));
+      ctx.lineTo(toX(100), toY(0)); ctx.closePath(); ctx.fill();
+      // H0 fill + stroke
+      ctx.fillStyle = CHART_COLORS.primary + '12'; ctx.beginPath(); ctx.moveTo(toX(0), toY(0));
+      for (var xf = 0; xf <= 100; xf += step) ctx.lineTo(toX(xf), toY(gPDF(xf, AP_H0_MEAN, AP_H0_STD)));
+      ctx.lineTo(toX(100), toY(0)); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); for (var xc = 0; xc <= 100; xc += step) { var px = toX(xc), py = toY(gPDF(xc, AP_H0_MEAN, AP_H0_STD)); if (xc === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+      ctx.strokeStyle = CHART_COLORS.primary; ctx.lineWidth = 2.5; ctx.stroke();
+      // H1 fill + stroke
+      ctx.fillStyle = CHART_COLORS.warning + '12'; ctx.beginPath(); ctx.moveTo(toX(0), toY(0));
+      for (var xf2 = 0; xf2 <= 100; xf2 += step) ctx.lineTo(toX(xf2), toY(gPDF(xf2, AP_H1_MEAN, AP_H1_STD)));
+      ctx.lineTo(toX(100), toY(0)); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); for (var xc2 = 0; xc2 <= 100; xc2 += step) { var px2 = toX(xc2), py2 = toY(gPDF(xc2, AP_H1_MEAN, AP_H1_STD)); if (xc2 === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2); }
+      ctx.strokeStyle = CHART_COLORS.warning; ctx.lineWidth = 2.5; ctx.stroke();
+      // Threshold
+      ctx.setLineDash([6, 4]); ctx.strokeStyle = c.text; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(toX(AP_THRESHOLD), toY(0)); ctx.lineTo(toX(AP_THRESHOLD), pad.top - 8); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = c.text; ctx.font = '600 10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      ctx.fillText('limiar = 48', toX(AP_THRESHOLD), pad.top - 12);
+      ctx.font = '10px Lato, sans-serif'; ctx.fillStyle = c.textMuted;
+      ctx.textAlign = 'right'; ctx.fillText('manter H\u2080', toX(AP_THRESHOLD) - 8, pad.top + 6);
+      ctx.textAlign = 'left'; ctx.fillText('rejeitar H\u2080', toX(AP_THRESHOLD) + 8, pad.top + 6);
+      ctx.font = '600 10px Lato, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = CHART_COLORS.primary; ctx.fillText('Malas normais (H\u2080)', toX(AP_H0_MEAN), toY(gPDF(AP_H0_MEAN, AP_H0_MEAN, AP_H0_STD)) - 10);
+      ctx.fillStyle = CHART_COLORS.warning; ctx.fillText('Contrabando (H\u2081)', toX(AP_H1_MEAN), toY(gPDF(AP_H1_MEAN, AP_H1_MEAN, AP_H1_STD)) - 10);
+      // X axis
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.left, toY(0)); ctx.lineTo(pad.left + cw, toY(0)); ctx.stroke();
+      ctx.fillStyle = c.textMuted; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      for (var xl = 0; xl <= 100; xl += 20) ctx.fillText(xl, toX(xl), toY(0) + 16);
+      // History dots
+      for (var di = 0; di < apHistory.length; di++) {
+        ctx.beginPath(); ctx.arc(toX(apHistory[di].score), toY(0) + 6, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = apHistory[di].result === 'correct' ? CHART_COLORS.success : apHistory[di].result === 'type1' ? CHART_COLORS.danger : CHART_COLORS.warning;
+        ctx.globalAlpha = 0.6; ctx.fill(); ctx.globalAlpha = 1;
+      }
+      // Current highlight
+      if (apCurrent && apState !== 'idle') {
+        var cx = toX(apCurrent.score);
+        ctx.strokeStyle = apState === 'revealed' ? (apCurrent.result === 'correct' ? CHART_COLORS.success : apCurrent.result === 'type1' ? CHART_COLORS.danger : CHART_COLORS.warning) : CHART_COLORS.primary;
+        ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(cx, toY(0)); ctx.lineTo(cx, pad.top + 16); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(cx, toY(0) - 4, 6, 0, Math.PI * 2); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+      }
+      // Region labels
+      ctx.font = '9px Lato, sans-serif'; ctx.globalAlpha = 0.7; ctx.textAlign = 'center';
+      ctx.fillStyle = CHART_COLORS.danger; ctx.fillText('Erro Tipo I', toX(56), toY(gPDF(56, AP_H0_MEAN, AP_H0_STD)) + 12);
+      ctx.fillStyle = CHART_COLORS.warning; ctx.fillText('Erro Tipo II', toX(40), toY(gPDF(40, AP_H1_MEAN, AP_H1_STD)) + 12);
+      ctx.fillStyle = CHART_COLORS.success; ctx.fillText('Poder', toX(70), toY(gPDF(70, AP_H1_MEAN, AP_H1_STD)) + 12);
+      ctx.globalAlpha = 1;
+    }
+
+    if (apNewBtn) apNewBtn.addEventListener('click', apNewBag);
+    if (apOpenBtn) apOpenBtn.addEventListener('click', function() { apDecide('open'); });
+    if (apPassBtn) apPassBtn.addEventListener('click', function() { apDecide('pass'); });
+    if (apAutoBtn) apAutoBtn.addEventListener('click', apAutoRun);
+    if (apResetBtn) apResetBtn.addEventListener('click', apReset);
+    var apCanvasEl = document.getElementById('airport-canvas');
+    if (apCanvasEl) makeCanvasResponsive(apCanvasEl, apDrawCanvas);
+    var origRedrawAll = redrawAll;
+    redrawAll = function() { origRedrawAll(); apDrawCanvas(); };
+
+    // ================================================================
+    // LUCIDE + HIGHLIGHT.JS INIT
+    // ================================================================
+    function initPlugins() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+      if (typeof hljs !== 'undefined') hljs.highlightAll();
+    }
+    var lucideScript = document.querySelector('script[src*="lucide"]');
+    if (lucideScript) {
+      if (typeof lucide !== 'undefined') initPlugins();
+      else lucideScript.addEventListener('load', initPlugins);
+    } else { initPlugins(); }
+  })();
+  </script>
+</body>
+</html>

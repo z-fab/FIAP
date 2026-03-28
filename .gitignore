@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data
+*.csv
+*.xlsx
+*.zip
+*.parquet
+*.h5
+*.hdf5
+
+# MLflow
+mlflow-data/
+mlruns/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Models
+models/
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.joblib
+
+# Logs
+*.log
+logs/
+
+# Superpowers
+.superpowers/

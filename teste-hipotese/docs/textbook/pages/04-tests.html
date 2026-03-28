@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testes Estatísticos para Comparação de Modelos - Teste de Hipótese em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Lato:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Teste de Hipótese em ML</h1>
+      <div class="subtitle">Apostila Interativa</div>
+    </div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <header class="top-bar">
+      <button class="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb"></div>
+      <button class="theme-toggle" aria-label="Alternar tema"></button>
+    </header>
+    <div class="content-wrapper">
+
+        <h1 class="page-title">Testes Estatísticos para Comparação de Modelos</h1>
+        <p class="page-subtitle">Escolhendo e aplicando o teste correto para provar que um modelo é superior a outro</p>
+
+        <p>Você treinou dois modelos, calculou as métricas e um parece melhor. Mas essa diferença é <strong>real</strong> ou apenas ruído da amostragem? Neste capítulo, vamos percorrer os principais testes estatísticos usados para comparar modelos de machine learning, desde o clássico paired t-test até abordagens robustas como o 5x2 CV. Cada teste tem premissas, vantagens e limitações &mdash; escolher o teste errado pode invalidar completamente sua conclusão.</p>
+
+        <!-- ============================================================ -->
+        <!-- 4.1 PAIRED T-TEST -->
+        <!-- ============================================================ -->
+        <h2 id="paired-t-test">4.1 <mark class="mark">Paired t-test</mark> (Teste t Pareado)</h2>
+
+        <p>O paired t-test é o teste mais utilizado para comparar dois modelos em ML. A ideia é simples e elegante: executamos K-Fold Cross-Validation e, para cada fold, temos o F1-Score (ou outra métrica) de ambos os modelos. Como os mesmos dados de teste são usados para avaliar ambos em cada fold, as observações são <strong>pareadas</strong>.</p>
+
+        <div class="card">
+          <div class="card-header">Procedimento do Paired t-test</div>
+          <ol>
+            <li>Executar K-Fold CV (tipicamente K=10) com os dois modelos nos <strong>mesmos folds</strong></li>
+            <li>Para cada fold <em>i</em>, calcular a diferença: <code>d_i = metrica_A_i - metrica_B_i</code></li>
+            <li>Calcular a média das diferenças: <code>d_bar = media(d_1, ..., d_K)</code></li>
+            <li>Calcular o desvio-padrão das diferenças: <code>s_d</code></li>
+            <li>Calcular a estatística t: <code>t = d_bar / (s_d / sqrt(K))</code></li>
+            <li>Comparar com a distribuição t de Student com K-1 graus de liberdade</li>
+          </ol>
+        </div>
+
+        <div class="formula">
+          $$t = \frac{\bar{d}}{s_d / \sqrt{K}} \quad \text{onde} \quad \bar{d} = \frac{1}{K}\sum_{i=1}^{K} d_i \quad \text{e} \quad s_d = \sqrt{\frac{1}{K-1}\sum_{i=1}^{K}(d_i - \bar{d})^2}$$
+        </div>
+
+        <p>As <strong>hipóteses</strong> são:</p>
+        <ul>
+          <li><strong>H0:</strong> A média das diferenças é zero (os modelos são equivalentes)</li>
+          <li><strong>H1:</strong> A média das diferenças é diferente de zero (um modelo é melhor)</li>
+        </ul>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">Premissa de <mark class="mark-blue">Normalidade</mark></div>
+          <p>O paired t-test assume que as diferenças d_i seguem uma distribuição normal. Com K=10 folds, temos apenas 10 observações, o que torna difícil verificar normalidade. Na prática, o teste é razoavelmente robusto a desvios moderados de normalidade (pelo Teorema Central do Limite), mas em amostras muito pequenas (K=5) ou com diferenças muito assimétricas, considere usar o teste de Wilcoxon (seção 4.2).</p>
+        </div>
+
+        <div class="callout callout-danger">
+          <div class="callout-title">Problema: Dependência entre Folds</div>
+          <p>O paired t-test assume que as diferenças d_i são <strong>independentes</strong>. No K-Fold CV, os conjuntos de treino compartilham a maioria dos dados entre si (no 10-Fold, cada par de folds compartilha ~80% dos dados de treino). Isso viola a premissa de independência e faz o teste <strong>subestimar a variância</strong>, resultando em mais falsos positivos do que o esperado. O 5x2 CV t-test (seção 4.5) foi criado para resolver exatamente este problema. Isso é conhecido como <mark class="mark-red">inflação de Erro Tipo I</mark>.</p>
+        </div>
+
+        <div class="callout callout-example">
+          <div class="callout-title">Prática</div>
+          <p>Veja a aplicação do teste pareado no <strong>Notebook 02</strong> (Seção 4: Comparação Focada), onde comparamos RF vs MLP com uma comparação pré-planejada.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.2 WILCOXON -->
+        <!-- ============================================================ -->
+        <h2 id="wilcoxon">4.2 Teste de <mark class="mark">Wilcoxon Signed-Rank</mark></h2>
+
+        <p>O teste de Wilcoxon é a alternativa <mark class="mark-blue">não-paramétrica</mark> ao paired t-test. Em vez de assumir normalidade das diferenças, ele trabalha com os <strong>ranks</strong> (postos) dos valores absolutos das diferenças.</p>
+
+        <div class="card">
+          <div class="card-header">Procedimento do Wilcoxon Signed-Rank</div>
+          <ol>
+            <li>Calcular as diferenças pareadas: <code>d_i = metrica_A_i - metrica_B_i</code></li>
+            <li>Descartar diferenças iguais a zero</li>
+            <li>Ordenar os valores absolutos <code>|d_i|</code> e atribuir ranks (1, 2, ..., n)</li>
+            <li>Somar os ranks das diferenças positivas: <code>W+ = soma dos ranks onde d_i > 0</code></li>
+            <li>Somar os ranks das diferenças negativas: <code>W- = soma dos ranks onde d_i < 0</code></li>
+            <li>A estatística do teste é <code>W = min(W+, W-)</code></li>
+            <li>Comparar W com a distribuição tabelada (ou usar aproximação normal para n > 20)</li>
+          </ol>
+        </div>
+
+        <p>Quando usar Wilcoxon em vez do t-test:</p>
+        <ul>
+          <li>As diferenças não são aproximadamente normais (distribuição assimétrica ou com outliers)</li>
+          <li>Poucos folds (K=5), onde normalidade é difícil de justificar</li>
+          <li>Você quer um teste mais conservador (menos falsos positivos)</li>
+          <li>As métricas são ordinais ou baseadas em ranks (ex: posição no ranking de competição)</li>
+        </ul>
+
+        <div class="callout callout-info">
+          <div class="callout-title">Trade-off: Robustez vs Poder</div>
+          <p>O Wilcoxon não assume normalidade, mas paga um preço: tem <strong>menor poder estatístico</strong> que o t-test quando os dados realmente são normais. Isso significa que, se a diferença entre os modelos for pequena mas real, o t-test tem mais chance de detectá-la. Se você tem K >= 10 folds e as diferenças parecem razoavelmente simétricas, o t-test provavelmente é a melhor escolha.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.3 McNEMAR -->
+        <!-- ============================================================ -->
+        <h2 id="mcnemar">4.3 Teste de <mark class="mark">McNemar</mark></h2>
+
+        <p>Os testes anteriores (t-test, Wilcoxon) comparam métricas <strong>agregadas</strong> por fold. O teste de McNemar é fundamentalmente diferente: ele compara as predições <strong>amostra por amostra</strong> em um único conjunto de teste.</p>
+
+        <div class="card">
+          <div class="card-header">Tabela de Contingência do McNemar</div>
+          <table class="editable-table">
+            <thead>
+              <tr><th></th><th>Modelo B: Correto</th><th>Modelo B: Errado</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Modelo A: Correto</strong></td><td>$e_{00}$ (ambos acertam)</td><td>$e_{01}$ (só A acerta)</td></tr>
+              <tr><td><strong>Modelo A: Errado</strong></td><td>$e_{10}$ (só B acerta)</td><td>$e_{11}$ (ambos erram)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="formula">
+          $$\chi^2 = \frac{(|e_{01} - e_{10}| - 1)^2}{e_{01} + e_{10}} \quad \text{com 1 grau de liberdade}$$
+        </div>
+
+        <p>O teste ignora os casos em que ambos acertam ou ambos erram ($e_{00}$ e $e_{11}$) &mdash; eles não trazem informação sobre a <strong>diferença</strong> entre os modelos. Foca nos casos <strong>discordantes</strong>: $e_{01}$ (só A acerta) e $e_{10}$ (só B acerta). Se a proporção de discordâncias é significativamente diferente de 50/50, concluímos que os modelos são diferentes.</p>
+
+        <p>Vantagens do McNemar:</p>
+        <ul>
+          <li><strong>Não requer cross-validation:</strong> Funciona com um único split treino/teste</li>
+          <li><strong>Granularidade por amostra:</strong> Usa cada predição individualmente, maximizando informação</li>
+          <li><strong>Sem premissa de normalidade:</strong> Baseado na distribuição qui-quadrado</li>
+          <li><strong>Simples de implementar:</strong> Precisa apenas da tabela 2x2</li>
+        </ul>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">Limitação do McNemar</div>
+          <p>O McNemar depende de um único conjunto de teste. Se esse conjunto não for representativo da população (por azar da amostragem), a conclusão pode ser enganosa. Os testes baseados em K-Fold são mais robustos nesse aspecto, pois avaliam em K conjuntos de teste diferentes. Use McNemar quando cross-validation é impraticável (modelos muito caros de treinar, como LLMs).</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.4 FRIEDMAN + NEMENYI -->
+        <!-- ============================================================ -->
+        <h2 id="friedman-nemenyi">4.4 Teste de <mark class="mark">Friedman</mark> + Post-hoc de <mark class="mark">Nemenyi</mark></h2>
+
+        <p>Quando você tem <strong>3 ou mais modelos</strong> para comparar, fazer testes pareados entre todos os pares (seção 4.6) infla a taxa de falsos positivos. O teste de Friedman é a alternativa correta: é o equivalente não-paramétrico da ANOVA de medidas repetidas.</p>
+
+        <div class="card">
+          <div class="card-header">Procedimento</div>
+          <ol>
+            <li>Executar K-Fold CV com todos os M modelos nos mesmos folds</li>
+            <li>Para cada fold, rankear os modelos de 1 (melhor) a M (pior)</li>
+            <li>Calcular o rank médio de cada modelo: <code>R_j = (1/K) &sum; r_ij</code></li>
+            <li>Calcular a estatística de Friedman:
+              <div class="formula">
+                $$\chi^2_F = \frac{12K}{M(M+1)}\left[\sum_{j=1}^{M} R_j^2 - \frac{M(M+1)^2}{4}\right]$$
+              </div>
+            </li>
+            <li>Se Friedman rejeitar H0 (os modelos não são todos iguais), aplicar <strong>Nemenyi post-hoc</strong> para identificar quais pares diferem</li>
+          </ol>
+        </div>
+
+        <p>O teste de Nemenyi calcula a <strong>diferença crítica (CD)</strong>: se a diferença entre os ranks médios de dois modelos excede CD, eles são significativamente diferentes. Os resultados são frequentemente visualizados com um <strong>diagrama CD</strong>, onde modelos conectados por uma barra horizontal não diferem significativamente.</p>
+
+        <div class="callout callout-example">
+          <div class="callout-title">Exemplo Prático</div>
+          <p>Você compara Random Forest, XGBoost, LightGBM e uma MLP em 10 folds. Os ranks médios são: XGBoost (1.4), LightGBM (1.8), RF (2.8), MLP (4.0). O teste de Friedman rejeita H0 (p = 0.003). O Nemenyi com CD = 1.5 indica que: XGBoost e LightGBM não diferem (diferença = 0.4 < 1.5), mas ambos são melhores que a MLP (diferenças > 1.5). O RF fica em zona cinzenta.</p>
+        </div>
+
+        <div class="callout callout-example">
+          <div class="callout-title">Prática</div>
+          <p>No <strong>Notebook 02</strong> (Seções 2-3), aplicamos Friedman + Nemenyi a 9 configurações de modelos e demonstramos o impacto de modelos extras na correção.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.5 5x2 CV T-TEST -->
+        <!-- ============================================================ -->
+        <h2 id="5x2-cv">4.5 Teste t de 5x2 CV (Dietterich)</h2>
+
+        <p>O teste 5x2 CV, proposto por Dietterich (1998), foi especificamente projetado para resolver o <strong>problema de dependência do K-Fold</strong> mencionado na seção 4.1. Em vez de usar 10-Fold CV, ele executa 5 repetições de 2-Fold CV.</p>
+
+        <div class="card">
+          <div class="card-header">Procedimento do 5x2 CV t-test</div>
+          <ol>
+            <li>Repetir 5 vezes (i = 1, ..., 5):
+              <ul>
+                <li>Dividir os dados aleatoriamente em duas metades (S1 e S2)</li>
+                <li>Treinar modelo A em S1, testar em S2 &rarr; p_A1. Treinar em S2, testar em S1 &rarr; p_A2</li>
+                <li>Fazer o mesmo para modelo B &rarr; p_B1, p_B2</li>
+                <li>Calcular diferenças: <code>d_i1 = p_A1 - p_B1</code> e <code>d_i2 = p_A2 - p_B2</code></li>
+              </ul>
+            </li>
+            <li>Calcular a variância de cada repetição: <code>s_i^2 = (d_i1 - d_bar_i)^2 + (d_i2 - d_bar_i)^2</code></li>
+            <li>Estatística do teste: <code>t = d_11 / sqrt((1/5) * sum(s_i^2))</code></li>
+            <li>Distribuição: t de Student com 5 graus de liberdade</li>
+          </ol>
+        </div>
+
+        <p>Por que 5x2 e não 10-Fold?</p>
+        <ul>
+          <li><strong>2-Fold:</strong> Cada fold usa 50% dos dados para treino, sem sobreposição entre folds. As duas estimativas em cada repetição são genuinamente independentes.</li>
+          <li><strong>5 repetições:</strong> Diferentes embaralhamentos fornecem variabilidade. Mais repetições não ajudam muito (rendimentos decrescentes).</li>
+          <li><strong>Menos viés:</strong> O treino com 50% dos dados produz estimativas com mais viés (modelos piores), mas a <strong>variância da estimativa do teste</strong> é mais honesta.</li>
+        </ul>
+
+        <div class="callout callout-success">
+          <div class="callout-title">Recomendação</div>
+          <p>Se você pode arcar com o custo computacional (treinar cada modelo 10 vezes), o 5x2 CV t-test é geralmente a melhor opção para comparar dois modelos. Ele tem a taxa de Tipo I (falso positivo) mais próxima do nível nominal de 5% entre todos os testes discutidos.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.6 MULTIPLE COMPARISONS -->
+        <!-- ============================================================ -->
+        <h2 id="multiple-comparisons">4.6 O Problema das <mark class="mark-red">Comparações Múltiplas</mark></h2>
+
+        <p>Imagine que você treinou 4 modelos e quer saber se algum par difere significativamente. São C(4,2) = <strong>6 pares</strong> para testar. Mesmo que todos os modelos sejam idênticos, cada teste tem 5% de chance de gerar um falso positivo. A probabilidade de <strong>pelo menos um</strong> falso positivo é:</p>
+
+        <div class="formula">
+          $$P(\text{pelo menos 1 FP}) = 1 - (1 - 0.05)^6 = 1 - 0.95^6 = 0.265 = \mathbf{26{,}5\%}$$
+        </div>
+
+        <p>Ou seja, em mais de 1 em cada 4 experimentos, você publicará uma "descoberta" que é puro acaso. Com 10 modelos (45 pares), essa probabilidade sobe para <strong>90%</strong>. Isso é o problema das comparações múltiplas, e ignorá-lo é um dos erros mais comuns em papers de ML.</p>
+
+        <div class="callout callout-danger">
+          <div class="callout-title">O Erro que Reprova no Peer Review</div>
+          <p>Relatórios e papers que comparam múltiplos modelos sem correção para comparações múltiplas são frequentemente rejeitados em conferências como NeurIPS, ICML e KDD. Revisores experientes checam isso rotineiramente. Na PosTech, aplicar a correção correta demonstra maturidade estatística.</p>
+        </div>
+
+        <h3>Correções para Comparações Múltiplas</h3>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-header">Bonferroni</div>
+            <p>A correção mais simples e conservadora. Divide o nível de significância pelo número de comparações: <code>&alpha;_adj = &alpha; / m</code>. Para 6 comparações com &alpha; = 0.05: &alpha;_adj = 0.0083. Muito conservador &mdash; pode não detectar diferenças reais.</p>
+          </div>
+          <div class="card">
+            <div class="card-header">Holm-Bonferroni</div>
+            <p>Versão sequencial do Bonferroni. Ordena os p-values e aplica thresholds progressivamente menos rigorosos. Uniformemente mais poderoso que Bonferroni. Recomendado como padrão.</p>
+          </div>
+          <div class="card">
+            <div class="card-header">Nemenyi (post-hoc)</div>
+            <p>Específico para o contexto do teste de Friedman. Baseado na distribuição Studentized Range. Controla o family-wise error rate para comparações de ranks.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-example">
+          <div class="callout-title">Prática</div>
+          <p>O <strong>Notebook 02</strong> (Seção 3) inclui um exercício comparando o Nemenyi com 9 modelos vs 6 modelos — mostrando como a correção se torna menos severa ao remover modelos desnecessários.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- 4.7 COHEN'S D -->
+        <!-- ============================================================ -->
+        <div class="separator"></div>
+
+        <h2>4.7 Tamanho do Efeito (Cohen's d)</h2>
+
+        <p>O p-valor responde <em>"existe diferença?"</em>, mas não diz <em>"quão grande é essa diferença?"</em>. O <strong>tamanho do efeito</strong> (effect size) complementa o teste de hipótese medindo a <strong>magnitude prática</strong> da diferença.</p>
+
+        <p>Para comparações pareadas (como K-Fold CV), usamos o <strong>Cohen's d</strong>:</p>
+
+        <div class="formula">$$d = \frac{\bar{d}}{SD(d)}$$</div>
+
+        <p>Onde <strong>d̄</strong> é a média das diferenças pareadas e <strong>SD(d)</strong> é o desvio padrão dessas diferenças.</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-header">Pequeno (d ≈ 0.2)</div>
+            <p>Diferença real mas difícil de perceber na prática. Pode não justificar trocar de modelo.</p>
+          </div>
+          <div class="card">
+            <div class="card-header">Médio (d ≈ 0.5)</div>
+            <p>Diferença perceptível e provavelmente relevante. Vale considerar a troca.</p>
+          </div>
+          <div class="card">
+            <div class="card-header">Grande (d ≈ 0.8)</div>
+            <p>Diferença substancial e claramente relevante. Forte evidência para preferir um modelo.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">⚠️ Significância Estatística ≠ Significância Prática</div>
+          <p><strong>Cenário 1:</strong> p = 0.001, d = 0.05 → Estatisticamente significativo, mas a diferença é <em>negligível</em>. Não vale trocar o modelo.</p>
+          <p><strong>Cenário 2:</strong> p = 0.03, d = 0.8 → Significativo E com efeito grande. Evidência forte para preferir um modelo.</p>
+          <p>Sempre reporte o Cohen's d junto com o p-valor!</p>
+        </div>
+
+        <div class="callout callout-example">
+          <div class="callout-title">Prática</div>
+          <p>No <strong>Notebook 02</strong> (Seção 4), calculamos Cohen's d na comparação RF vs MLP e usamos para decidir se a diferença é prática além de estatística.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SUMMARY TABLE -->
+        <!-- ============================================================ -->
+        <h2 id="summary">4.8 Tabela Resumo: Qual Teste Usar?</h2>
+
+        <div class="card">
+          <div class="card-header">Comparação dos Testes Estatísticos</div>
+          <table class="editable-table">
+            <thead>
+              <tr>
+                <th>Cenário</th>
+                <th>Teste</th>
+                <th>Tipo</th>
+                <th>Poder</th>
+                <th>Facilidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2 modelos, K-Fold CV, diferenças normais</td>
+                <td><strong>Paired t-test</strong></td>
+                <td>Paramétrico</td>
+                <td>Alto</td>
+                <td>Fácil</td>
+              </tr>
+              <tr>
+                <td>2 modelos, K-Fold CV, diferenças não-normais</td>
+                <td><strong>Wilcoxon</strong></td>
+                <td>Não-paramétrico</td>
+                <td>Médio</td>
+                <td>Fácil</td>
+              </tr>
+              <tr>
+                <td>2 modelos, split único, predições binárias</td>
+                <td><strong>McNemar</strong></td>
+                <td>Não-paramétrico</td>
+                <td>Médio</td>
+                <td>Muito Fácil</td>
+              </tr>
+              <tr>
+                <td>3+ modelos, K-Fold CV</td>
+                <td><strong>Friedman + Nemenyi</strong></td>
+                <td>Não-paramétrico</td>
+                <td>Médio</td>
+                <td>Médio</td>
+              </tr>
+              <tr>
+                <td>2 modelos, controle rigoroso de Tipo I</td>
+                <td><strong>5x2 CV t-test</strong></td>
+                <td>Paramétrico</td>
+                <td>Alto</td>
+                <td>Médio</td>
+              </tr>
+              <tr>
+                <td>Muitos pares, controle de FWER</td>
+                <td><strong>Holm-Bonferroni</strong></td>
+                <td>Correção</td>
+                <td>--</td>
+                <td>Fácil</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- INTERACTIVE: TEST CHOOSER -->
+        <!-- ============================================================ -->
+        <h2 id="test-chooser">4.9 Escolha do Teste Correto</h2>
+
+        <h3>Árvore de Decisão</h3>
+
+        <div class="flowchart">
+          <div class="flowchart-node">Quantos modelos?</div>
+          <div class="flowchart-arrow">↓</div>
+          <div class="flowchart-branch">
+            <div style="text-align:center;">
+              <div style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.3rem;">2 modelos</div>
+              <div class="flowchart-node">Shapiro-Wilk nas diferenças</div>
+              <div class="flowchart-arrow">↓</div>
+              <div class="flowchart-branch">
+                <div style="text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem;">$p \geq 0.05$</div>
+                  <div class="flowchart-node" style="border-color:var(--success);">Paired t-test</div>
+                </div>
+                <div style="text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem;">$p < 0.05$</div>
+                  <div class="flowchart-node" style="border-color:var(--warning);">Wilcoxon</div>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.3rem;">3+ modelos</div>
+              <div class="flowchart-node">Friedman test</div>
+              <div class="flowchart-arrow">↓</div>
+              <div class="flowchart-branch">
+                <div style="text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem;">$p < 0.05$</div>
+                  <div class="flowchart-node" style="border-color:var(--success);">Nemenyi post-hoc</div>
+                </div>
+                <div style="text-align:center;">
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.2rem;">$p \geq 0.05$</div>
+                  <div class="flowchart-node" style="border-color:var(--text-muted);">Sem diferença</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <nav class="page-nav"></nav>
+      </div>
+    </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/charts.js"></script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
