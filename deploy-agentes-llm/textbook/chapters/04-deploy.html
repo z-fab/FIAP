@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cap. 04 — Deploy | Textbook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* ================================================================
+       Estilos locais do Cap. 04 — complementam o design system
+       ================================================================ */
+
+    /* --- Layout with sidebar padding -------------------------------- */
+    .content {
+      padding-bottom: calc(var(--space-16) + 56px); /* space for fixed chapter-nav */
+    }
+
+    /* --- Pros / cons two-column layout ------------------------------ */
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin: var(--space-6) 0;
+    }
+
+    @media (max-width: 640px) {
+      .pros-cons {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .pros-cons-card {
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6);
+    }
+
+    .pros-cons-card--pros {
+      border-top: 3px solid var(--color-success);
+    }
+
+    .pros-cons-card--cons {
+      border-top: 3px solid var(--color-error);
+    }
+
+    .pros-cons-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: var(--space-3);
+    }
+
+    .pros-cons-card--pros .pros-cons-title {
+      color: var(--color-success);
+    }
+
+    .pros-cons-card--cons .pros-cons-title {
+      color: var(--color-error);
+    }
+
+    .pros-cons-card ul {
+      padding-left: var(--space-4);
+      margin-bottom: 0;
+    }
+
+    .pros-cons-card li {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-2);
+      line-height: 1.5;
+    }
+
+    /* --- Architecture diagram containers ---------------------------- */
+    .arch-diagram {
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-8) var(--space-6);
+      margin: var(--space-6) 0;
+      overflow-x: auto;
+    }
+
+    /* Horizontal flow row */
+    .arch-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: nowrap;
+    }
+
+    @media (max-width: 640px) {
+      .arch-row {
+        flex-direction: column;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .arch-row .diagram-arrow--right {
+        display: none;
+      }
+    }
+
+    /* Container node that holds child nodes inside */
+    .arch-container {
+      background-color: rgba(79, 70, 229, 0.06);
+      border: 2px dashed var(--color-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .arch-container-label {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-secondary);
+      text-align: center;
+      margin-bottom: var(--space-1);
+    }
+
+    .arch-services-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      justify-content: center;
+    }
+
+    /* Auto-scale badge on cloud run diagram */
+    .arch-autoscale {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .arch-autoscale-label {
+      font-size: 0.7rem;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .arch-instances {
+      display: flex;
+      gap: var(--space-1);
+    }
+
+    .arch-instance {
+      width: 36px;
+      height: 36px;
+      background-color: rgba(79, 70, 229, 0.12);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--color-secondary);
+    }
+
+    .arch-instance--faded {
+      opacity: 0.4;
+      border-style: dashed;
+    }
+
+    /* Platform wrap diagram */
+    .arch-platform-wrap {
+      background-color: rgba(234, 88, 12, 0.06);
+      border: 2px dashed var(--color-accent);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6) var(--space-8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .arch-platform-label {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: #fb923c;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .arch-platform-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      justify-content: center;
+    }
+
+    .arch-feature-badge {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      background-color: var(--color-surface-elevated);
+      border: 1px solid var(--color-border);
+      border-radius: 9999px;
+      padding: 2px var(--space-3);
+    }
+
+    /* --- Section intro paragraph ------------------------------------ */
+    .section-intro {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-secondary);
+      max-width: 64ch;
+      margin-bottom: var(--space-6);
+    }
+
+    /* --- Table cell value highlight --------------------------------- */
+    .cell-good  { color: var(--color-success);  font-weight: 600; }
+    .cell-warn  { color: var(--color-warning);  font-weight: 600; }
+    .cell-bad   { color: var(--color-error);    font-weight: 600; }
+    .cell-neut  { color: var(--color-text-secondary); }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Sidebar injetada por nav.js -->
+  <aside id="sidebar"></aside>
+
+  <main class="content" id="main-content">
+    <div class="content-inner">
+
+      <!-- ============================================================
+           Cabeçalho do capítulo
+           ============================================================ -->
+      <header class="chapter-header">
+        <span class="chapter-number">Capítulo 04</span>
+        <h1 class="chapter-title">Deploy: Artesanal vs. Gerenciado</h1>
+        <p class="chapter-description">
+          Compare estratégias de deploy — da VM com Docker Compose até plataformas
+          gerenciadas — e saiba escolher o modelo certo para cada contexto.
+        </p>
+      </header>
+
+
+      <!-- ============================================================
+           Seção 1 — Do Docker ao Mundo Real
+           ============================================================ -->
+      <section id="do-docker-ao-mundo-real" aria-labelledby="s1-heading">
+        <h2 id="s1-heading">Do Docker ao Mundo Real</h2>
+
+        <p class="section-intro">
+          Temos um serviço containerizado com 3 padrões de comunicação e controles
+          de produção. A pergunta agora e: <strong>onde rodar isso?</strong>
+        </p>
+
+        <p>
+          Ao longo dos capítulos anteriores construímos, camada por camada, um agente
+          LLM capaz de responder de forma síncrona, streamar tokens e processar
+          requisições de forma assíncrona. Agora e hora de levar esse serviço para fora
+          do seu laptop.
+        </p>
+
+        <div class="callout callout--info">
+          <p class="callout-title">Ponto central</p>
+          <p>
+            A resposta depende de <strong>quanto <mark>controle</mark> você precisa</strong>
+            versus <strong>quanto trabalho quer fazer</strong>. Não existe estratégia
+            universalmente superior — cada abordagem tem um <mark>contexto ideal</mark>.
+          </p>
+        </div>
+
+        <p>
+          As três grandes familias de deploy para servicos de agentes são:
+        </p>
+
+        <ul>
+          <li><strong>Artesanal</strong> — você gerencia tudo, da VM ao processo.</li>
+          <li><strong>Semi-gerenciado</strong> — a plataforma cuida do servidor; você cuida do container.</li>
+          <li><strong>Gerenciado</strong> — a plataforma cuida de quase tudo; você entrega o código do agente.</li>
+        </ul>
+      </section>
+
+
+      <!-- ============================================================
+           Seção 2 — Deploy Artesanal
+           ============================================================ -->
+      <section id="deploy-artesanal" aria-labelledby="s2-heading">
+        <h2 id="s2-heading">Deploy Artesanal (Kubernetes em VM)</h2>
+
+        <p>
+          A abordagem mais direta: uma VM (EC2, Droplet, Compute Engine ou qualquer
+          outro provedor) rodando um cluster <mark>Kubernetes</mark>. Você é responsável por <mark>tudo o que
+          acontece</mark> dentro desse servidor.
+        </p>
+
+        <!-- Diagrama de arquitetura -->
+        <div class="arch-diagram" role="img" aria-label="Diagrama: VM contendo Kubernetes Cluster com quatro pods">
+          <div class="arch-row">
+
+            <div class="arch-container" style="min-width: 300px;">
+              <div class="arch-container-label">VM / Infraestrutura</div>
+              <div class="arch-container" style="border-color: var(--color-secondary); background-color: rgba(129,140,248,0.05);">
+                <div class="arch-container-label" style="color: var(--color-text-secondary);">Kubernetes Cluster</div>
+                <div class="arch-services-row">
+                  <div class="diagram-node diagram-node--primary">
+                    <div>API</div>
+                    <div class="diagram-node-label">FastAPI Pod</div>
+                  </div>
+                  <div class="diagram-node diagram-node--primary">
+                    <div>Worker</div>
+                    <div class="diagram-node-label">Celery Pod</div>
+                  </div>
+                  <div class="diagram-node diagram-node--primary">
+                    <div>RabbitMQ</div>
+                    <div class="diagram-node-label">Broker Pod</div>
+                  </div>
+                  <div class="diagram-node diagram-node--primary">
+                    <div>PostgreSQL</div>
+                    <div class="diagram-node-label">DB Pod</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Pros e Contras -->
+        <div class="pros-cons">
+          <div class="pros-cons-card pros-cons-card--pros">
+            <div class="pros-cons-title">Vantagens</div>
+            <ul>
+              <li><mark>Controle total</mark> sobre configuração e networking</li>
+              <li>Custo previsível — você paga a VM, não por request</li>
+              <li>Ferramentas familiares (Docker, SSH, systemd)</li>
+              <li>Sem vendor lock-in de plataforma</li>
+            </ul>
+          </div>
+          <div class="pros-cons-card pros-cons-card--cons">
+            <div class="pros-cons-title">Desvantagens</div>
+            <ul>
+              <li>Você gerencia scaling manualmente</li>
+              <li>Você é responsável por uptime, updates e backups</li>
+              <li><mark>Single point of failure</mark> se a VM cair</li>
+              <li>Sem auto-healing de containers em falha</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout callout--success">
+          <p class="callout-title">Quando usar</p>
+          <p>
+            Equipes pequenas com tráfego previsível, projetos em fase de
+            experimentação ou prototipagem, e times que preferem simplicidade
+            operacional a automação.
+          </p>
+        </div>
+      </section>
+
+
+      <!-- ============================================================
+           Seção 3 — Deploy Semi-Gerenciado
+           ============================================================ -->
+      <section id="deploy-semi-gerenciado" aria-labelledby="s3-heading">
+        <h2 id="s3-heading">Deploy Semi-Gerenciado (Cloud Run / ECS)</h2>
+
+        <p>
+          Plataformas como Google Cloud Run e AWS ECS/Fargate oferecem execução
+          <mark>serverless</mark> de containers: você entrega a imagem Docker e a plataforma
+          cuida do provisionamento de servidores, load balancing e <mark>auto-scaling</mark>.
+        </p>
+
+        <!-- Diagrama de arquitetura -->
+        <div class="arch-diagram" role="img" aria-label="Diagrama: cliente, load balancer, Cloud Run com múltiplas instâncias, banco e fila gerenciados">
+
+          <div class="arch-row">
+            <!-- Cliente -->
+            <div class="diagram-node">
+              <div>Cliente</div>
+              <div class="diagram-node-label">HTTP / gRPC</div>
+            </div>
+
+            <div class="diagram-arrow--right" aria-hidden="true"></div>
+
+            <!-- Load Balancer -->
+            <div class="diagram-node diagram-node--primary">
+              <div>Load Balancer</div>
+              <div class="diagram-node-label">Gerenciado</div>
+            </div>
+
+            <div class="diagram-arrow--right" aria-hidden="true"></div>
+
+            <!-- Cloud Run com instâncias -->
+            <div class="arch-autoscale">
+              <div class="arch-autoscale-label">Cloud Run / ECS — auto-scaled</div>
+              <div class="arch-instances">
+                <div class="arch-instance">i-1</div>
+                <div class="arch-instance">i-2</div>
+                <div class="arch-instance arch-instance--faded">i-3</div>
+                <div class="arch-instance arch-instance--faded">i-N</div>
+              </div>
+            </div>
+
+            <div class="diagram-arrow--right" aria-hidden="true"></div>
+
+            <!-- Servicos gerenciados -->
+            <div style="display:flex; flex-direction:column; gap: var(--space-2); align-items:center;">
+              <div class="diagram-node diagram-node--success">
+                <div>DB Gerenciado</div>
+                <div class="diagram-node-label">Cloud SQL / RDS</div>
+              </div>
+              <div class="diagram-node diagram-node--success">
+                <div>Fila Gerenciada</div>
+                <div class="diagram-node-label">Pub/Sub / SQS</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Pros e Contras -->
+        <div class="pros-cons">
+          <div class="pros-cons-card pros-cons-card--pros">
+            <div class="pros-cons-title">Vantagens</div>
+            <ul>
+              <li>Auto-scaling automático — de zero a N instâncias</li>
+              <li>Zero gerenciamento de servidor (sem SSH, sem patching)</li>
+              <li>Modelo pay-per-use: paga apenas quando há tráfego</li>
+              <li>Deploy com um único comando</li>
+            </ul>
+          </div>
+          <div class="pros-cons-card pros-cons-card--cons">
+            <div class="pros-cons-title">Desvantagens</div>
+            <ul>
+              <li><mark>Cold starts</mark> — problemático para agentes com inicialização lenta</li>
+              <li>Menos controle sobre networking e egress</li>
+              <li>Vendor lock-in parcial nas APIs da plataforma</li>
+              <li>Limites de timeout (ex.: Cloud Run: default 5 min)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout callout--warning">
+          <p class="callout-title">Atenção: timeout do Cloud Run</p>
+          <p>
+            Cloud Run tem timeout máximo configurável até 60 minutos, mas o
+            <strong>default é 5 minutos</strong>. Agentes que fazem cadeias longas
+            de ferramentas podem estourar esse limite silenciosamente. Sempre ajuste
+            <code>--timeout</code> no deploy e projete timeouts em camadas no
+            proprio agente.
+          </p>
+        </div>
+      </section>
+
+
+      <!-- ============================================================
+           Seção 4 — Plataformas Gerenciadas
+           ============================================================ -->
+      <section id="plataformas-gerenciadas" aria-labelledby="s4-heading">
+        <h2 id="s4-heading">Plataformas Gerenciadas</h2>
+
+        <p>
+          <mark>Vertex AI Agent Engine</mark> (Google) e <mark>AWS Bedrock AgentCore</mark> são plataformas
+          desenhadas especificamente para agentes LLM. Você entrega o código do
+          agente; a plataforma assume responsabilidade pelo serving, scaling,
+          monitoramento e versionamento.
+        </p>
+
+        <!-- Diagrama de arquitetura -->
+        <div class="arch-diagram" role="img" aria-label="Diagrama: código do agente entregue a uma plataforma que gerencia tudo até os usuários">
+
+          <div class="arch-row">
+            <!-- Seu agente -->
+            <div class="diagram-node diagram-node--primary">
+              <div>Seu Agente</div>
+              <div class="diagram-node-label">Código Python / SDK</div>
+            </div>
+
+            <div class="diagram-arrow--right" aria-hidden="true"></div>
+
+            <!-- Plataforma -->
+            <div class="arch-platform-wrap">
+              <div class="arch-platform-label">Plataforma Gerenciada</div>
+              <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); text-align:center; margin-bottom: var(--space-2);">
+                Vertex AI Agent Engine &bull; AWS Bedrock AgentCore
+              </div>
+              <div class="arch-platform-features">
+                <span class="arch-feature-badge">Serving</span>
+                <span class="arch-feature-badge">Scaling</span>
+                <span class="arch-feature-badge">Logs</span>
+                <span class="arch-feature-badge">Versionamento</span>
+                <span class="arch-feature-badge">Observabilidade</span>
+                <span class="arch-feature-badge">Tracing</span>
+              </div>
+            </div>
+
+            <div class="diagram-arrow--right" aria-hidden="true"></div>
+
+            <!-- Usuários -->
+            <div class="diagram-node diagram-node--success">
+              <div>Usuários</div>
+              <div class="diagram-node-label">API / SDK</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Pros e Contras -->
+        <div class="pros-cons">
+          <div class="pros-cons-card pros-cons-card--pros">
+            <div class="pros-cons-title">Vantagens</div>
+            <ul>
+              <li>Menor <mark>time-to-market</mark> — sem configurar infra</li>
+              <li>Observabilidade built-in (traces, métricas, logs)</li>
+              <li>Scaling automático otimizado para agentes</li>
+              <li>Versionamento e rollback nativos</li>
+            </ul>
+          </div>
+          <div class="pros-cons-card pros-cons-card--cons">
+            <div class="pros-cons-title">Desvantagens</div>
+            <ul>
+              <li>Menor controle sobre o ambiente de execução</li>
+              <li>Custo por request mais alto que infra propria</li>
+              <li><mark>Vendor lock-in</mark> completo</li>
+              <li>Limitações nas customizações de runtime e networking</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout callout--info">
+          <p class="callout-title">Trade-off fundamental</p>
+          <p>
+            Quanto mais a plataforma faz por você, <strong>menos controle você tem</strong>.
+            Plataformas gerenciadas são o extremo da conveniência — e também do lock-in.
+            Avalie sempre o custo de migrar antes de adotar.
+          </p>
+        </div>
+      </section>
+
+
+      <!-- ============================================================
+           Seção 5 — Tabela Comparativa
+           ============================================================ -->
+      <section id="tabela-comparativa" aria-labelledby="s5-heading">
+        <h2 id="s5-heading">Tabela Comparativa</h2>
+
+        <p>
+          Uma visão consolidada dos três modelos de deploy em nove criterios críticos
+          para servicos de agentes LLM.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="table table--striped" aria-label="Comparação entre estratégias de deploy">
+            <thead>
+              <tr>
+                <th scope="col">Critério</th>
+                <th scope="col">Artesanal</th>
+                <th scope="col">Semi-Gerenciado</th>
+                <th scope="col">Gerenciado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Controle</strong></td>
+                <td class="cell-good">Total</td>
+                <td class="cell-warn">Parcial</td>
+                <td class="cell-bad">Mínimo</td>
+              </tr>
+              <tr>
+                <td><strong>Custo base</strong></td>
+                <td class="cell-neut">Fixo (VM)</td>
+                <td class="cell-neut">Pay-per-use</td>
+                <td class="cell-neut">Pay-per-request</td>
+              </tr>
+              <tr>
+                <td><strong>Custo em escala</strong></td>
+                <td class="cell-warn">Linear</td>
+                <td class="cell-good">Sub-linear</td>
+                <td class="cell-bad">Alto</td>
+              </tr>
+              <tr>
+                <td><strong>Complexidade operacional</strong></td>
+                <td class="cell-bad">Alta</td>
+                <td class="cell-warn">Média</td>
+                <td class="cell-good">Baixa</td>
+              </tr>
+              <tr>
+                <td><strong>Time-to-deploy</strong></td>
+                <td class="cell-bad">Horas</td>
+                <td class="cell-good">Minutos</td>
+                <td class="cell-good">Minutos</td>
+              </tr>
+              <tr>
+                <td><strong>Auto-scaling</strong></td>
+                <td class="cell-bad">Manual</td>
+                <td class="cell-good">Automático</td>
+                <td class="cell-good">Automático</td>
+              </tr>
+              <tr>
+                <td><strong>Cold starts</strong></td>
+                <td class="cell-good">Nenhum</td>
+                <td class="cell-warn">Sim</td>
+                <td class="cell-neut">Depende</td>
+              </tr>
+              <tr>
+                <td><strong>Observabilidade</strong></td>
+                <td class="cell-bad">Você implementa</td>
+                <td class="cell-warn">Básica inclusa</td>
+                <td class="cell-good">Completa inclusa</td>
+              </tr>
+              <tr>
+                <td><strong>Vendor lock-in</strong></td>
+                <td class="cell-good">Nenhum</td>
+                <td class="cell-warn">Parcial</td>
+                <td class="cell-bad">Total</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ============================================================
+           Seção 6 — Fluxograma de Decisão
+           ============================================================ -->
+      <section id="fluxograma-de-decisão" aria-labelledby="s6-heading">
+        <h2 id="s6-heading">Fluxograma de Decisão</h2>
+
+        <p>
+          Use este fluxo para orientar a escolha da estratégia de deploy de acordo
+          com as restrições e objetivos do seu projeto.
+        </p>
+
+        <div class="arch-diagram">
+          <pre class="mermaid">
+flowchart TD
+    Q1{Precisa de controle total<br/>sobre a infraestrutura?}
+    Q1 -->|Sim| A1["🔧 Artesanal<br/>Kubernetes em VM<br/>Você gerencia tudo"]
+    Q1 -->|Não| Q2{Precisa de auto-scaling<br/>sem gerenciar servidor?}
+    Q2 -->|Sim| A2["⚡ Semi-Gerenciado<br/>Cloud Run / ECS<br/>Infra gerenciada, código seu"]
+    Q2 -->|Não| Q3{Quer o menor<br/>time-to-market possível?}
+    Q3 -->|Sim| A3["🚀 Plataforma Gerenciada<br/>Vertex AI / Bedrock<br/>Foco apenas no agente"]
+    Q3 -->|Não| A1b["🔧 Artesanal<br/>Melhor custo-benefício<br/>para cenários específicos"]
+
+    style A1 fill:#4F46E5,color:#fff
+    style A2 fill:#22c55e,color:#fff
+    style A3 fill:#fb923c,color:#fff
+    style A1b fill:#4F46E5,color:#fff
+          </pre>
+        </div>
+      </section>
+
+
+    </div><!-- /content-inner -->
+  </main>
+
+  <!-- Navegação inferior injetada por nav.js -->
+  <nav id="chapter-nav" aria-label="Navegação entre capítulos"></nav>
+
+</div><!-- /page-wrapper -->
+
+<script src="../assets/js/interactive.js"></script>
+<script src="../assets/js/nav.js"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#4F46E5',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#818CF8',
+      lineColor: '#475569',
+      secondaryColor: '#1e1e2e',
+      tertiaryColor: '#1a1a2e'
+    }
+  });
+</script>
+</body>
+</html>

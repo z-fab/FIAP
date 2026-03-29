@@ -1,0 +1,16 @@
+[project]
+name = "agent-service-stage-03"
+version = "0.3.0"
+description = "Estágio 03 — Agente LLM com padrão assíncrono (RabbitMQ + Celery)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.135.0",
+    "uvicorn>=0.42.0",
+    "langgraph>=1.1.0",
+    "langchain-google-genai>=4.2.0",
+    "pydantic>=2.12.0",
+    "rich>=14.0.0",
+    "celery>=5.6.0",
+    "sqlalchemy>=2.0.48",
+    "psycopg2-binary>=2.9.0",
+]

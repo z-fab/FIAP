@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cap. 03 — Controles de Produção: Timeout, Concorrência e Resiliência</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* ====================================================
+       Estilos específicos do Capítulo 03
+       ==================================================== */
+
+    /* --- Semaphore Simulator --- */
+    .sem-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 60px;
+      margin-bottom: var(--space-4);
+    }
+
+    .sem-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: var(--color-border);
+      transition: background-color 400ms ease-out, transform 200ms ease-out, box-shadow 400ms ease-out;
+      position: relative;
+    }
+
+    .sem-circle::after {
+      content: attr(data-id);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-code);
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .sem-circle--idle     { background-color: #94a3b8; }
+    .sem-circle--waiting  { background-color: #eab308; box-shadow: 0 0 8px rgba(234,179,8,0.3); }
+    .sem-circle--active   { background-color: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.4); transform: scale(1.1); }
+    .sem-circle--completed { background-color: #4F46E5; }
+    .sem-circle--rejected { background-color: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+    .sem-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+
+    @media (max-width: 640px) {
+      .sem-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .sem-stat {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      text-align: center;
+    }
+
+    .sem-stat-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-1);
+    }
+
+    .sem-stat-value {
+      font-family: var(--font-code);
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+    }
+
+    .sem-stat-value--active    { color: #22c55e; }
+    .sem-stat-value--waiting   { color: #eab308; }
+    .sem-stat-value--completed { color: #4F46E5; }
+    .sem-stat-value--rejected  { color: #ef4444; }
+
+    .sem-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+      align-items: flex-end;
+      margin-bottom: var(--space-6);
+    }
+
+    .sem-control-group {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .sem-send-group {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-2);
+    }
+
+    .sem-slider-val {
+      font-family: var(--font-code);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      font-size: var(--font-size-lg);
+      min-width: 2.5ch;
+      text-align: right;
+    }
+
+    /* --- Timeout Cascade --- */
+    .tc-boxes {
+      position: relative;
+      margin-bottom: var(--space-6);
+    }
+
+    .tc-box {
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      transition: border-color 400ms ease-out, background-color 400ms ease-out;
+    }
+
+    .tc-box--outer {
+      background-color: rgba(79, 70, 229, 0.04);
+      border-color: var(--color-primary);
+    }
+
+    .tc-box--middle {
+      background-color: rgba(234, 179, 8, 0.04);
+      border-color: var(--color-warning);
+      margin-top: var(--space-3);
+    }
+
+    .tc-box--inner {
+      background-color: rgba(34, 197, 94, 0.04);
+      border-color: var(--color-success);
+      margin-top: var(--space-3);
+    }
+
+    .tc-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-2);
+    }
+
+    .tc-box-label {
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+    }
+
+    .tc-box--outer .tc-box-label  { color: var(--color-secondary); }
+    .tc-box--middle .tc-box-label { color: var(--color-warning); }
+    .tc-box--inner .tc-box-label  { color: var(--color-success); }
+
+    .tc-timer {
+      font-family: var(--font-code);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      transition: color 300ms ease-out;
+    }
+
+    .tc-timer--green  { color: var(--color-success); }
+    .tc-timer--yellow { color: var(--color-warning); }
+    .tc-timer--red    { color: var(--color-error); }
+
+    .tc-progress {
+      width: 100%;
+      height: 4px;
+      background-color: var(--color-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .tc-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 100ms linear, background-color 300ms ease-out;
+      background-color: var(--color-success);
+    }
+
+    .tc-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
+    .tc-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .tc-toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      background-color: var(--color-border);
+      border-radius: 11px;
+      border: none;
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .tc-toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: var(--color-text);
+      transition: transform var(--transition-fast);
+    }
+
+    .tc-toggle.is-on {
+      background-color: var(--color-accent);
+    }
+
+    .tc-toggle.is-on::after {
+      transform: translateX(18px);
+    }
+
+    .tc-toggle-label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+
+    .tc-result {
+      margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      display: none;
+    }
+
+    .tc-result--success {
+      display: block;
+      background-color: rgba(34, 197, 94, 0.1);
+      border: 1px solid var(--color-success);
+      color: var(--color-success);
+    }
+
+    .tc-result--error {
+      display: block;
+      background-color: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--color-error);
+      color: var(--color-error);
+    }
+
+    /* --- Fault Injector --- */
+    .fi-flow {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      overflow-x: auto;
+      padding: var(--space-4) 0;
+      margin-bottom: var(--space-4);
+    }
+
+    .fi-node {
+      flex-shrink: 0;
+      min-width: 100px;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 2px solid var(--color-border);
+      background-color: var(--color-code-bg);
+      color: var(--color-text-secondary);
+      transition: border-color 300ms ease-out, background-color 300ms ease-out, color 300ms ease-out, box-shadow 300ms ease-out;
+    }
+
+    .fi-node--active {
+      border-color: var(--color-success);
+      color: var(--color-success);
+      background-color: rgba(34, 197, 94, 0.08);
+    }
+
+    .fi-node--fault {
+      border-color: var(--color-error);
+      color: var(--color-error);
+      background-color: rgba(239, 68, 68, 0.12);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+      animation: faultPulse 600ms ease-out;
+    }
+
+    .fi-node--propagate {
+      border-color: var(--color-error);
+      color: var(--color-error);
+      background-color: rgba(239, 68, 68, 0.06);
+    }
+
+    .fi-arrow {
+      flex-shrink: 0;
+      color: var(--color-text-secondary);
+      font-size: 1.2rem;
+      transition: color 300ms ease-out;
+    }
+
+    .fi-arrow--active {
+      color: var(--color-success);
+    }
+
+    .fi-arrow--error {
+      color: var(--color-error);
+    }
+
+    .fi-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    @keyframes faultPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .fi-response {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      white-space: pre;
+      overflow-x: auto;
+      min-height: 100px;
+      transition: border-color 400ms ease-out;
+    }
+
+    .fi-response--error {
+      border-color: var(--color-error);
+    }
+
+    .fi-response--success {
+      border-color: var(--color-success);
+    }
+
+    .fi-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+      align-items: flex-end;
+      margin-bottom: var(--space-6);
+    }
+
+    /* --- Error Hierarchy Tree --- */
+    .err-tree {
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      line-height: 2;
+      padding: var(--space-4);
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-6);
+      overflow-x: auto;
+    }
+
+    .err-tree-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .err-tree-indent {
+      color: var(--color-border);
+      user-select: none;
+    }
+
+    .err-tree-name {
+      color: var(--color-secondary);
+      font-weight: 600;
+    }
+
+    .err-tree-name--base {
+      color: var(--color-accent);
+    }
+
+    .err-tree-http {
+      font-weight: 600;
+    }
+
+    .err-tree-http--504 { color: var(--color-warning); }
+    .err-tree-http--429 { color: var(--color-error); }
+    .err-tree-http--502 { color: var(--color-warning); }
+    .err-tree-http--500 { color: var(--color-text-secondary); }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <aside id="sidebar"></aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- =============================================
+           Cabeçalho do Capítulo
+           ============================================= -->
+      <header class="chapter-header">
+        <span class="chapter-number">Capítulo 03</span>
+        <h1 class="chapter-title">Controles de Produção: Timeout, Concorrência e Resiliência</h1>
+        <p class="chapter-description">
+          A diferença entre um prototipo e um serviço de produção não é o código do agente
+          — são os controles ao redor dele.
+        </p>
+      </header>
+
+      <!-- =============================================
+           Seção 1: Por que controles importam
+           ============================================= -->
+      <section aria-labelledby="sec-intro">
+        <h2 id="sec-intro">Por que controles importam</h2>
+
+        <p>
+          A diferença entre um prototipo e um serviço de produção não é o código do agente
+          — são os controles ao redor dele. Um <code>agent.run()</code> que funciona no notebook
+          pode derrubar um sistema inteiro em produção se não houver limites claros de concorrência,
+          timeout e tratamento de erro.
+        </p>
+
+        <p>
+          Neste capítulo, vamos construir cinco mecanismos essenciais para tornar um agente LLM
+          operável em produção:
+        </p>
+
+        <ul>
+          <li><strong>Concorrência controlada</strong> — limitar quantas chamadas ao LLM acontecem ao mesmo tempo</li>
+          <li><strong>Timeout em camadas</strong> — cada nível da stack com seu proprio limite de tempo</li>
+          <li><strong>Erros tipados</strong> — respostas HTTP específicas para cada tipo de falha</li>
+          <li><strong>Health check</strong> — verificação automática da saúde do serviço</li>
+          <li><strong>Logging estruturado</strong> — rastreabilidade por request com JSON</li>
+        </ul>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Princípio central</div>
+          <p>
+            Cada um desses controles existe para proteger três coisas: o <strong>orçamento</strong>
+            (tokens custam dinheiro), a <strong>disponibilidade</strong> (um request lento não pode
+            travar os demais) é a <strong>debugabilidade</strong> (quando algo falha, você precisa
+            saber onde e por que).
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 2: Semáforo de Concorrência
+           ============================================= -->
+      <section aria-labelledby="sec-semaphore">
+        <h2 id="sec-semaphore">Semáforo de Concorrência</h2>
+
+        <p>
+          O <mark>asyncio.Semaphore</mark> funciona como uma sala de espera: define quantas
+          requisições podem ser processadas simultaneamente. As demais aguardam na fila.
+          Se a fila também encher, novas requisições são rejeitadas imediatamente com <mark>HTTP 429</mark>.
+        </p>
+
+        <p>
+          Para agentes LLM, controlar concorrência é ainda mais crítico do que em APIs tradicionais.
+          Cada requisição consome tokens pagos do LLM provider, e providers como a Google (Gemini)
+          impoe rate limits rigorosos. Sem um semáforo, 100 requisições simultâneas disparam
+          100 chamadas ao LLM — estourando limites e explodindo custos.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">concurrency.py</div>
+<pre data-lang="python"><code><span class="code-keyword">from</span> dataclasses <span class="code-keyword">import</span> dataclass
+
+<span class="code-decorator">@dataclass</span>
+<span class="code-keyword">class</span> <span class="code-class">ConcurrencyStats</span>:
+    active: <span class="code-class">int</span>
+    waiting: <span class="code-class">int</span>
+    max_concurrent: <span class="code-class">int</span>
+    total_processed: <span class="code-class">int</span>
+    total_rejected: <span class="code-class">int</span>
+
+<span class="code-keyword">class</span> <span class="code-class">AgentSemaphore</span>:
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(<span class="code-variable">self</span>, <span class="code-variable">max_concurrent</span>=<span class="code-number">3</span>, <span class="code-variable">max_queue</span>=<span class="code-number">10</span>):
+        <span class="code-variable">self</span>._semaphore = asyncio.Semaphore(max_concurrent)
+        <span class="code-variable">self</span>._max_concurrent = max_concurrent
+        <span class="code-variable">self</span>._max_queue = max_queue
+        <span class="code-comment"># Contadores atômicos (seguros em asyncio single-thread)</span>
+        <span class="code-variable">self</span>._active: <span class="code-class">int</span> = <span class="code-number">0</span>
+        <span class="code-variable">self</span>._waiting: <span class="code-class">int</span> = <span class="code-number">0</span>
+        <span class="code-variable">self</span>._total_processed: <span class="code-class">int</span> = <span class="code-number">0</span>
+        <span class="code-variable">self</span>._total_rejected: <span class="code-class">int</span> = <span class="code-number">0</span>
+
+    <span class="code-keyword">async</span> <span class="code-keyword">def</span> <span class="code-function">acquire</span>(<span class="code-variable">self</span>):
+        <span class="code-keyword">if</span> <span class="code-variable">self</span>._waiting >= <span class="code-variable">self</span>._max_queue:
+            <span class="code-variable">self</span>._total_rejected += <span class="code-number">1</span>
+            <span class="code-keyword">raise</span> <span class="code-class">ConcurrencyLimitError</span>(
+                <span class="code-string">f"Ativos: {self._active}/{self._max_concurrent}, "</span>
+                <span class="code-string">f"Fila: {self._waiting}/{self._max_queue}"</span>
+            )
+        <span class="code-variable">self</span>._waiting += <span class="code-number">1</span>
+        <span class="code-keyword">try</span>:
+            <span class="code-keyword">await</span> <span class="code-variable">self</span>._semaphore.acquire()
+        <span class="code-keyword">finally</span>:
+            <span class="code-variable">self</span>._waiting -= <span class="code-number">1</span>
+        <span class="code-variable">self</span>._active += <span class="code-number">1</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">release</span>(<span class="code-variable">self</span>):
+        <span class="code-variable">self</span>._active -= <span class="code-number">1</span>
+        <span class="code-variable">self</span>._total_processed += <span class="code-number">1</span>
+        <span class="code-variable">self</span>._semaphore.release()
+
+    <span class="code-decorator">@property</span>
+    <span class="code-keyword">def</span> <span class="code-function">stats</span>(<span class="code-variable">self</span>) -> <span class="code-class">ConcurrencyStats</span>:
+        <span class="code-keyword">return</span> <span class="code-class">ConcurrencyStats</span>(
+            active=<span class="code-variable">self</span>._active,
+            waiting=<span class="code-variable">self</span>._waiting,
+            max_concurrent=<span class="code-variable">self</span>._max_concurrent,
+            total_processed=<span class="code-variable">self</span>._total_processed,
+            total_rejected=<span class="code-variable">self</span>._total_rejected,
+        )</code></pre>
+        </div>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Fila de processamento ≠ fila assíncrona</div>
+          <p>
+            Quando falamos de "fila" no contexto do semáforo, estamos nos referindo a uma
+            <strong>fila de processamento</strong> — um mecanismo de controle de concorrência
+            que limita quantas requisições são processadas ao mesmo tempo. Essa fila existe
+            tanto em sistemas síncronos quanto assíncronos. Não confundir com o padrão Async
+            (capítulo anterior), onde a fila é um <strong>message broker</strong> (RabbitMQ)
+            para processamento em background.
+          </p>
+        </div>
+
+        <div class="callout callout--warning">
+          <div class="callout-title">Atenção</div>
+          <p>
+            O <code>max_concurrent</code> deve refletir o rate limit do seu LLM provider,
+            não a capacidade de CPU do servidor. Um valor comum para APIs da Gemini e
+            entre 3 e 5 chamadas simultâneas por instancia.
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 3: Simulador de Semáforo (interativo)
+           ============================================= -->
+      <section aria-labelledby="sec-sem-sim">
+        <h2 id="sec-sem-sim">Simulador de Semáforo</h2>
+
+        <p>
+          Ajuste os parâmetros e envie um lote de requisições para ver como o semáforo controla
+          o fluxo. Cada circulo representa uma requisição passando pelo sistema.
+        </p>
+
+        <div id="semaphore-sim" class="interactive">
+          <!-- Renderizado por chapter-03.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 4: Timeout em Camadas
+           ============================================= -->
+      <section aria-labelledby="sec-timeout">
+        <h2 id="sec-timeout">Timeout em Camadas</h2>
+
+        <p>
+          Um único timeout não é suficiente. Cada camada da stack tem latência diferente
+          e precisa do seu proprio limite:
+        </p>
+
+        <ul>
+          <li><strong>Request timeout (120s)</strong> — o tempo máximo que o cliente HTTP espera pela resposta completa. Protege o gateway é o load balancer.</li>
+          <li><strong>Agent timeout (90s)</strong> — o tempo máximo para o agente completar todo o raciocínio (incluindo múltiplas tool calls). Protege contra <mark>loops infinitos</mark> do LLM.</li>
+          <li><strong>Tool timeout (30s)</strong> — o tempo máximo para uma única tool call (busca no banco, API externa). Protege contra dependências travadas.</li>
+        </ul>
+
+        <p>
+          A propagação é de dentro para fora: se a tool excede 30s, o agente recebe um
+          <code>AgentTimeoutError</code> e pode tentar uma estratégia alternativa. Se o agente
+          excede 90s, o request retorna <mark>504 Gateway Timeout</mark> ao cliente.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">timeout_utils.py</div>
+<pre data-lang="python"><code><span class="code-keyword">async</span> <span class="code-keyword">def</span> <span class="code-function">with_timeout</span>(<span class="code-variable">coro</span>, <span class="code-variable">timeout_seconds</span>, <span class="code-variable">context</span>=<span class="code-string">"operação"</span>):
+    <span class="code-keyword">try</span>:
+        <span class="code-keyword">return</span> <span class="code-keyword">await</span> asyncio.wait_for(
+            coro, timeout=timeout_seconds
+        )
+    <span class="code-keyword">except</span> asyncio.TimeoutError:
+        <span class="code-keyword">raise</span> <span class="code-class">AgentTimeoutError</span>(
+            <span class="code-string">f"Timeout: {context} excedeu {timeout_seconds}s"</span>
+        )</code></pre>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 5: Timeout em Cascata (interativo)
+           ============================================= -->
+      <section aria-labelledby="sec-timeout-cascade">
+        <h2 id="sec-timeout-cascade">Timeout em Cascata</h2>
+
+        <p>
+          Visualize como os três níveis de timeout interagem. Ative os cenários de falha
+          para ver a propagação de erros em tempo real.
+        </p>
+
+        <div id="timeout-cascade" class="interactive">
+          <!-- Renderizado por chapter-03.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 6: Erros Tipados
+           ============================================= -->
+      <section aria-labelledby="sec-errors">
+        <h2 id="sec-errors">Erros Tipados</h2>
+
+        <p>
+          Retornar HTTP 500 para toda falha impede o cliente de tomar decisões inteligentes.
+          Se o erro é de timeout, o cliente pode tentar novamente. Se é de concorrência,
+          deve esperar. Se a tool falhou, pode tentar sem aquela tool. Cada tipo de erro
+          precisa de um <mark>código HTTP semântico</mark> é uma mensagem específicos.
+        </p>
+
+        <h3>Hierarquia de Erros</h3>
+
+        <div class="err-tree">
+          <div class="err-tree-item">
+            <span class="err-tree-name err-tree-name--base">AgentServiceError</span>
+            <span class="code-comment"># classe base</span>
+          </div>
+          <div class="err-tree-item">
+            <span class="err-tree-indent">├── </span>
+            <span class="err-tree-name">AgentTimeoutError</span>
+            <span class="err-tree-indent"> → </span>
+            <span class="err-tree-http err-tree-http--504">504 Gateway Timeout</span>
+          </div>
+          <div class="err-tree-item">
+            <span class="err-tree-indent">├── </span>
+            <span class="err-tree-name">ConcurrencyLimitError</span>
+            <span class="err-tree-indent"> → </span>
+            <span class="err-tree-http err-tree-http--429">429 Too Many Requests</span>
+          </div>
+          <div class="err-tree-item">
+            <span class="err-tree-indent">├── </span>
+            <span class="err-tree-name">ToolExecutionError</span>
+            <span class="err-tree-indent"> → </span>
+            <span class="err-tree-http err-tree-http--502">502 Bad Gateway</span>
+          </div>
+          <div class="err-tree-item">
+            <span class="err-tree-indent">└── </span>
+            <span class="err-tree-name">AgentExecutionError</span>
+            <span class="err-tree-indent"> → </span>
+            <span class="err-tree-http err-tree-http--500">500 Internal Server Error</span>
+          </div>
+        </div>
+
+        <p>
+          Cada erro inclui um <code>detail</code> legível para o cliente é um <code>error</code>
+          com o nome da classe para consumo programático. Isso permite que o frontend ou outro
+          serviço implemente <mark>retry seletivo</mark> com lógica de backoff adequada.
+        </p>
+
+        <h3>Registrando os Handlers</h3>
+
+        <p>
+          A função <code>register_error_handlers()</code> instala um handler global no FastAPI
+          que converte qualquer <mark>AgentServiceError</mark> em uma resposta JSON padronizada,
+          independente do endpoint que lançou a exceção:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">errors.py</div>
+<pre data-lang="python"><code><span class="code-keyword">def</span> <span class="code-function">register_error_handlers</span>(<span class="code-variable">app</span>: <span class="code-class">FastAPI</span>) -> <span class="code-class">None</span>:
+    <span class="code-decorator">@app.exception_handler</span>(<span class="code-class">AgentServiceError</span>)
+    <span class="code-keyword">async</span> <span class="code-keyword">def</span> <span class="code-function">_handle_agent_error</span>(
+        <span class="code-variable">request</span>: <span class="code-class">Request</span>, <span class="code-variable">exc</span>: <span class="code-class">AgentServiceError</span>
+    ) -> <span class="code-class">JSONResponse</span>:
+        <span class="code-keyword">return</span> <span class="code-class">JSONResponse</span>(
+            status_code=<span class="code-variable">exc</span>.status_code,
+            content={
+                <span class="code-string">"error"</span>: type(<span class="code-variable">exc</span>).__name__,
+                <span class="code-string">"detail"</span>: <span class="code-variable">exc</span>.detail,
+            },
+        )</code></pre>
+        </div>
+
+        <h3>Retry Seletivo por Código HTTP</h3>
+
+        <p>
+          Com erros tipados, o cliente pode tomar decisões inteligentes sobre quando repetir
+          a chamada:
+        </p>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Exceção</th>
+              <th>HTTP</th>
+              <th>Estratégia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ConcurrencyLimitError</code></td>
+              <td>429</td>
+              <td>Retry com backoff exponencial — servidor sobrecarregado, aguardar</td>
+            </tr>
+            <tr>
+              <td><code>AgentTimeoutError</code></td>
+              <td>504</td>
+              <td>Retry (agente pode estar sobrecarregado com outra requisição)</td>
+            </tr>
+            <tr>
+              <td><code>ToolExecutionError</code></td>
+              <td>502</td>
+              <td>Retry com limite — ferramenta externa pode estar temporariamente indisponível</td>
+            </tr>
+            <tr>
+              <td><code>AgentExecutionError</code></td>
+              <td>500</td>
+              <td><strong>Não fazer retry</strong> — erro de lógica, retry não vai ajudar</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Padrão try/except no Endpoint</h3>
+
+        <p>
+          O padrão correto no endpoint combina semáforo, timeout e tratamento de erro
+          em um bloco único com <code>finally</code> garantindo o <code>release()</code>:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">main.py — endpoint /invoke</div>
+<pre data-lang="python"><code><span class="code-keyword">await</span> agent_semaphore.acquire()
+<span class="code-keyword">try</span>:
+    result = <span class="code-keyword">await</span> <span class="code-function">with_timeout</span>(
+        agent_module.run(request.message),
+        timeout_seconds=AGENT_TIMEOUT,
+    )
+<span class="code-keyword">except</span> <span class="code-class">AgentServiceError</span>:
+    <span class="code-keyword">raise</span>  <span class="code-comment"># erros tipados já têm status HTTP correto</span>
+<span class="code-keyword">except</span> <span class="code-class">Exception</span> <span class="code-keyword">as</span> exc:
+    <span class="code-keyword">raise</span> <span class="code-class">AgentExecutionError</span>(detail=<span class="code-function">str</span>(exc)) <span class="code-keyword">from</span> exc
+<span class="code-keyword">finally</span>:
+    agent_semaphore.release()</code></pre>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 7: Injetor de Falhas (interativo)
+           ============================================= -->
+      <section aria-labelledby="sec-fault">
+        <h2 id="sec-fault">Injetor de Falhas</h2>
+
+        <p>
+          Selecione um tipo de erro é observe como a falha se propaga pela stack do agente,
+          desde o ponto de origem até a resposta HTTP final.
+        </p>
+
+        <div id="fault-injector" class="interactive">
+          <!-- Renderizado por chapter-03.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 8: Health Check e Logging
+           ============================================= -->
+      <section aria-labelledby="sec-health">
+        <h2 id="sec-health">Health Check e Logging</h2>
+
+        <h3>Logging Estruturado</h3>
+
+        <p>
+          Em produção, <code>print()</code> não escala. Logs precisam ser em JSON com campos
+          padronizados para permitir busca, filtragem e alertas automáticos. O campo mais
+          importante é o <mark>request_id</mark> — ele conecta todos os logs de uma mesma
+          requisição, desde a entrada até a resposta final.
+        </p>
+
+        <p>
+          O projeto usa <mark>structured logging</mark> via <strong>structlog</strong>, que
+          emite JSON em produção e texto colorido em desenvolvimento — o mesmo código, dois modos:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">logging_config.py</div>
+<pre data-lang="python"><code><span class="code-keyword">def</span> <span class="code-function">setup_logging</span>() -> <span class="code-class">None</span>:
+    shared_processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt=<span class="code-string">"iso"</span>),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+    ]
+
+    <span class="code-keyword">if</span> ENVIRONMENT == <span class="code-string">"production"</span>:
+        renderer = structlog.processors.JSONRenderer()
+    <span class="code-keyword">else</span>:
+        renderer = structlog.dev.ConsoleRenderer()  <span class="code-comment"># cores no terminal</span>
+
+    structlog.configure(
+        processors=[*shared_processors, renderer],
+        wrapper_class=structlog.make_filtering_bound_logger(<span class="code-number">0</span>),
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=<span class="code-class">True</span>,
+    )</code></pre>
+        </div>
+
+        <h3>Middleware de Request ID</h3>
+
+        <p>
+          Um middleware HTTP injeta um <code>request_id</code> único em cada requisição
+          e o propaga via <code>structlog.contextvars</code> — assim todos os logs emitidos
+          durante aquela requisição carregam o mesmo ID automaticamente:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">main.py — logging_middleware</div>
+<pre data-lang="python"><code><span class="code-decorator">@app.middleware</span>(<span class="code-string">"http"</span>)
+<span class="code-keyword">async</span> <span class="code-keyword">def</span> <span class="code-function">logging_middleware</span>(<span class="code-variable">request</span>, <span class="code-variable">call_next</span>):
+    request_id = <span class="code-function">generate_request_id</span>()
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+
+    start_time = time.monotonic()
+    response = <span class="code-keyword">await</span> call_next(request)
+    duration_ms = <span class="code-function">int</span>((time.monotonic() - start_time) * <span class="code-number">1000</span>)
+
+    logger.info(
+        <span class="code-string">"request_completed"</span>,
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        duration_ms=duration_ms,
+    )
+    response.headers[<span class="code-string">"X-Request-ID"</span>] = request_id
+    <span class="code-keyword">return</span> response</code></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-block-header">Saída JSON em produção</div>
+<pre data-lang="json"><code>{
+  <span class="code-string">"event"</span>: <span class="code-string">"request_completed"</span>,
+  <span class="code-string">"request_id"</span>: <span class="code-string">"a1b2c3d4"</span>,
+  <span class="code-string">"method"</span>: <span class="code-string">"POST"</span>,
+  <span class="code-string">"path"</span>: <span class="code-string">"/invoke"</span>,
+  <span class="code-string">"status"</span>: <span class="code-number">200</span>,
+  <span class="code-string">"duration_ms"</span>: <span class="code-number">5234</span>,
+  <span class="code-string">"timestamp"</span>: <span class="code-string">"2025-03-26T14:30:00Z"</span>
+}</code></pre>
+        </div>
+
+        <h3>Health Check</h3>
+
+        <p>
+          O orquestrador (Kubernetes, load balancer) precisa saber se o serviço está saudável.
+          Um endpoint <code>/health</code> verifica conectividade com cada dependência crítica
+          e retorna um status agregado — <mark>health check</mark> granular por componente:
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-header">health.py</div>
+<pre data-lang="python"><code><span class="code-keyword">async</span> <span class="code-keyword">def</span> <span class="code-function">run_health_check</span>() -> <span class="code-class">dict</span>:
+    postgres  = check_postgres()    <span class="code-comment"># SELECT 1 via SQLAlchemy</span>
+    rabbitmq  = check_rabbitmq()    <span class="code-comment"># socket TCP porta 5672</span>
+    gemini    = <span class="code-keyword">await</span> check_gemini()  <span class="code-comment"># GET /v1beta/models (sem tokens)</span>
+
+    components = {
+        <span class="code-string">"postgres"</span>: postgres,
+        <span class="code-string">"rabbitmq"</span>: rabbitmq,
+        <span class="code-string">"gemini"</span>: gemini,
+    }
+    all_ok = <span class="code-function">all</span>(c[<span class="code-string">"status"</span>] == <span class="code-string">"ok"</span> <span class="code-keyword">for</span> c <span class="code-keyword">in</span> components.values())
+
+    <span class="code-keyword">return</span> {
+        <span class="code-string">"status"</span>: <span class="code-string">"healthy"</span> <span class="code-keyword">if</span> all_ok <span class="code-keyword">else</span> <span class="code-string">"degraded"</span>,
+        <span class="code-string">"components"</span>: components,
+    }</code></pre>
+        </div>
+
+        <div class="callout callout--warning">
+          <div class="callout-title">Cuidado</div>
+          <p>
+            O health check não deve chamar o LLM completo (custaria tokens). Basta verificar
+            se a autenticação com o provider está funcionando — um
+            <code>GET /v1beta/models</code> já é suficiente, custa zero tokens e confirma
+            que a API key é válida e o serviço está acessível.
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 9: Resumo
+           ============================================= -->
+      <section aria-labelledby="sec-resumo">
+        <h2 id="sec-resumo">Resumo</h2>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Principais aprendizados</div>
+          <p>
+            <strong>1.</strong> Concorrência controlada via semáforo protege contra estouro
+            de rate limits e custos — o <code>max_concurrent</code> deve refletir o limite do
+            LLM provider, não a capacidade do servidor.
+          </p>
+          <p>
+            <strong>2.</strong> Timeout em camadas (request > agente > tool) permite tratamento
+            de erro granular — cada camada pode reagir de forma diferente quando o limite é atingido.
+          </p>
+          <p>
+            <strong>3.</strong> Erros tipados com codigos HTTP específicos permitem que clientes
+            implementem retry inteligente e fallback seletivo.
+          </p>
+          <p>
+            <strong>4.</strong> Health check e logging estruturado com <code>request_id</code>
+            são a base da observabilidade — sem eles, debugar problemas em produção é impossível.
+          </p>
+        </div>
+
+      </section>
+
+    </div><!-- /.content-inner -->
+  </main>
+
+  <nav id="chapter-nav"></nav>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/motion@12/dist/motion.js"></script>
+<script src="../assets/js/interactive.js"></script>
+<script src="../assets/js/nav.js"></script>
+<script src="../assets/js/chapter-03.js"></script>
+
+</body>
+</html>

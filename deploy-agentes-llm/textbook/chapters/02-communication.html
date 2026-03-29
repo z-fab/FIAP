@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cap. 02 — Padroes de Comunicacao: Sync, Stream, Async</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* ====================================================
+       Estilos especificos do Capitulo 02
+       ==================================================== */
+
+    /* --- Animated Concept Cards --- */
+    .concept-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+    }
+
+    @media (max-width: 768px) {
+      .concept-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .concept-card {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .concept-card__header {
+      padding: var(--space-2) var(--space-4);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    .concept-card--sync .concept-card__header {
+      color: var(--color-secondary);
+      border-bottom-color: var(--color-primary);
+    }
+
+    .concept-card--stream .concept-card__header {
+      color: var(--color-success);
+      border-bottom-color: var(--color-success);
+    }
+
+    .concept-card--async .concept-card__header {
+      color: #fb923c;
+      border-bottom-color: var(--color-accent);
+    }
+
+    /* Mini browser mockup */
+    .mini-browser {
+      height: 200px;
+      background-color: var(--color-bg);
+      border-bottom: 1px solid var(--color-border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-browser__bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background-color: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .mini-browser__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--color-border);
+    }
+
+    .mini-browser__url {
+      font-family: var(--font-code);
+      font-size: 0.6rem;
+      color: var(--color-text-secondary);
+      background-color: var(--color-code-bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      flex: 1;
+    }
+
+    .mini-browser__content {
+      padding: var(--space-3);
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      color: var(--color-text);
+      height: calc(100% - 30px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Sync animation: spinner then full text */
+    .sync-anim__spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--color-border);
+      border-top-color: var(--color-secondary);
+      border-radius: 50%;
+      animation: syncSpin 0.8s linear infinite, syncFadeOut 6s ease-in-out infinite;
+    }
+
+    .sync-anim__result {
+      position: absolute;
+      top: 40px;
+      left: var(--space-3);
+      right: var(--space-3);
+      font-size: 0.7rem;
+      line-height: 1.5;
+      color: var(--color-text);
+      opacity: 0;
+      animation: syncResultAppear 6s ease-in-out infinite;
+    }
+
+    @keyframes syncSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes syncFadeOut {
+      0%, 45% { opacity: 1; }
+      50% { opacity: 0; }
+      95% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes syncResultAppear {
+      0%, 45% { opacity: 0; }
+      50% { opacity: 1; }
+      90% { opacity: 1; }
+      95% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    /* Stream animation: typewriter */
+    .stream-anim__text {
+      font-size: 0.7rem;
+      line-height: 1.5;
+      color: var(--color-text);
+      text-align: left;
+      width: 100%;
+      padding: 0 var(--space-2);
+    }
+
+    .stream-anim__cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background-color: var(--color-success);
+      vertical-align: text-bottom;
+      animation: cursorBlink 0.6s step-end infinite;
+    }
+
+    .stream-anim__char {
+      opacity: 0;
+      animation: charAppear 6s step-end infinite;
+    }
+
+    /* We generate individual delays via style attributes in the HTML */
+    @keyframes charAppear {
+      0% { opacity: 0; }
+      var(--char-start) { opacity: 1; }
+      90% { opacity: 1; }
+      95% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    /* Fallback: use a single-block typewriter approach */
+    .stream-anim__line {
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 2px solid var(--color-success);
+      width: 0;
+      animation: streamType 6s steps(40, end) infinite;
+    }
+
+    @keyframes streamType {
+      0% { width: 0; opacity: 1; }
+      5% { width: 0; opacity: 1; }
+      50% { width: 100%; }
+      90% { width: 100%; opacity: 1; }
+      95% { opacity: 0; }
+      100% { width: 0; opacity: 0; }
+    }
+
+    @keyframes cursorBlink {
+      50% { opacity: 0; }
+    }
+
+    /* Async animation: immediate response, polling, done */
+    .async-anim__phase {
+      text-align: center;
+      font-size: 0.7rem;
+      opacity: 0;
+      position: absolute;
+      width: calc(100% - 2 * var(--space-3));
+    }
+
+    .async-anim__phase--enqueued {
+      color: #fb923c;
+      animation: asyncPhase1 8s ease-in-out infinite;
+    }
+
+    .async-anim__phase--polling {
+      color: var(--color-text-secondary);
+      animation: asyncPhase2 8s ease-in-out infinite;
+    }
+
+    .async-anim__phase--done {
+      color: var(--color-success);
+      animation: asyncPhase3 8s ease-in-out infinite;
+    }
+
+    @keyframes asyncPhase1 {
+      0% { opacity: 0; }
+      5% { opacity: 1; }
+      30% { opacity: 1; }
+      35% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes asyncPhase2 {
+      0%, 35% { opacity: 0; }
+      40% { opacity: 1; }
+      60% { opacity: 1; }
+      65% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes asyncPhase3 {
+      0%, 65% { opacity: 0; }
+      70% { opacity: 1; }
+      90% { opacity: 1; }
+      95% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    .async-anim__checkmark {
+      font-size: 1.2rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .async-anim__dots {
+      display: inline-block;
+      animation: asyncDots 1.5s step-end infinite;
+    }
+
+    @keyframes asyncDots {
+      0% { content: '.'; }
+      33% { content: '..'; }
+      66% { content: '...'; }
+    }
+
+    .concept-card__info {
+      padding: var(--space-3) var(--space-4);
+    }
+
+    .concept-card__info dt {
+      font-family: var(--font-code);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: var(--space-2);
+    }
+
+    .concept-card__info dt:first-child {
+      margin-top: 0;
+    }
+
+    .concept-card__info dd {
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      margin: 2px 0 0 0;
+    }
+
+    /* --- Comparador de Padroes --- */
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+    }
+
+    @media (max-width: 768px) {
+      .pattern-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .pattern-col {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pattern-col-header {
+      padding: var(--space-3) var(--space-4);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 2px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pattern-col--sync .pattern-col-header {
+      color: var(--color-secondary);
+      border-bottom-color: var(--color-primary);
+    }
+
+    .pattern-col--stream .pattern-col-header {
+      color: var(--color-success);
+      border-bottom-color: var(--color-success);
+    }
+
+    .pattern-col--async .pattern-col-header {
+      color: #fb923c;
+      border-bottom-color: var(--color-accent);
+    }
+
+    .pattern-col-timer {
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--color-text-secondary);
+    }
+
+    .pattern-col-body {
+      padding: var(--space-4);
+      flex: 1;
+      min-height: 220px;
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      line-height: 1.7;
+      color: var(--color-text);
+      position: relative;
+      overflow-y: auto;
+    }
+
+    .pattern-col-body .waiting-msg {
+      color: var(--color-text-secondary);
+      font-style: italic;
+    }
+
+    .pattern-col-body .result-msg {
+      color: var(--color-success);
+    }
+
+    .pattern-col-body .event-line {
+      display: block;
+      margin-bottom: 2px;
+      animation: fadeSlideIn 200ms ease-out both;
+    }
+
+    .pattern-col-body .event-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    .pattern-col-body .poll-dot {
+      color: var(--color-text-secondary);
+    }
+
+    .pattern-col-body .status-line {
+      display: block;
+      margin-top: 4px;
+      color: var(--color-text-secondary);
+      font-size: 0.8rem;
+      animation: fadeSlideIn 200ms ease-out both;
+    }
+
+    .pattern-col-body .status-line--active {
+      color: #fb923c;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Spinner CSS */
+    .pattern-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-secondary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- SSE Timeline --- */
+    .sse-timeline {
+      position: relative;
+      padding-left: var(--space-8);
+    }
+
+    .sse-timeline::before {
+      content: '';
+      position: absolute;
+      left: var(--space-8);
+      top: 0;
+      bottom: var(--space-4);
+      width: 2px;
+      background: linear-gradient(to bottom, var(--color-border), var(--color-border) 90%, transparent);
+    }
+
+    .sse-event-card {
+      position: relative;
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-4);
+      opacity: 0;
+      transform: translateX(-12px);
+      transition: opacity 300ms ease-out, transform 300ms ease-out;
+    }
+
+    .sse-event-card.is-visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .sse-event-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      z-index: 2;
+      border: 2px solid var(--color-border);
+      background-color: var(--color-bg);
+    }
+
+    .sse-event-card--step_start::before { border-color: var(--color-secondary); background-color: rgba(79, 70, 229, 0.3); }
+    .sse-event-card--tool_call::before  { border-color: var(--color-accent);    background-color: rgba(234, 88, 12, 0.3); }
+    .sse-event-card--tool_result::before { border-color: var(--color-success);  background-color: rgba(34, 197, 94, 0.3); }
+    .sse-event-card--token::before      { border-color: var(--color-text-secondary); background-color: rgba(148, 163, 184, 0.3); }
+    .sse-event-card--done::before       { border-color: var(--color-primary);   background-color: rgba(79, 70, 229, 0.5); }
+
+    .sse-event-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-1);
+    }
+
+    .sse-event-type {
+      font-family: var(--font-code);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .sse-event-type--step_start  { background-color: rgba(79, 70, 229, 0.15); color: var(--color-secondary); border: 1px solid rgba(79, 70, 229, 0.3); }
+    .sse-event-type--tool_call   { background-color: rgba(234, 88, 12, 0.15); color: #fb923c; border: 1px solid rgba(234, 88, 12, 0.3); }
+    .sse-event-type--tool_result { background-color: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .sse-event-type--token       { background-color: rgba(148, 163, 184, 0.1); color: var(--color-text-secondary); border: 1px solid rgba(148, 163, 184, 0.2); }
+    .sse-event-type--done        { background-color: rgba(79, 70, 229, 0.2); color: var(--color-secondary); border: 1px solid rgba(79, 70, 229, 0.4); }
+
+    .sse-event-time {
+      font-family: var(--font-code);
+      font-size: 0.7rem;
+      color: var(--color-text-secondary);
+    }
+
+    .sse-event-data {
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Decision guide as cards */
+    .card-grid {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .card {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+
+    .card h3 {
+      font-size: var(--font-size-base);
+      margin-bottom: var(--space-2);
+      color: var(--color-text-heading);
+    }
+
+    .card ul {
+      padding-left: var(--space-4);
+      margin: 0;
+    }
+
+    .card li {
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--space-1);
+      color: var(--color-text);
+    }
+
+    /* Mark styling */
+    mark {
+      background-color: rgba(79, 70, 229, 0.2);
+      color: var(--color-text);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <aside id="sidebar"></aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- =============================================
+           Cabecalho do Capitulo
+           ============================================= -->
+      <header class="chapter-header">
+        <span class="chapter-number">Capitulo 02</span>
+        <h1 class="chapter-title">Padroes de Comunicacao: Sync, Stream, Async</h1>
+        <p class="chapter-description">
+          Nao existe UM jeito certo de servir um agente. Existem tres padroes,
+          e a escolha depende do caso de uso.
+        </p>
+      </header>
+
+      <!-- =============================================
+           Secao 1: Abertura — Animated Concept Cards
+           ============================================= -->
+      <section aria-labelledby="sec-abertura">
+        <h2 id="sec-abertura">Visao Geral dos Padroes</h2>
+
+        <p>
+          Quando um cliente precisa se comunicar com um agente LLM, existem tres abordagens
+          fundamentais. Cada uma faz trade-offs diferentes entre experiencia do usuario,
+          complexidade de implementacao e escalabilidade.
+        </p>
+
+        <div class="concept-cards">
+          <!-- Sync Card -->
+          <div class="concept-card concept-card--sync">
+            <div class="concept-card__header">Sync (Request-Response)</div>
+            <div class="mini-browser">
+              <div class="mini-browser__bar">
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__url">POST /invoke</span>
+              </div>
+              <div class="mini-browser__content">
+                <div class="sync-anim__spinner"></div>
+                <div class="sync-anim__result">
+                  {"output": "A resposta completa do agente aparece aqui de uma vez, apos todo o processamento."}
+                </div>
+              </div>
+            </div>
+            <dl class="concept-card__info">
+              <dt>UX</dt>
+              <dd><mark>Tela branca</mark> ate a resposta chegar</dd>
+              <dt>Complexidade</dt>
+              <dd>Baixa — HTTP convencional</dd>
+              <dt>Melhor para</dt>
+              <dd>Agentes rapidos (&lt;15s), integracao sistema-sistema</dd>
+            </dl>
+          </div>
+
+          <!-- Stream Card -->
+          <div class="concept-card concept-card--stream">
+            <div class="concept-card__header">Stream (SSE)</div>
+            <div class="mini-browser">
+              <div class="mini-browser__bar">
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__url">POST /stream</span>
+              </div>
+              <div class="mini-browser__content" style="justify-content: flex-start; align-items: flex-start; padding-top: var(--space-4);">
+                <div class="stream-anim__line">Encontrei 3 registros relevantes no banco de dados.</div>
+              </div>
+            </div>
+            <dl class="concept-card__info">
+              <dt>UX</dt>
+              <dd>Tokens aparecem progressivamente</dd>
+              <dt>Complexidade</dt>
+              <dd>Media — precisa de SSE/WebSocket</dd>
+              <dt>Melhor para</dt>
+              <dd>Interfaces de chat, UX com feedback</dd>
+            </dl>
+          </div>
+
+          <!-- Async Card -->
+          <div class="concept-card concept-card--async">
+            <div class="concept-card__header">Async (Fila)</div>
+            <div class="mini-browser">
+              <div class="mini-browser__bar">
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__dot"></span>
+                <span class="mini-browser__url">POST /invoke/async</span>
+              </div>
+              <div class="mini-browser__content">
+                <div class="async-anim__phase async-anim__phase--enqueued">
+                  Task enfileirada<br>{"task_id": "abc-123"}
+                </div>
+                <div class="async-anim__phase async-anim__phase--polling">
+                  Polling ...<br>{"status": "processing"}
+                </div>
+                <div class="async-anim__phase async-anim__phase--done">
+                  <span class="async-anim__checkmark">&#10003;</span>
+                  Concluido
+                </div>
+              </div>
+            </div>
+            <dl class="concept-card__info">
+              <dt>UX</dt>
+              <dd>Resposta imediata, resultado depois</dd>
+              <dt>Complexidade</dt>
+              <dd>Alta — broker, worker, persistencia</dd>
+              <dt>Melhor para</dt>
+              <dd>Tarefas longas (&gt;60s), batch, resiliencia</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Secao 2: Padrao Sincrono
+           ============================================= -->
+      <section aria-labelledby="sec-sync">
+        <h2 id="sec-sync">Padrao Sincrono (Request-Response)</h2>
+
+        <p>
+          O padrao mais simples: o cliente envia uma requisicao HTTP, a API chama o agente,
+          e a resposta so retorna quando o agente termina. A <mark>conexao aberta</mark> fica
+          mantida durante todo o processamento.
+        </p>
+
+        <div class="diagram">
+          <div class="diagram-node diagram-node--primary">Client</div>
+          <div class="diagram-arrow--right"></div>
+          <div class="diagram-node">API</div>
+          <div class="diagram-arrow--right"></div>
+          <div class="diagram-node">Agent</div>
+          <div class="diagram-arrow--right"></div>
+          <div class="diagram-node diagram-node--accent">LLM</div>
+        </div>
+
+        <h3>Quando funciona bem</h3>
+        <ul>
+          <li>Agentes rapidos que respondem consistentemente em menos de 15 segundos</li>
+          <li>Integracao sistema-sistema (machine-to-machine) onde nao ha usuario esperando</li>
+          <li>Prototipacao e MVPs onde simplicidade e prioridade</li>
+        </ul>
+
+        <h3>Quando quebra: limites de timeout da infraestrutura</h3>
+        <p>
+          O problema do padrao sincrono nao esta no codigo — esta na infraestrutura entre
+          o cliente e o servidor. Cada camada tem seu proprio timeout:
+        </p>
+
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th>Timeout Padrao</th>
+                <th>Impacto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>API Gateway (AWS)</strong></td>
+                <td>29 segundos</td>
+                <td>Hard limit, nao configuravel</td>
+              </tr>
+              <tr>
+                <td><strong>ALB (AWS)</strong></td>
+                <td>60 segundos</td>
+                <td>Configuravel, mas com custo de conexao aberta</td>
+              </tr>
+              <tr>
+                <td><strong>Cloud Run (GCP)</strong></td>
+                <td>5 minutos</td>
+                <td>Generoso, mas cobra por tempo de execucao</td>
+              </tr>
+              <tr>
+                <td><strong>Nginx (default)</strong></td>
+                <td>60 segundos</td>
+                <td>proxy_read_timeout, configuravel</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="arch-diagram">
+          <pre class="mermaid">
+sequenceDiagram
+    participant Client
+    participant GW as API Gateway<br/>(29s timeout)
+    participant LB as Load Balancer<br/>(60s timeout)
+    participant API as FastAPI
+    participant Agent
+
+    Client->>GW: POST /invoke
+    GW->>LB: Forward
+    LB->>API: Forward
+    API->>Agent: run(message)
+    Note over Agent: Processando...<br/>35 segundos
+    Agent-->>API: Resposta OK
+    Note over GW: TIMEOUT!<br/>Limite de 29s atingido
+    GW--xClient: 504 Gateway Timeout
+          </pre>
+        </div>
+
+        <div class="callout callout--warning">
+          <div class="callout-title">Atencao</div>
+          <p>
+            Se o seu agente leva 35 segundos para responder e voce esta atras de um API Gateway
+            da AWS, o cliente vai receber um <code>504 Gateway Timeout</code> — mesmo que o
+            agente esteja processando normalmente no backend.
+          </p>
+        </div>
+
+        <h3>Implementacao com FastAPI</h3>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span>endpoint_sync.py</span>
+          </div>
+          <pre data-lang="python"><code><span class="code-keyword">@app</span>.post(<span class="code-string">"/invoke"</span>, response_model=<span class="code-class">InvokeResponse</span>)
+<span class="code-keyword">async def</span> <span class="code-function">invoke</span>(request: <span class="code-class">InvokeRequest</span>) -> <span class="code-class">InvokeResponse</span>:
+    result = <span class="code-keyword">await</span> agent_module.run(request.message)
+    <span class="code-keyword">return</span> <span class="code-class">InvokeResponse</span>(
+        output=result.output,
+        tools_used=result.tools_used,
+        token_count=result.token_count,
+        step_count=result.step_count,
+        duration_ms=result.duration_ms,
+    )</code></pre>
+        </div>
+
+      </section>
+
+      <!-- =============================================
+           Secao 3: Padrao Streaming (SSE)
+           ============================================= -->
+      <section aria-labelledby="sec-stream">
+        <h2 id="sec-stream">Padrao Streaming (SSE)</h2>
+
+        <p>
+          <strong>Server-Sent Events (SSE)</strong> e um protocolo HTTP que permite ao servidor
+          enviar dados progressivamente ao cliente, sem que o cliente precise fazer polling.
+          A conexao e aberta uma vez e o servidor envia eventos conforme o agente processa.
+          O header de resposta usa <mark>text/event-stream</mark> como Content-Type.
+        </p>
+
+        <p>
+          Diferente de WebSocket, SSE e unidirecional (servidor para cliente) e funciona sobre
+          HTTP/1.1 padrao — compativel com load balancers, proxies e CDNs sem configuracao
+          especial.
+        </p>
+
+        <h3>Tipos de evento</h3>
+        <p>
+          Um agente LLM com tools produz uma sequencia previsivel de eventos.
+          Definir tipos padronizados permite que o frontend reaja a cada etapa:
+        </p>
+
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Descricao</th>
+                <th>Dados Tipicos</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>step_start</code></td>
+                <td>Inicio de um step do agente</td>
+                <td><code>{"step": 1, "type": "reasoning"}</code></td>
+              </tr>
+              <tr>
+                <td><code>tool_call</code></td>
+                <td>Agente decidiu chamar uma tool</td>
+                <td><code>{"tool": "search_database", "args": {...}}</code></td>
+              </tr>
+              <tr>
+                <td><code>tool_result</code></td>
+                <td>Resultado da execucao da tool</td>
+                <td><code>{"tool": "search_database", "result": "..."}</code></td>
+              </tr>
+              <tr>
+                <td><code>token</code></td>
+                <td>Token individual da resposta final</td>
+                <td><code>{"content": "A resposta"}</code></td>
+              </tr>
+              <tr>
+                <td><code>done</code></td>
+                <td>Agente concluiu o processamento</td>
+                <td><code>{"total_tokens": 1847, "steps": 3}</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--info">
+          <div class="callout-title"><mark>AG-UI</mark>: O padrao da industria</div>
+          <p>
+            Os tipos de evento que definimos (<code>step_start</code>, <code>tool_call</code>,
+            <code>token</code>, <code>done</code>) seguem o mesmo padrao que o protocolo
+            <strong>AG-UI</strong> (Agent-User Interaction Protocol) formaliza para a industria.
+          </p>
+          <p>
+            Criado pela CopilotKit e adotado por LangGraph, Google ADK, AWS Bedrock e Microsoft,
+            o AG-UI define ~30 tipos de evento padronizados para comunicacao agente-frontend via SSE.
+            Nossos 5 eventos mapeiam diretamente para os equivalentes do AG-UI:
+            <code>step_start</code> -> <code>STEP_STARTED</code>,
+            <code>tool_call</code> -> <code>TOOL_CALL_START</code>,
+            <code>token</code> -> <code>TEXT_MESSAGE_CONTENT</code>,
+            <code>done</code> -> <code>RUN_FINISHED</code>.
+          </p>
+          <p>
+            O AG-UI adiciona granularidade extra (pares start/end para cada fase, sincronizacao
+            de estado, eventos de raciocinio) e interoperabilidade entre frameworks — mas o
+            conceito fundamental e exatamente o que estamos construindo aqui.
+          </p>
+        </div>
+
+        <!-- SSE Timeline (moved here from separate section) -->
+        <h3>Timeline de Eventos SSE</h3>
+
+        <p>
+          Abaixo, uma simulacao dos eventos SSE que um agente real produziria ao responder
+          uma pergunta que requer uso de tool. Observe a sequencia e os tempos entre eventos.
+        </p>
+
+        <div id="sse-timeline" class="interactive">
+          <!-- Renderizado por chapter-02.js -->
+        </div>
+
+        <h3>Implementacao com FastAPI + SSE</h3>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span>endpoint_stream.py</span>
+          </div>
+          <pre data-lang="python"><code><span class="code-keyword">from</span> sse_starlette.sse <span class="code-keyword">import</span> EventSourceResponse, ServerSentEvent
+
+<span class="code-keyword">@app</span>.post(<span class="code-string">"/stream"</span>, response_class=<span class="code-class">EventSourceResponse</span>)
+<span class="code-keyword">async def</span> <span class="code-function">stream</span>(request: <span class="code-class">InvokeRequest</span>):
+    <span class="code-keyword">async for</span> event <span class="code-keyword">in</span> agent_module.run_stream(request.message):
+        <span class="code-keyword">yield</span> <span class="code-class">ServerSentEvent</span>(
+            event=event.type,
+            data=event.data,
+        )</code></pre>
+        </div>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Vantagem chave</div>
+          <p>
+            Com streaming, o primeiro token pode chegar em menos de 1 segundo, mesmo que a
+            resposta completa leve 30 segundos. Isso muda drasticamente a percepcao de
+            velocidade pelo usuario.
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Secao 4: Padrao Assincrono (Fila)
+           ============================================= -->
+      <section aria-labelledby="sec-async">
+        <h2 id="sec-async">Padrao Assincrono (Fila)</h2>
+
+        <p>
+          No padrao assincrono, o cliente envia a requisicao e recebe imediatamente um
+          identificador de tarefa. O processamento acontece em background, em um worker
+          separado. O cliente consulta o status periodicamente (polling) ou e notificado
+          via webhook/websocket quando o resultado esta pronto.
+          Este e o padrao <mark>fire-and-forget</mark>.
+        </p>
+
+        <h3>Componentes</h3>
+        <ul>
+          <li><strong>Broker (RabbitMQ / Redis)</strong> — fila de mensagens que desacopla API do processamento</li>
+          <li><strong>Worker (Celery / dramatiq)</strong> — processo que consome a fila e executa o agente</li>
+          <li><strong>Persistencia (PostgreSQL)</strong> — armazena o status e resultado da tarefa</li>
+        </ul>
+
+        <div class="arch-diagram">
+          <pre class="mermaid">
+flowchart LR
+    Client[Cliente]
+
+    subgraph API[API Gateway]
+        Post[POST /invoke/async]
+        Get[GET /tasks/id]
+    end
+
+    Queue[RabbitMQ<br/>Broker]
+    Worker[Worker<br/>Celery]
+    DB[(PostgreSQL)]
+
+    Client -->|1. Envia request| Post
+    Post -->|2a. Retorna task_id| Client
+    Post -->|2b. Enfileira| Queue
+    Queue -->|3. Consome| Worker
+    Worker -->|4. Processa agente| Worker
+    Worker -->|5. Salva resultado| DB
+    Client -.->|6. Polling| Get
+    Get -.->|7. Consulta| DB
+    Get -.->|8. Status| Client
+          </pre>
+        </div>
+
+        <h3>Implementacao com FastAPI + Celery</h3>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span>endpoint_async.py</span>
+          </div>
+          <pre data-lang="python"><code><span class="code-keyword">@app</span>.post(<span class="code-string">"/invoke/async"</span>, response_model=<span class="code-class">AsyncInvokeResponse</span>)
+<span class="code-keyword">async def</span> <span class="code-function">invoke_async</span>(request: <span class="code-class">InvokeRequest</span>) -> <span class="code-class">AsyncInvokeResponse</span>:
+    record = <span class="code-class">TaskRecord</span>(input_message=request.message, status=<span class="code-string">"pending"</span>)
+    db.add(record)
+    db.commit()
+    run_agent.delay(record.id, request.message)
+    <span class="code-keyword">return</span> <span class="code-class">AsyncInvokeResponse</span>(
+        task_id=record.id,
+        status=<span class="code-string">"pending"</span>,
+        poll_url=<span class="code-string">f"/tasks/{record.id}"</span>,
+    )
+
+<span class="code-keyword">@app</span>.get(<span class="code-string">"/tasks/{task_id}"</span>)
+<span class="code-keyword">async def</span> <span class="code-function">get_task</span>(task_id: <span class="code-class">str</span>):
+    record = db.get(task_id)
+    <span class="code-keyword">return</span> {
+        <span class="code-string">"status"</span>: record.status,
+        <span class="code-string">"result"</span>: record.result,
+    }</code></pre>
+        </div>
+
+        <div class="callout callout--success">
+          <div class="callout-title">Vantagem chave</div>
+          <p>
+            O padrao assincrono e o unico que sobrevive a deploys, restarts e falhas de infra.
+            Se o worker cair, a mensagem continua na fila e sera processada quando o worker
+            voltar. Nenhum trabalho e perdido.
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Secao 5: Interactive — Comparador Visual
+           ============================================= -->
+      <section aria-labelledby="sec-comparator">
+        <h2 id="sec-comparator">Comparador Visual</h2>
+
+        <p>
+          Veja como cada padrao se comporta em tempo real. Os tres recebem a mesma
+          requisicao simultaneamente — observe as diferencas de UX.
+        </p>
+
+        <div id="pattern-comparator" class="interactive">
+          <!-- Renderizado por chapter-02.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Secao 7: Quando Usar Cada Padrao
+           ============================================= -->
+      <section aria-labelledby="sec-decision">
+        <h2 id="sec-decision">Quando Usar Cada Padrao</h2>
+
+        <div class="arch-diagram">
+          <pre class="mermaid">
+flowchart TD
+    Q1{Agente responde<br/>em menos de 15s?}
+    Q1 -->|Sim| SYNC[Sync<br/>Request-Response]
+    Q1 -->|Não| Q2{Usuário precisa de<br/>feedback em tempo real?}
+    Q2 -->|Sim| STREAM[Stream<br/>SSE]
+    Q2 -->|Não| Q3{Precisa sobreviver a<br/>falhas e restarts?}
+    Q3 -->|Sim| ASYNC[Async<br/>Fila + Workers]
+    Q3 -->|Não| STREAM
+
+    style SYNC fill:#4F46E5,color:#fff
+    style STREAM fill:#22c55e,color:#fff
+    style ASYNC fill:#fb923c,color:#fff
+          </pre>
+        </div>
+
+        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+          <div class="card">
+            <h3>Use Sync quando...</h3>
+            <ul>
+              <li>O agente responde em menos de 15 segundos</li>
+              <li>A integracao e sistema-a-sistema (sem UI)</li>
+              <li>Simplicidade e mais importante que UX</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Use Stream quando...</h3>
+            <ul>
+              <li>O usuario precisa ver progresso em tempo real</li>
+              <li>A resposta pode demorar 15-60 segundos</li>
+              <li>A experiencia interativa importa (chat, assistentes)</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Use Async quando...</h3>
+            <ul>
+              <li>O processamento pode levar minutos</li>
+              <li>O cliente nao pode manter conexao aberta</li>
+              <li>Precisa absorver picos de trafego</li>
+              <li>Processamento em batch ou fire-and-forget</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Comparacao Final</h3>
+
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Criterio</th>
+                <th>Sync</th>
+                <th>Stream</th>
+                <th>Async</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Latencia percebida</strong></td>
+                <td>Alta (espera total)</td>
+                <td>Baixa (feedback imediato)</td>
+                <td>Nenhuma (fire-and-forget)</td>
+              </tr>
+              <tr>
+                <td><strong>Complexidade de infra</strong></td>
+                <td>Minima</td>
+                <td>Moderada</td>
+                <td>Alta</td>
+              </tr>
+              <tr>
+                <td><strong>Tolerancia a falha</strong></td>
+                <td>Nenhuma</td>
+                <td>Nenhuma</td>
+                <td>Alta (fila persiste)</td>
+              </tr>
+              <tr>
+                <td><strong>Limite de timeout</strong></td>
+                <td>Restrito pela infra</td>
+                <td>Mais flexivel</td>
+                <td>Sem limite pratico</td>
+              </tr>
+              <tr>
+                <td><strong>Observabilidade</strong></td>
+                <td>Apenas resultado final</td>
+                <td>Eventos em tempo real</td>
+                <td>Status consultavel a qualquer momento</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Secao 8: Resumo
+           ============================================= -->
+      <section aria-labelledby="sec-resumo">
+        <h2 id="sec-resumo">Resumo</h2>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Principais aprendizados</div>
+          <p>
+            <strong>1.</strong> O padrao sincrono e simples mas fragil — qualquer timeout de
+            infra pode matar a requisicao, mesmo que o agente esteja funcionando.
+          </p>
+          <p>
+            <strong>2.</strong> Streaming (SSE) muda drasticamente a percepcao de velocidade,
+            permitindo feedback progressivo enquanto o agente processa.
+          </p>
+          <p>
+            <strong>3.</strong> O padrao assincrono e o mais resiliente, mas exige uma arquitetura
+            mais complexa com broker, workers e persistencia.
+          </p>
+          <p>
+            <strong>4.</strong> A escolha nao e exclusiva — muitos sistemas oferecem
+            os tres endpoints simultaneamente para diferentes casos de uso.
+          </p>
+        </div>
+
+      </section>
+
+    </div><!-- /.content-inner -->
+  </main>
+
+  <nav id="chapter-nav"></nav>
+</div>
+
+<script src="../assets/js/interactive.js"></script>
+<script src="../assets/js/nav.js"></script>
+<script src="../assets/js/chapter-02.js"></script>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#4F46E5',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#818CF8',
+      lineColor: '#475569',
+      secondaryColor: '#1e1e2e',
+      tertiaryColor: '#1a1a2e'
+    }
+  });
+</script>
+
+</body>
+</html>

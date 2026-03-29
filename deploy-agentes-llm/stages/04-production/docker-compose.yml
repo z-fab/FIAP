@@ -1,0 +1,76 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TERM=xterm-256color
+      - DATABASE_URL=postgresql://agent:agent@postgres:5432/agent_tasks
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - RABBITMQ_HOST=rabbitmq
+      - MAX_CONCURRENT_AGENTS=3
+      - MAX_QUEUE_SIZE=10
+      - AGENT_TIMEOUT=20
+      - TOOL_TIMEOUT=10
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: uv run celery -A tasks worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TERM=xterm-256color
+      - DATABASE_URL=postgresql://agent:agent@postgres:5432/agent_tasks
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent_tasks
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U agent -d agent_tasks
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Do Script ao Serviço — Como Servir Agentes LLM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    /* ====================================================
+       Estilos específicos do index — sem conflito com o design system
+       ==================================================== */
+
+    .hero {
+      padding: var(--space-16) var(--space-4) var(--space-12);
+      text-align: center;
+      border-bottom: 1px solid var(--color-border);
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(79, 70, 229, 0.12) 0%, transparent 70%);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-1) var(--space-4);
+      background-color: rgba(79, 70, 229, 0.12);
+      border: 1px solid rgba(79, 70, 229, 0.3);
+      border-radius: 100px;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--color-secondary);
+      margin-bottom: var(--space-8);
+    }
+
+    .hero-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--color-primary);
+      flex-shrink: 0;
+    }
+
+    .hero-title {
+      font-size: clamp(2.5rem, 7vw, 4rem);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: var(--space-3);
+      border: none;
+      padding: 0;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(var(--font-size-xl), 3vw, var(--font-size-3xl));
+      font-weight: 400;
+      color: var(--color-primary);
+      letter-spacing: -0.02em;
+      margin-top: 0;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: var(--space-6);
+      text-align: center;
+    }
+
+    .hero-description {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-secondary);
+      max-width: 52ch;
+      margin-top: 0;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: var(--space-10);
+      line-height: 1.7;
+      text-align: center;
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-8);
+      flex-wrap: wrap;
+      margin-top: var(--space-10);
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      display: block;
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      font-family: var(--font-code);
+    }
+
+    .hero-stat-label {
+      display: block;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      margin-top: var(--space-1);
+    }
+
+    /* ====================================================
+       Grid de capítulos
+       ==================================================== */
+
+    .chapters-section {
+      padding: var(--space-12) var(--space-4) var(--space-16);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Em mobile, cards em coluna única */
+    @media (max-width: 640px) {
+      .chapters-section .card-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    .section-label {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: var(--space-8);
+      text-align: center;
+    }
+
+    .chapter-card {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-8);
+      transition:
+        background-color var(--transition-base),
+        border-color var(--transition-base),
+        transform var(--transition-base),
+        box-shadow var(--transition-base);
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .chapter-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--transition-slow);
+    }
+
+    .chapter-card:hover {
+      background-color: var(--color-surface-hover);
+      border-color: var(--color-primary);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .chapter-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .chapter-card-number {
+      font-size: 4rem;
+      font-weight: 700;
+      font-family: var(--font-code);
+      color: var(--color-primary);
+      opacity: 0.25;
+      line-height: 1;
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.04em;
+    }
+
+    .chapter-card-id {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: var(--space-2);
+      font-family: var(--font-code);
+    }
+
+    .chapter-card-title {
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      margin-bottom: var(--space-1);
+      line-height: 1.3;
+    }
+
+    .chapter-card-subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--color-secondary);
+      font-weight: 500;
+      margin-bottom: var(--space-4);
+    }
+
+    .chapter-card-description {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      line-height: 1.65;
+      flex: 1;
+      margin-bottom: var(--space-6);
+    }
+
+    .chapter-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+    }
+
+    .chapter-card-duration {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+
+    .chapter-card-link {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-primary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      transition: color var(--transition-fast), gap var(--transition-fast);
+    }
+
+    .chapter-card:hover .chapter-card-link {
+      color: var(--color-secondary);
+      gap: var(--space-2);
+    }
+
+    /* ====================================================
+       Footer
+       ==================================================== */
+
+    .site-footer {
+      border-top: 1px solid var(--color-border);
+      padding: var(--space-8) var(--space-4);
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+    }
+
+    .site-footer p {
+      margin: 0;
+      max-width: none;
+    }
+
+    /* ====================================================
+       Layout sem sidebar no index
+       ==================================================== */
+
+    .index-layout {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      /* Garante que nenhum margin-left/padding externo desloque o conteúdo */
+      margin-left: 0 !important;
+      padding-left: 0 !important;
+    }
+
+    .index-main {
+      flex: 1;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="index-layout">
+  <main class="index-main">
+
+    <!-- =============================================
+         Hero
+         ============================================= -->
+    <section class="hero" aria-labelledby="hero-title">
+
+      <div class="hero-badge" aria-label="Disciplina FIAP">
+        <span class="hero-badge-dot" aria-hidden="true"></span>
+        <span>Pós-graduação em Machine Learning Engineering — FIAP</span>
+      </div>
+
+      <h1 class="hero-title" id="hero-title">Do Script ao Serviço</h1>
+      <p class="hero-subtitle">Como Servir Agentes LLM</p>
+
+      <p class="hero-description">
+        Guia interativo para transformar um agente funcional em um serviço confiável,
+        resiliente e deployável.
+      </p>
+
+      <div class="hero-stats" aria-label="Estatísticas do curso">
+        <div class="hero-stat">
+          <span class="hero-stat-value">4</span>
+          <span class="hero-stat-label">Capítulos</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">~2h</span>
+          <span class="hero-stat-label">Leitura</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">12+</span>
+          <span class="hero-stat-label">Demos interativas</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =============================================
+         Grade de Capítulos
+         ============================================= -->
+    <section class="chapters-section" aria-labelledby="chapters-heading">
+
+      <p class="section-label" id="chapters-heading">Conteúdo do Curso</p>
+
+      <div class="card-grid" style="grid-template-columns: repeat(2, 1fr); gap: var(--space-6);" role="list">
+
+        <!-- Capítulo 01 -->
+        <a href="chapters/01-the-problem.html" class="chapter-card" role="listitem" aria-label="Capítulo 01: O Problema">
+          <div class="chapter-card-number" aria-hidden="true">01</div>
+          <div class="chapter-card-id">Capítulo 01</div>
+          <h2 class="chapter-card-title">O Problema</h2>
+          <p class="chapter-card-subtitle">Por que servir agentes é diferente</p>
+          <p class="chapter-card-description">
+            Entenda por que servir agentes LLM é fundamentalmente diferente de servir
+            microsserviços tradicionais. Latência imprevisível, natureza stateful e cadeias
+            de ferramentas exigem uma nova forma de pensar infraestrutura.
+          </p>
+          <div class="chapter-card-footer">
+            <span class="chapter-card-duration">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M7 4v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              ~15 min
+            </span>
+            <span class="chapter-card-link">
+              Abrir Capítulo
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M4 7h6M7 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+        </a>
+
+        <!-- Capítulo 02 -->
+        <a href="chapters/02-communication.html" class="chapter-card" role="listitem" aria-label="Capítulo 02: Padrões de Comunicação">
+          <div class="chapter-card-number" aria-hidden="true">02</div>
+          <div class="chapter-card-id">Capítulo 02</div>
+          <h2 class="chapter-card-title">Padrões de Comunicação</h2>
+          <p class="chapter-card-subtitle">Sync, Stream, Async</p>
+          <p class="chapter-card-description">
+            Implemente três padrões — sync, streaming SSE e assíncrono — e saiba quando usar
+            cada um. Compare tradeoffs de latência, complexidade operacional e experiência do
+            usuário para escolher o padrão certo para cada contexto.
+          </p>
+          <div class="chapter-card-footer">
+            <span class="chapter-card-duration">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M7 4v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              ~40 min
+            </span>
+            <span class="chapter-card-link">
+              Abrir Capítulo
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M4 7h6M7 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+        </a>
+
+        <!-- Capítulo 03 -->
+        <a href="chapters/03-production.html" class="chapter-card" role="listitem" aria-label="Capítulo 03: Controles de Produção">
+          <div class="chapter-card-number" aria-hidden="true">03</div>
+          <div class="chapter-card-id">Capítulo 03</div>
+          <h2 class="chapter-card-title">Controles de Produção</h2>
+          <p class="chapter-card-subtitle">Timeout, Concorrência, Resiliência</p>
+          <p class="chapter-card-description">
+            Adicione semáforo de concorrência, timeout em camadas, erros tipados e health check.
+            Transforme um serviço frágil em uma API que sobrevive a picos de tráfego e falhas
+            parciais do modelo.
+          </p>
+          <div class="chapter-card-footer">
+            <span class="chapter-card-duration">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M7 4v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              ~35 min
+            </span>
+            <span class="chapter-card-link">
+              Abrir Capítulo
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M4 7h6M7 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+        </a>
+
+        <!-- Capítulo 04 -->
+        <a href="chapters/04-deploy.html" class="chapter-card" role="listitem" aria-label="Capítulo 04: Deploy">
+          <div class="chapter-card-number" aria-hidden="true">04</div>
+          <div class="chapter-card-id">Capítulo 04</div>
+          <h2 class="chapter-card-title">Deploy</h2>
+          <p class="chapter-card-subtitle">Artesanal vs. Gerenciado</p>
+          <p class="chapter-card-description">
+            Compare deploy artesanal, semi-gerenciado e plataformas gerenciadas. Avalie custo,
+            controle operacional e escala para decidir a estratégia correta para o estágio do
+            seu projeto — de MVP a produção crítica.
+          </p>
+          <div class="chapter-card-footer">
+            <span class="chapter-card-duration">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M7 4v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              ~30 min
+            </span>
+            <span class="chapter-card-link">
+              Abrir Capítulo
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M4 7h6M7 4l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =============================================
+       Footer
+       ============================================= -->
+  <footer class="site-footer" role="contentinfo">
+    <p>Material da disciplina Deploy de Agentes LLM &bull; FIAP 2025</p>
+  </footer>
+
+</div>
+
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

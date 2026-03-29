@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cap. 01 — O Problema: Por que Servir Agentes é Diferente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* ====================================================
+       Estilos específicos do Capítulo 01
+       ==================================================== */
+
+    /* Diagrama Notebook vs Produção — layout vertical */
+    .gap-section-label {
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding-bottom: var(--space-3);
+      margin-bottom: var(--space-4);
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    .gap-section-label--notebook {
+      color: var(--color-text-secondary);
+    }
+
+    .gap-section-label--prod {
+      color: var(--color-accent);
+    }
+
+    .gap-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-6) 0;
+    }
+
+    .gap-arrow-line {
+      width: 2px;
+      height: 32px;
+      background: linear-gradient(to bottom, var(--color-border), var(--color-accent));
+    }
+
+    .gap-arrow-label {
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--color-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .gap-arrow-chevron {
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid var(--color-accent);
+    }
+
+    .gap-notebook-box {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      line-height: 1.8;
+    }
+
+    .gap-notebook-box span {
+      display: block;
+    }
+
+
+    /* Gap items (expandíveis) */
+    .gap-item {
+      background-color: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-2);
+      overflow: hidden;
+      transition: border-color var(--transition-base);
+    }
+
+    .gap-item:hover {
+      border-color: var(--color-primary);
+    }
+
+    .gap-item-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: var(--space-3) var(--space-4);
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-family: var(--font-body);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color var(--transition-fast);
+    }
+
+    .gap-item-trigger:hover {
+      background-color: var(--color-surface-hover);
+    }
+
+    .gap-item-trigger:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -2px;
+      border-radius: var(--radius-md);
+    }
+
+    .gap-item-chevron {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: var(--color-text-secondary);
+      transition: transform var(--transition-base);
+    }
+
+    .gap-item.is-open .gap-item-chevron {
+      transform: rotate(90deg);
+    }
+
+    .gap-item-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 300ms ease-out;
+    }
+
+    .gap-item.is-open .gap-item-body {
+      max-height: 200px;
+    }
+
+    .gap-item-content {
+      padding: 0 var(--space-4) var(--space-4) var(--space-4);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      line-height: 1.65;
+    }
+
+    /* Simulador de carga */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    @media (max-width: 640px) {
+      .sim-grid { grid-template-columns: 1fr; }
+    }
+
+    .sim-panel {
+      background-color: var(--color-code-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+
+    .sim-panel-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-3);
+    }
+
+    .sim-chart {
+      width: 100%;
+      height: 180px;
+      display: block;
+    }
+
+    .sim-user-counter {
+      font-family: var(--font-code);
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      text-align: center;
+      margin-bottom: var(--space-4);
+    }
+
+    .sim-user-counter span {
+      color: var(--color-accent);
+    }
+
+    .sim-controls {
+      display: flex;
+      gap: var(--space-3);
+      justify-content: center;
+      margin-bottom: var(--space-6);
+    }
+
+    .sim-legend {
+      display: flex;
+      gap: var(--space-4);
+      margin-top: var(--space-2);
+      font-size: 0.7rem;
+      color: var(--color-text-secondary);
+    }
+
+    .sim-legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* Warnings */
+    .sim-warnings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      min-height: 28px;
+    }
+
+    .sim-warning {
+      display: none;
+      animation: fadeIn 200ms ease-out both;
+    }
+
+    .sim-warning.is-visible {
+      display: inline-flex;
+    }
+
+    /* Propriedades inconvenientes — ícone numérico */
+    .prop-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: rgba(79, 70, 229, 0.12);
+      color: var(--color-secondary);
+      font-family: var(--font-code);
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-bottom: var(--space-3);
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <aside id="sidebar"></aside>
+
+  <main class="content">
+    <div class="content-inner">
+
+      <!-- =============================================
+           Cabeçalho do Capítulo
+           ============================================= -->
+      <header class="chapter-header">
+        <span class="chapter-number">Capítulo 01</span>
+        <h1 class="chapter-title">O Problema: Por que Servir Agentes é Diferente</h1>
+        <p class="chapter-description">
+          Entenda por que as técnicas tradicionais de deploy não funcionam para agentes LLM
+          e quais propriedades tornam esse problema fundamentalmente diferente.
+        </p>
+      </header>
+
+      <!-- =============================================
+           Seção 1: Introdução
+           ============================================= -->
+      <section aria-labelledby="sec-intro">
+        <h2 id="sec-intro">Introdução</h2>
+
+        <p>
+          Você sabe construir um agente. Ele raciocina, usa tools, responde perguntas complexas.
+          Mas e agora? Como outro sistema chama isso? O que acontece quando 50 pessoas chamam
+          ao mesmo tempo? E se demorar 45 segundos?
+        </p>
+
+        <p>
+          Esta aula é sobre o <strong><mark>gap entre construir um agente e operá-lo</mark></strong>.
+          A distancia entre um <code>agent.run()</code> que funciona no notebook é um serviço
+          que aguenta tráfego real, com controle de custo, tratamento de erro é deploy
+          automatizado.
+        </p>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Objetivo desta aula</div>
+          <p>
+            Ao final deste capítulo, você vai entender as três propriedades que tornam agentes LLM
+            diferentes de microsserviços tradicionais — e por que cada uma exige uma estratégia
+            específica de infraestrutura.
+          </p>
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 2: As 3 Propriedades Inconvenientes
+           ============================================= -->
+      <section aria-labelledby="sec-props">
+        <h2 id="sec-props">As 3 Propriedades Inconvenientes</h2>
+
+        <p>
+          Agentes LLM compartilham três características que os tornam fundamentalmente
+          diferentes de APIs tradicionais. Entender essas propriedades é o primeiro passo
+          para construir infraestrutura adequada.
+        </p>
+
+        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+
+          <!-- Card 1: Latência Imprevisível -->
+          <div class="card">
+            <div class="prop-icon">1</div>
+            <h3 class="card-title" style="margin-top: 0;">Latência Imprevisível</h3>
+            <p class="card-description" style="margin-bottom: var(--space-4);">
+              A mesma pergunta pode levar <mark>2s ou 60s</mark>. Em CRUD, o p99 é estável.
+              Em agentes, a variância é enorme.
+            </p>
+            <p style="margin-top: var(--space-3); margin-bottom: 0;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.06em;">Implicação</span><br>
+              <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Timeouts fixos são perigosos.</span>
+            </p>
+          </div>
+
+          <!-- Card 2: Falha Parcial -->
+          <div class="card">
+            <div class="prop-icon">2</div>
+            <h3 class="card-title" style="margin-top: 0;">Falha Parcial</h3>
+            <p class="card-description" style="margin-bottom: var(--space-4);">
+              Um agente pode completar 4 de 5 steps e falhar no último.
+              Desperdiçar o trabalho dos 4 steps é <mark>jogar dinheiro fora</mark>.
+            </p>
+            <p style="margin-top: var(--space-3); margin-bottom: 0;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.06em;">Implicação</span><br>
+              <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Tratamento de erro precisa ser mais sofisticado que retornar 500.</span>
+            </p>
+          </div>
+
+          <!-- Card 3: Custo por Request -->
+          <div class="card">
+            <div class="prop-icon">3</div>
+            <h3 class="card-title" style="margin-top: 0;">Custo por Request</h3>
+            <p class="card-description" style="margin-bottom: var(--space-4);">
+              Cada chamada consome tokens do LLM. 100 requests simultâneas sem controle
+              = <mark>orçamento explodindo</mark>.
+            </p>
+            <p style="margin-top: var(--space-3); margin-bottom: 0;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.06em;">Implicação</span><br>
+              <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Controle de concorrência não é apenas sobre performance — é sobre custo.</span>
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 3: Notebook vs Produção
+           ============================================= -->
+      <section aria-labelledby="sec-gap">
+        <h2 id="sec-gap">Notebook vs. Produção</h2>
+
+        <p>
+          O que falta entre o script que funciona no Jupyter e um serviço de produção?
+          Clique em cada item para entender por que ele é necessário.
+        </p>
+
+        <div id="gap-diagram">
+          <!-- Renderizado por chapter-01.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 4: Simulador de Carga
+           ============================================= -->
+      <section aria-labelledby="sec-sim">
+        <h2 id="sec-sim">Simulador de Carga</h2>
+
+        <p>
+          Clique em 'Iniciar teste de carga' para simular o que acontece com um agente LLM
+          conforme o número de usuários aumenta progressivamente.
+        </p>
+
+        <div id="user-simulator" class="interactive">
+          <!-- Renderizado por chapter-01.js -->
+        </div>
+      </section>
+
+      <!-- =============================================
+           Seção 5: Resumo
+           ============================================= -->
+      <section aria-labelledby="sec-resumo">
+        <h2 id="sec-resumo">Resumo</h2>
+
+        <div class="callout callout--info">
+          <div class="callout-title">Principais aprendizados</div>
+          <p>
+            <strong>1.</strong> Agentes LLM têm latência imprevisível — timeouts fixos e load balancers
+            tradicionais não funcionam bem.
+          </p>
+          <p>
+            <strong>2.</strong> Falhas parciais são a regra, não a exceção — o tratamento de erro precisa
+            preservar trabalho já realizado em vez de descartar tudo.
+          </p>
+          <p>
+            <strong>3.</strong> Cada request tem custo real em tokens — controle de concorrência é
+            uma questão financeira, não apenas de performance.
+          </p>
+        </div>
+
+      </section>
+
+    </div><!-- /.content-inner -->
+  </main>
+
+  <nav id="chapter-nav"></nav>
+</div>
+
+<script src="../assets/js/interactive.js"></script>
+<script src="../assets/js/nav.js"></script>
+<script src="../assets/js/chapter-01.js"></script>
+
+</body>
+</html>
