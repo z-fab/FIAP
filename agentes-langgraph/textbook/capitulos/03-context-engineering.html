@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context Engineering: O Combustível dos Agentes — Agentes de IA: De LLMs a Sistemas Autônomos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <link rel="stylesheet" href="../assets/style.css">
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+      primaryColor: '#EDE9FE', primaryTextColor: '#5B21B6', primaryBorderColor: '#7C3AED',
+      lineColor: '#CEC9BF', secondaryColor: '#F0EDE6', tertiaryColor: '#FDFBF7',
+      edgeLabelBackground: '#FDFBF7', fontFamily: "'DM Sans', sans-serif", fontSize: '14px',
+      nodeBorder: '#E2DDD4', clusterBkg: '#F5F2EC', clusterBorder: '#E2DDD4', titleColor: '#1C1917',
+    }});
+  </script>
+
+  <style>
+    /* Context Window Explorer v2 styles */
+    .cwe-container { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; overflow: hidden; margin: 2rem 0; }
+
+    .cwe-header { padding: 1.25rem 1.5rem 1rem; }
+    .cwe-header .interactive-label { font-size: 0.7rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-primary); margin: 0 0 0.5rem 0 !important; display: block; }
+    .cwe-header h3 { font-size: 1.15rem !important; font-weight: 600 !important; margin: 0 0 0.25rem 0 !important; padding: 0 !important; border: none !important; }
+    .cwe-header p { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0; }
+
+    /* Model selector */
+    .cwe-models { display: flex; gap: 0.375rem; padding: 0 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .cwe-model-btn { padding: 0.4rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface-2); font-size: 0.7rem; font-family: var(--font-sans); cursor: pointer; transition: all 0.15s; color: var(--color-text-secondary); }
+    .cwe-model-btn:hover { border-color: var(--color-primary); }
+    .cwe-model-btn.active { background: var(--color-primary-light); border-color: var(--color-primary); color: var(--color-primary-dark); font-weight: 600; }
+
+    /* Main body */
+    .cwe-body { display: grid; grid-template-columns: 220px 1fr; gap: 0; border-top: 1px solid var(--color-border); }
+    @media (max-width: 768px) { .cwe-body { grid-template-columns: 1fr; } }
+
+    /* Left panel: components */
+    .cwe-panel { padding: 1.25rem; border-right: 1px solid var(--color-border); }
+    .cwe-panel-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 0.75rem; }
+    @media (max-width: 768px) { .cwe-panel { border-right: none; border-bottom: 1px solid var(--color-border); } }
+
+    .cwe-comp { margin-bottom: 1rem; }
+    .cwe-comp:last-child { margin-bottom: 0; }
+    .cwe-comp-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .cwe-comp-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .cwe-comp-name { font-size: 0.75rem; font-weight: 500; color: var(--color-text); }
+    .cwe-comp-value { font-size: 0.65rem; color: var(--color-text-muted); font-family: var(--font-mono); margin-left: auto; }
+    .cwe-comp input[type="range"] { width: 100%; margin-top: 0.125rem; height: 4px; cursor: pointer; }
+
+    /* Right panel: grid + analysis */
+    .cwe-right { padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+    .cwe-right-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 0.5rem; }
+
+    /* Waffle grid */
+    .cwe-grid { display: grid; grid-template-columns: repeat(var(--cwe-cols, 20), 13px); gap: 2px; justify-content: center; }
+    .cwe-cell { width: 13px; height: 13px; border-radius: 2px; position: relative; }
+    .cwe-cell-empty { background: var(--color-border-light, #EBE7E0); }
+    .cwe-cell-filled { opacity: 0.9; }
+    /* Lost in the Middle: strong hatching */
+    .cwe-cell-middle.cwe-cell-filled {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 1.5px,
+        rgba(155,28,28,0.6) 1.5px,
+        rgba(155,28,28,0.6) 3px
+      ) !important;
+      background-blend-mode: multiply;
+    }
+    .cwe-cell-middle.cwe-cell-empty { background: rgba(155,28,28,0.08); }
+    .cwe-cell-middle.cwe-cell-empty { background: var(--color-surface-2); opacity: 0.5; }
+    .cwe-cell-overflow { animation: cwe-pulse 1s ease-in-out infinite; background: #EF4444 !important; }
+    @keyframes cwe-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+    /* Big numbers */
+    .cwe-numbers { display: flex; gap: 1.5rem; align-items: baseline; }
+    .cwe-pct { font-size: 2rem; font-weight: 600; font-family: var(--font-mono); color: var(--color-primary); line-height: 1; }
+    .cwe-pct-label { font-size: 0.75rem; color: var(--color-text-muted); margin-left: 0.25rem; }
+    .cwe-free { font-size: 1rem; color: var(--color-text-muted); font-family: var(--font-mono); }
+    .cwe-free-label { font-size: 0.7rem; color: var(--color-text-muted); margin-left: 0.25rem; }
+
+    /* Analysis */
+    .cwe-analysis-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); margin-bottom: 0.5rem; }
+    .cwe-diagnosis { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; line-height: 1.5; }
+    .cwe-diagnosis-ok { background: rgba(16,185,129,0.08); color: #047857; }
+    .cwe-diagnosis-warn { background: rgba(217,119,6,0.08); color: #92400E; }
+    .cwe-diagnosis-danger { background: rgba(239,68,68,0.08); color: #991B1B; }
+    .cwe-diagnosis-overflow { background: rgba(239,68,68,0.12); color: #991B1B; animation: cwe-pulse 1.5s ease-in-out infinite; }
+    .cwe-grid-note { font-size: 0.7rem; color: var(--color-text-muted); text-align: center; margin-top: 0.375rem; }
+    .cwe-grid-note span { color: #9B1C1C; font-weight: 600; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon"><i data-lucide="arrow-left" style="width:14px;height:14px"></i></span>
+          <span class="sb-home-lbl">Agentes de IA: De LLMs a Sistemas Autônomos</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-o-que-sao-agentes.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '\u2713' : '01'"></span>
+          <span class="ch-txt">O que são Agentes de IA</span>
+        </a>
+        <a href="02-raciocinio-e-tool-calling.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '\u2713' : '02'"></span>
+          <span class="ch-txt">Raciocínio e Tool Calling</span>
+        </a>
+        <a href="03-context-engineering.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '\u2713' : '03'"></span>
+          <span class="ch-txt">Context Engineering</span>
+        </a>
+        <a href="04-langgraph-na-pratica.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '\u2713' : '04'"></span>
+          <span class="ch-txt">LangGraph na Prática</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#introducao" class="sec-link" :class="{ 'active': activeSection==='introducao' }">Introdução: Por Que Contexto é Tudo</a>
+        <a href="#context-window" class="sec-link" :class="{ 'active': activeSection==='context-window' }">Context Window</a>
+        <a href="#anatomia" class="sec-link" :class="{ 'active': activeSection==='anatomia' }">Anatomia de uma Chamada</a>
+        <a href="#ce-vs-pe" class="sec-link" :class="{ 'active': activeSection==='ce-vs-pe' }">CE vs Prompt Engineering</a>
+        <a href="#falhas" class="sec-link" :class="{ 'active': activeSection==='falhas' }">As Quatro Falhas de Contexto</a>
+        <a href="#estrategias" class="sec-link" :class="{ 'active': activeSection==='estrategias' }">Estratégias de CE</a>
+        <a href="#rag" class="sec-link" :class="{ 'active': activeSection==='rag' }">RAG</a>
+        <a href="#memoria" class="sec-link" :class="{ 'active': activeSection==='memoria' }">Memória em Agentes</a>
+        <a href="#caching" class="sec-link" :class="{ 'active': activeSection==='caching' }">Context Caching</a>
+        <a href="#sintese" class="sec-link" :class="{ 'active': activeSection==='sintese' }">Síntese: Princípios</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Agentes de IA</a>
+        <span class="topbar-sep">&rsaquo;</span>
+        <span class="topbar-current">Context Engineering: O Combustível dos Agentes</span>
+      </header>
+
+      <article class="content-wrapper">
+        <div class="content">
+        <div class="chapter-eyebrow">Capítulo 03</div>
+        <h1>Context Engineering: O <em>Combustível</em> dos Agentes</h1>
+        <p class="chapter-objective">Entender por que o contexto é o recurso mais crítico de um agente e como engenhá-lo corretamente.</p>
+
+        <blockquote>
+          <p>"Context engineering is the discipline of designing and building dynamic systems that provides the right information and tools, in the right format, at the right time, to give a LLM everything it needs to accomplish a task."<br>
+          <span style="font-style: normal; font-size: 0.875rem; color: var(--color-text-muted);">— Philipp Schmid, Hugging Face</span></p>
+        </blockquote>
+
+        <h2 id="introducao">3.1 Introdução: Por Que Contexto é Tudo</h2>
+
+        <p>Nos capítulos anteriores, exploramos como LLMs funcionam e como agentes estendem suas capacidades com ferramentas e raciocínio. Agora, precisamos enfrentar uma pergunta fundamental: <strong>o que o modelo realmente sabe no momento em que gera uma resposta?</strong></p>
+
+        <p>A resposta é simples e ao mesmo tempo profunda: o modelo sabe exatamente — e apenas — aquilo que está na sua <strong>context window</strong>. Não importa quão sofisticada seja a arquitetura do agente, quão poderosas sejam suas ferramentas ou quão refinado seja seu loop de raciocínio. Se a informação certa não estiver no contexto, no formato certo, no momento certo, o agente falhará.</p>
+
+        <p>É aqui que entra o conceito de <strong>context engineering</strong> — uma disciplina que transcende o simples "prompt engineering" e se posiciona como a habilidade central para quem constrói sistemas baseados em LLMs de nível produção.</p>
+
+        <p>Como colocou Tobi Lutke, CEO da Shopify, em junho de 2025:</p>
+        <blockquote>
+          <p>"I really like the term 'context engineering' over prompt engineering. It describes the core skill better: the art of providing all the context for the task to be plausibly solvable by the LLM."</p>
+        </blockquote>
+
+        <p>E Andrej Karpathy reforçou:</p>
+        <blockquote>
+          <p>"+1 for 'context engineering' over 'prompt engineering'. In every industrial-strength LLM app, context engineering is the delicate art and science of filling the context window with just the right information for the next step."</p>
+        </blockquote>
+
+        <p>Neste capítulo, vamos dissecar a context window, entender seus limites reais (que são muito mais restritivos do que os números de marketing sugerem), mapear cada componente que compete por espaço nessa janela e dominar as estratégias de engenharia que permitem a agentes autônomos operarem de forma confiável.</p>
+
+        <h2 id="context-window">3.2 Context Window: Capacidades e Limitações</h2>
+
+        <h3>3.2.1 O Que É a Context Window</h3>
+
+        <p>A context window é a <strong>memória de trabalho</strong> de um LLM. Ela representa o número máximo de tokens que o modelo consegue processar em uma única chamada — incluindo tanto a entrada (prompt, histórico, documentos) quanto a saída gerada.</p>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Definição</div>
+          <p><strong>Context Window</strong>: Quantidade máxima de tokens que um LLM pode receber como entrada e produzir como saída em uma única interação. Funciona como a "RAM" do modelo — tudo que o modelo precisa saber para gerar a próxima resposta deve caber nesse espaço.</p>
+        </div>
+
+        <h3>3.2.2 Evolução das Janelas de Contexto</h3>
+
+        <p>A corrida por context windows maiores é uma das tendências mais marcantes da evolução dos LLMs:</p>
+
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Modelo</th><th>Ano</th><th>Context Window</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>GPT-3</td><td>2020</td><td>4.096 tokens</td></tr>
+            <tr><td>Claude 2</td><td>2023</td><td>100.000 tokens</td></tr>
+            <tr><td>GPT-4 Turbo</td><td>2024</td><td>128.000 tokens</td></tr>
+            <tr><td>Gemini 1.5 Pro</td><td>2024</td><td>1.000.000 tokens</td></tr>
+            <tr><td>Claude Opus 4.6</td><td>2026</td><td>1.000.000 tokens</td></tr>
+            <tr><td>Llama 4</td><td>2026</td><td>10.000.000 tokens</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>Para dar uma dimensão concreta: 4.096 tokens equivalem a aproximadamente 3.000 palavras — algo como um artigo curto. Um milhão de tokens corresponde a cerca de 750.000 palavras, ou o equivalente a vários livros completos. Dez milhões de tokens ultrapassam a marca de uma enciclopédia inteira.</p>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Dica</div>
+          <p><strong>Referência prática de conversão:</strong> 1 token &asymp; 0,75 palavras em inglês e &asymp; 0,6 palavras em português (nosso idioma tende a gerar mais tokens por palavra devido à acentuação e morfologia mais complexa). Para código-fonte, a razão varia bastante conforme a linguagem e estilo.</p>
+        </div>
+
+        <h3>3.2.3 O Número no Rótulo Mente</h3>
+
+        <p>Aqui está a parte que poucos discutem abertamente: <strong>a context window anunciada é um limite teórico, não operacional</strong>. Na prática, a qualidade do processamento degrada muito antes de atingir o limite.</p>
+
+        <h4>O Fenômeno "Lost in the Middle"</h4>
+
+        <p>Liu et al. (Stanford/UC Berkeley, publicado no TACL) demonstraram empiricamente que LLMs exibem um <strong>viés de atenção em forma de U</strong>: o modelo atende bem a informações no <strong>início</strong> e no <strong>final</strong> do contexto, mas perde significativamente a capacidade de utilizar informações posicionadas no <strong>meio</strong>.</p>
+
+        <div class="diagram-wrap" style="padding:1.5rem 2rem;">
+          <div style="width:100%;max-width:500px;">
+            <div style="font-size:0.7rem;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;text-align:center;">Atenção do Modelo por Posição no Contexto</div>
+            <div style="display:flex;align-items:flex-end;gap:3px;height:120px;padding-bottom:0.5rem;border-bottom:1px solid var(--color-border);">
+              <!-- Barras formando curva em U -->
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:95%;opacity:0.9"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:85%;opacity:0.8"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:70%;opacity:0.7"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:55%;opacity:0.6"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:40%;opacity:0.45"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:32%;opacity:0.35"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:28%;opacity:0.3"></div>
+              <div style="flex:1;background:var(--color-danger);border-radius:3px 3px 0 0;height:25%;opacity:0.5"></div>
+              <div style="flex:1;background:var(--color-danger);border-radius:3px 3px 0 0;height:23%;opacity:0.5"></div>
+              <div style="flex:1;background:var(--color-danger);border-radius:3px 3px 0 0;height:22%;opacity:0.5"></div>
+              <div style="flex:1;background:var(--color-danger);border-radius:3px 3px 0 0;height:23%;opacity:0.5"></div>
+              <div style="flex:1;background:var(--color-danger);border-radius:3px 3px 0 0;height:25%;opacity:0.5"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:30%;opacity:0.35"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:38%;opacity:0.4"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:50%;opacity:0.55"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:65%;opacity:0.65"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:78%;opacity:0.75"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:88%;opacity:0.85"></div>
+              <div style="flex:1;background:var(--color-primary);border-radius:3px 3px 0 0;height:95%;opacity:0.9"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--color-text-muted);margin-top:0.375rem;">
+              <span>Início</span>
+              <span style="color:var(--color-danger)">← Zona de baixa atenção →</span>
+              <span>Fim</span>
+            </div>
+            <p style="text-align:center;font-size:0.75rem;color:var(--color-text-secondary);margin-top:0.75rem;font-style:italic;">Informação posicionada no meio do contexto tem até 20% menos chance de ser utilizada pelo modelo</p>
+          </div>
+        </div>
+
+        <p>O estudo mostrou que a performance cai <strong>mais de 20%</strong> quando a informação relevante está posicionada no meio da context window, comparada às posições inicial ou final. Isso tem implicações diretas para o design de agentes: a <strong>ordem</strong> em que os componentes aparecem no contexto importa tanto quanto o <strong>conteúdo</strong> em si.</p>
+
+        <h4>Context Rot</h4>
+
+        <p>Um estudo conduzido pela Chroma (2024-2025), testando 18 modelos diferentes, revelou um fenômeno chamado <strong>context rot</strong>: todo modelo degrada conforme o contexto cresce. A descoberta mais impactante foi que modelos que anunciam suporte a 200.000 tokens tipicamente se tornam <strong>não confiáveis por volta de 130.000 tokens</strong>.</p>
+
+        <p>Mais preocupante ainda: quando os dados inseridos no contexto possuem <strong>estrutura lógica</strong> (ou seja, dependências entre partes), a degradação é mais severa do que com dados aleatórios. Isso é particularmente relevante para agentes, que frequentemente lidam com código, documentos estruturados e históricos conversacionais onde a coerência lógica é essencial.</p>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Atenção</div>
+          <p><strong>Regra prática para sistemas de produção:</strong> Considere como limite operacional seguro aproximadamente <strong>60-65% da context window anunciada</strong>. Acima disso, monitore cuidadosamente a qualidade das respostas. Trate o limite máximo como reserva de emergência, não como meta operacional.</p>
+        </div>
+
+        <h2 id="anatomia">3.3 Anatomia de uma Chamada de Agente</h2>
+
+        <p>Quando um agente processa uma tarefa, a context window é preenchida por <strong>sete componentes</strong> que competem pelo espaço disponível. Entender cada um deles é fundamental para engenhá-los corretamente.</p>
+
+        <h3>3.3.1 Os Sete Componentes do Contexto</h3>
+
+        <div class="numbered-list-fancy">
+          <div class="nlf-item">
+            <span class="nlf-num">1</span>
+            <div><strong>Instructions / System Prompt</strong><br><span style="color:var(--color-text-secondary)">O alicerce comportamental do agente. Define persona, regras, restrições, formato de saída e tom. Em agentes complexos, pode consumir 2.000 a 10.000 tokens.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">2</span>
+            <div><strong>User Prompt</strong><br><span style="color:var(--color-text-secondary)">A mensagem ou tarefa atual do usuário. Pode ser uma pergunta simples ou uma instrução complexa com múltiplos requisitos.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">3</span>
+            <div><strong>State / Conversation History</strong><br><span style="color:var(--color-text-secondary)">O histórico de interações anteriores na mesma sessão. Cresce a cada iteração e é frequentemente o maior consumidor de contexto.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">4</span>
+            <div><strong>Long-Term Memory</strong><br><span style="color:var(--color-text-secondary)">Informações persistidas entre sessões — preferências do usuário, decisões anteriores, fatos aprendidos. Seletivamente recuperada, não carregada integralmente.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">5</span>
+            <div><strong>Retrieved Information (RAG)</strong><br><span style="color:var(--color-text-secondary)">Documentos, trechos de código ou registros buscados dinamicamente de fontes externas para fundamentar a resposta.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">6</span>
+            <div><strong>Available Tools</strong><br><span style="color:var(--color-text-secondary)">Definições das ferramentas que o agente pode utilizar — nome, descrição, parâmetros, esquema JSON. Um agente com 50 ferramentas pode gastar milhares de tokens.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">7</span>
+            <div><strong>Structured Output Format</strong><br><span style="color:var(--color-text-secondary)">Instruções sobre o formato esperado da saída — JSON schemas, templates, exemplos de resposta.</span></div>
+          </div>
+        </div>
+
+        <!-- Cenário concreto removido — a informação é coberta pelo Context Window Explorer -->
+
+        <h3>3.3.2 A Competição por Espaço</h3>
+
+        <p>O desafio central do context engineering é que <strong>todos os componentes são potencialmente úteis</strong>, mas o espaço é finito e a qualidade degrada antes do limite. Isso cria um problema de otimização: como maximizar a informação relevante enquanto se minimiza o consumo de tokens?</p>
+
+        <p>Essa é a razão pela qual context engineering é uma disciplina de <strong>arquitetura de informação</strong>, não apenas de redação de prompts.</p>
+
+        <!-- ════════ INTERATIVO 1: CONTEXT WINDOW EXPLORER v2 ════════ -->
+        <div class="cwe-container" id="cwe-root">
+          <div class="cwe-header">
+            <span class="interactive-label">Componente Interativo</span>
+            <h3>Context Window Explorer</h3>
+            <p>Explore como os componentes de um agente competem por espaço na janela de contexto</p>
+          </div>
+          <div class="cwe-models" id="cwe-models"></div>
+          <div class="cwe-body">
+            <div class="cwe-panel" id="cwe-panel">
+              <div class="cwe-panel-title">Componentes</div>
+              <div id="cwe-comp-list"></div>
+            </div>
+            <div class="cwe-right">
+              <div>
+                <div class="cwe-right-title">Context Window</div>
+                <div class="cwe-grid" id="cwe-grid"></div>
+                <div class="cwe-grid-note" id="cwe-grid-note" style="display:none"></div>
+              </div>
+              <div class="cwe-numbers">
+                <span><span class="cwe-pct" id="cwe-pct">0%</span><span class="cwe-pct-label">usado</span></span>
+                <span><span class="cwe-free" id="cwe-free">0</span><span class="cwe-free-label">livres</span></span>
+              </div>
+              <div>
+                <div class="cwe-analysis-title">Analise</div>
+                <div class="cwe-diagnosis" id="cwe-diagnosis"></div>
+                <div class="cwe-middle-info" id="cwe-middle-info" style="margin-top:0.75rem;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h2 id="ce-vs-pe">3.4 Context Engineering vs Prompt Engineering</h2>
+
+        <h3>3.4.1 A Diferença que Importa</h3>
+
+        <p>A distinção entre prompt engineering e context engineering não é meramente terminológica — reflete uma mudança fundamental de paradigma:</p>
+
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Dimensão</th><th>Prompt Engineering</th><th>Context Engineering</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Foco</strong></td><td>Como formular a instrução</td><td>O que o modelo sabe ao gerar</td></tr>
+            <tr><td><strong>Escopo</strong></td><td>Single-turn, uma string</td><td>Sistema dinâmico multi-componente</td></tr>
+            <tr><td><strong>Natureza</strong></td><td>Estático</td><td>Contínuo e adaptativo</td></tr>
+            <tr><td><strong>Disciplina</strong></td><td>Crafting de linguagem</td><td>Arquitetura de informação</td></tr>
+            <tr><td><strong>Momento</strong></td><td>Design-time</td><td>Design-time + runtime</td></tr>
+            <tr><td><strong>Complexidade</strong></td><td>Artesanal</td><td>Sistêmico</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>Como sintetizou a equipe da Neo4j:</p>
+        <blockquote>
+          <p>"Prompts shape how the model thinks. Context shapes what the model actually knows."</p>
+        </blockquote>
+
+        <h3>3.4.2 De Artesanato a Engenharia</h3>
+
+        <p>Prompt engineering nasceu como uma habilidade quase artesanal: encontrar as palavras certas, os exemplos certos, a estrutura certa para fazer um modelo se comportar como desejado em uma interação isolada. É valioso, mas insuficiente para sistemas de produção.</p>
+
+        <p>Context engineering, por outro lado, é a disciplina de construir <strong>sistemas dinâmicos</strong> que:</p>
+
+        <ul>
+          <li><strong>Coletam</strong> informação de múltiplas fontes (bancos de dados, APIs, memórias, documentos)</li>
+          <li><strong>Selecionam</strong> o subconjunto mais relevante para a tarefa atual</li>
+          <li><strong>Formatam</strong> essa informação de modo otimizado para o consumo do modelo</li>
+          <li><strong>Gerenciam</strong> o ciclo de vida do contexto ao longo de múltiplas interações</li>
+          <li><strong>Adaptam</strong> a composição do contexto dinamicamente conforme a tarefa evolui</li>
+        </ul>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Definição</div>
+          <p><strong>Context Engineering</strong>: A disciplina de projetar e construir sistemas dinâmicos que fornecem a informação e as ferramentas certas, no formato certo, no momento certo, para dar ao LLM tudo o que ele precisa para realizar uma tarefa. Enquanto prompt engineering otimiza uma string, context engineering orquestra um pipeline.</p>
+        </div>
+
+        <p>Para ilustrar com uma analogia: se o LLM é um cirurgião, o prompt engineering é a qualidade do briefing pré-operatório. O context engineering é todo o sistema hospitalar — exames disponíveis na sala, instrumentos esterilizados na bandeja, histórico do paciente no monitor, equipe de enfermagem posicionada. O briefing importa, mas sem o sistema ao redor, o cirurgião opera no escuro.</p>
+
+        <h2 id="falhas">3.5 As Quatro Falhas de Contexto</h2>
+
+        <p>Antes de explorar as estratégias de solução, é essencial entender os modos de falha. A equipe da LangChain documentou quatro falhas recorrentes em sistemas sem engenharia de contexto adequada:</p>
+
+        <h3>3.5.1 Context Poisoning</h3>
+        <p>Alucinações ou informações incorretas geradas em interações anteriores <strong>contaminam</strong> o contexto de interações subsequentes. O modelo passa a tratar ficção como fato, propagando erros em cascata. Em agentes multi-step, isso é particularmente perigoso: um resultado incorreto de tool call no passo 3 pode corromper toda a cadeia de raciocínio dos passos 4 a 10.</p>
+
+        <h3>3.5.2 Context Distraction</h3>
+        <p>Excesso de informação <strong>sobrecarrega</strong> o modelo. Mesmo que toda a informação inserida seja verdadeira e potencialmente útil, o volume excessivo dilui a atenção e reduz a capacidade do modelo de focar nos elementos críticos. Combinado com o fenômeno "Lost in the Middle", informações relevantes podem ser efetivamente invisíveis.</p>
+
+        <h3>3.5.3 Context Confusion</h3>
+        <p>Contexto <strong>supérfluo ou tangencialmente relacionado</strong> influencia a geração de formas inesperadas. Um documento sobre "Python" (a linguagem) inserido em uma conversa sobre "Python" (a cobra) pode desviar completamente a resposta.</p>
+
+        <h3>3.5.4 Context Clash</h3>
+        <p><strong>Contradições internas</strong> no contexto — por exemplo, o system prompt diz "sempre responda em português" enquanto um trecho de memória registra "user prefers English responses". O modelo precisa resolver conflitos que não deveria ter que enfrentar.</p>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Atenção</div>
+          <p><strong>Implicação para design de agentes:</strong> Essas quatro falhas demonstram que <strong>mais contexto não é necessariamente melhor contexto</strong>. A seleção criteriosa e a higiene do contexto são tão importantes quanto garantir que a informação certa esteja disponível. O princípio operacional é: "minimum sufficient context" — o mínimo de contexto que seja suficiente para a tarefa.</p>
+        </div>
+
+        <h2 id="estrategias">3.6 Estratégias de Context Engineering</h2>
+
+        <p>A LangChain sistematizou quatro estratégias fundamentais que formam o toolkit do context engineer. Podemos pensar nelas como as quatro operações básicas sobre o contexto.</p>
+
+        <h3>3.6.1 Write (Escrever)</h3>
+        <p><strong>Princípio:</strong> Salvar informações fora da context window para reutilização futura.</p>
+        <p>Nem tudo precisa viver dentro da janela de contexto o tempo todo. A estratégia Write consiste em <strong>externalizar</strong> informações para armazenamentos persistentes — bancos de dados, arquivos, key-value stores — de onde podem ser recuperadas quando necessárias.</p>
+        <p><strong>Exemplos práticos:</strong></p>
+        <ul>
+          <li><strong>Scratchpads:</strong> o agente escreve raciocínios intermediários em um bloco de notas externo</li>
+          <li><strong>Memória de longo prazo:</strong> fatos sobre o usuário persistidos entre sessões</li>
+          <li><strong>Checkpoints:</strong> estado do agente salvo para recuperação em caso de falha</li>
+          <li><strong>Logs estruturados:</strong> histórico de ações e decisões para auditoria</li>
+        </ul>
+
+        <h3>3.6.2 Select (Selecionar)</h3>
+        <p><strong>Princípio:</strong> Buscar e injetar no contexto apenas a informação mais relevante para o passo atual.</p>
+        <p>É aqui que RAG (Retrieval-Augmented Generation), busca semântica de ferramentas e leitura seletiva de memórias entram em ação. Em vez de carregar tudo, o sistema <strong>seleciona</strong> cirurgicamente o que importa.</p>
+        <p><strong>Exemplos práticos:</strong></p>
+        <ul>
+          <li><strong>RAG:</strong> buscar os 5 trechos de documentação mais relevantes para a pergunta atual</li>
+          <li><strong>Tool selection dinâmica:</strong> em vez de declarar 200 ferramentas, buscar semanticamente as 10 mais relevantes</li>
+          <li><strong>Memory retrieval:</strong> recuperar apenas as memórias do usuário pertinentes ao tópico atual</li>
+        </ul>
+
+        <h3>3.6.3 Compress (Comprimir)</h3>
+        <p><strong>Princípio:</strong> Reduzir o volume de tokens sem perder informação essencial.</p>
+        <p>Quando o contexto inevitavelmente cresce, compressão é a estratégia de sobrevivência. As técnicas incluem:</p>
+        <ul>
+          <li><strong>Summarization:</strong> Substituir histórico detalhado por resumos concisos. Os últimos N turnos permanecem intactos; os anteriores são resumidos.</li>
+          <li><strong>Trimming:</strong> Remover mensagens ou componentes menos relevantes baseado em heurísticas (idade, relevância estimada, tipo).</li>
+          <li><strong>Auto-compaction:</strong> Sistemas que automaticamente detectam a aproximação do limite e comprimem. O Claude Code, por exemplo, executa uma rotina de resumo quando atinge 95% da janela de contexto.</li>
+        </ul>
+
+        <div class="box box-example">
+          <div class="box-label"><i data-lucide="flask-conical" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Exemplo</div>
+          <p><strong>Auto-compaction em ação (Claude Code):</strong></p>
+          <p>Quando o contexto atinge 95% da capacidade, o sistema automaticamente:</p>
+          <ol>
+            <li>Identifica os turnos mais antigos da conversa</li>
+            <li>Gera um resumo estruturado das decisões e ações realizadas</li>
+            <li>Substitui os turnos detalhados pelo resumo compacto</li>
+            <li>Mantém intactos os últimos turnos e o system prompt</li>
+            <li>Libera espaço para novas interações</li>
+          </ol>
+          <p>Esse processo é transparente para o usuário e preserva a continuidade da tarefa.</p>
+        </div>
+
+        <h3>3.6.4 Isolate (Isolar)</h3>
+        <p><strong>Princípio:</strong> Separar contextos para evitar interferência e contornar limitações de tamanho.</p>
+        <p>Em arquiteturas multi-agent, cada agente pode operar com sua própria context window, focada exclusivamente em sua sub-tarefa. Isso evita context distraction e context confusion, além de permitir paralelismo.</p>
+        <p><strong>Exemplos práticos:</strong></p>
+        <ul>
+          <li>Um agente "pesquisador" opera com contexto focado em documentação enquanto um agente "codificador" opera com contexto focado no codebase</li>
+          <li>Sandboxes de execução onde resultados de ferramentas são processados em contextos isolados antes de serem resumidos e injetados no contexto principal</li>
+          <li>Sub-agentes especializados que recebem apenas o recorte do contexto relevante para sua função</li>
+        </ul>
+
+        <h2 id="rag">3.7 RAG: Retrieval-Augmented Generation</h2>
+
+        <h3>3.7.1 O Conceito Fundamental</h3>
+
+        <p>RAG, introduzido por Lewis et al. (2020, NeurIPS), é possivelmente a estratégia de context engineering mais impactante já desenvolvida. O conceito combina a <strong>memória paramétrica</strong> do LLM (conhecimento codificado nos pesos durante o treinamento) com <strong>memória não-paramétrica</strong> (informação recuperada dinamicamente de fontes externas).</p>
+
+        <div style="background:var(--color-surface);border-radius:12px;border:1px solid var(--color-border);padding:1.5rem;margin:2rem 0;overflow-x:auto;">
+          <div class="mermaid">
+            graph TD
+              A["🔍 Pergunta do Usuário"] --> B["Encoder"]
+              B --> C["Busca no Índice Vetorial"]
+              C --> D["Documentos Relevantes"]
+              D --> E["Context Window do LLM"]
+              F["System Prompt"] --> E
+              G["Histórico"] --> E
+              E --> H["✅ Resposta Fundamentada"]
+
+              classDef primario fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6
+              classDef sucesso fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52
+              classDef neutro fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560
+
+              class A,B,C,D primario
+              class E neutro
+              class H sucesso
+              class F,G neutro
+          </div>
+        </div>
+
+        <p>A intuição por trás do RAG é análoga a como humanos respondem perguntas complexas: em vez de confiar exclusivamente na memória (que pode estar desatualizada ou incompleta), <strong>consultamos fontes externas</strong> e usamos a informação recuperada para formular uma resposta informada.</p>
+
+        <h3>3.7.2 Variantes Modernas do RAG</h3>
+
+        <p>Desde a publicação original, o ecossistema RAG evoluiu significativamente. As principais variantes incluem:</p>
+
+        <ul>
+          <li><strong>Self-RAG:</strong> O modelo avalia se precisa de retrieval e julga a qualidade dos documentos recuperados antes de usá-los.</li>
+          <li><strong>Corrective RAG:</strong> Inclui um mecanismo de avaliação que detecta quando documentos recuperados são irrelevantes e aciona buscas alternativas.</li>
+          <li><strong>Adaptive RAG:</strong> Decide dinamicamente entre responder direto, usar RAG simples ou executar retrieval multi-step, dependendo da complexidade da pergunta.</li>
+          <li><strong>Agentic RAG:</strong> O agente trata o retrieval como uma ferramenta, podendo reformular queries, iterar sobre resultados e combinar informações de múltiplas fontes.</li>
+          <li><strong>GraphRAG (Microsoft):</strong> Constrói grafos de conhecimento a partir dos documentos e utiliza a estrutura do grafo para retrieval mais sofisticado, capturando relações entre entidades.</li>
+        </ul>
+
+        <h2 id="memoria">3.8 Memória de Curto e Longo Prazo em Agentes</h2>
+
+        <h3>3.8.1 A Taxonomia da Memória</h3>
+
+        <p>Inspirada em modelos de memória da psicologia cognitiva, a memória de agentes pode ser categorizada em quatro tipos:</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:2rem 0;">
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:1.25rem;">
+            <div style="font-size:1.25rem;margin-bottom:0.25rem;">🧠</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">Working Memory</div>
+            <div style="font-size:0.85rem;color:var(--color-text-secondary);line-height:1.6;">A context window atual. Tudo que o agente "tem em mente" neste momento. Volátil — ao final da sessão, informações são perdidas.</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:1.25rem;">
+            <div style="font-size:1.25rem;margin-bottom:0.25rem;">📝</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">Episodic Memory</div>
+            <div style="font-size:0.85rem;color:var(--color-text-secondary);line-height:1.6;">Logs de sessões anteriores — o que aconteceu, quais ações foram tomadas. Permite aprender com experiências passadas.</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:1.25rem;">
+            <div style="font-size:1.25rem;margin-bottom:0.25rem;">📚</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">Semantic Memory</div>
+            <div style="font-size:0.85rem;color:var(--color-text-secondary);line-height:1.6;">Fatos e conhecimento estruturado — a knowledge base do agente. Documentação, políticas, especificações técnicas. Base para RAG.</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:1.25rem;">
+            <div style="font-size:1.25rem;margin-bottom:0.25rem;">⚡</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">Procedural Memory</div>
+            <div style="font-size:0.85rem;color:var(--color-text-secondary);line-height:1.6;">Habilidades e procedimentos aprendidos — como executar tarefas. Implementada como skill libraries: prompts, workflows ou código reutilizável.</div>
+          </div>
+        </div>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Definição</div>
+          <p><strong>Analogia com memória humana:</strong></p>
+          <ul style="margin-top:0.5rem;">
+            <li><strong>Working Memory</strong> &rarr; O que você está pensando agora</li>
+            <li><strong>Episodic Memory</strong> &rarr; Suas lembranças de experiências ("lembro que na reunião de terça...")</li>
+            <li><strong>Semantic Memory</strong> &rarr; Seu conhecimento factual ("a capital da França é Paris")</li>
+            <li><strong>Procedural Memory</strong> &rarr; Suas habilidades ("sei andar de bicicleta")</li>
+          </ul>
+        </div>
+
+        <h2 id="caching">3.9 Context Caching: Otimização Econômica</h2>
+
+        <p>Em aplicações de produção, cada token no contexto tem custo. Um agente que executa 20 tool calls repete o mesmo system prompt e definições de ferramentas em cada chamada. <strong>Context caching</strong> resolve isso: o provedor armazena o prefixo processado e reutiliza nas chamadas seguintes, reduzindo custo e latência drasticamente.</p>
+
+        <h3>Como funciona</h3>
+
+        <p>O princípio é simples: em vez de reprocessar os mesmos tokens a cada chamada, o provedor armazena as matrizes computadas (KV cache) e as reutiliza. Isso elimina a computação redundante do prefixo compartilhado.</p>
+
+        <p>Os três grandes provedores implementam caching de formas distintas:</p>
+
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dimensão</th>
+              <th>Anthropic</th>
+              <th>OpenAI</th>
+              <th>Google Gemini</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Ativação</strong></td>
+              <td>Manual — o desenvolvedor marca pontos de cache com <code>cache_control</code></td>
+              <td>Automático — sem configuração necessária</td>
+              <td>Automático (implicit) ou Manual (explicit)</td>
+            </tr>
+            <tr>
+              <td><strong>Desconto</strong></td>
+              <td>90% (cache read = 10% do input base)</td>
+              <td>75-90% (varia por modelo)</td>
+              <td>~90% (Gemini 2.5+)</td>
+            </tr>
+            <tr>
+              <td><strong>TTL</strong></td>
+              <td>5 min (padrão) ou 1h (pago)</td>
+              <td>5-10 min, não configurável</td>
+              <td>1h padrão, configurável</td>
+            </tr>
+            <tr>
+              <td><strong>Mínimo de tokens</strong></td>
+              <td>1.024 a 4.096 (varia)</td>
+              <td>1.024 tokens</td>
+              <td>1.024 a 4.096 (varia)</td>
+            </tr>
+            <tr>
+              <td><strong>Garantia de hit</strong></td>
+              <td>Sim (breakpoints explícitos)</td>
+              <td>Não (best-effort)</td>
+              <td>Não (implicit) / Sim (explicit)</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p>Para agentes, o caching é especialmente valioso: o system prompt + definições de ferramentas são idênticos em todas as chamadas de um ciclo. Um agente com system prompt de 5.000 tokens que faz 15 tool calls economiza ~70.000 tokens de reprocessamento — redução de custo de até 90% nesse prefixo.</p>
+        </div>
+
+        <h2 id="sintese">3.10 Síntese: Princípios de Context Engineering</h2>
+
+        <p>Reunindo tudo o que exploramos neste capítulo, podemos extrair princípios operacionais para engenharia de contexto em agentes:</p>
+
+        <ol>
+          <li><strong>Mínimo Contexto Suficiente.</strong> Não maximize o que está no contexto — maximize a relevância do que está. Cada token supérfluo é um potencial vetor de distração ou confusão.</li>
+          <li><strong>Posicionamento importa.</strong> Informações críticas devem ficar no início ou no final do contexto. Evite enterrar instruções essenciais no meio.</li>
+          <li><strong>O limite real é menor que o anunciado.</strong> Planeje para 60-65% da context window como limite operacional. Monitore degradação.</li>
+          <li><strong>Contexto é dinâmico, não estático.</strong> O que o modelo precisa saber muda a cada passo. O sistema de context engineering deve adaptar a composição continuamente.</li>
+          <li><strong>Externalizar é tão importante quanto injetar.</strong> Write e Compress são tão valiosos quanto Select. A arte está no equilíbrio.</li>
+          <li><strong>Higiene previne falhas.</strong> Validar, desduplicar e verificar consistência do contexto antes de injetá-lo. Context poisoning e context clash são dívidas técnicas silenciosas.</li>
+        </ol>
+
+        <nav class="chapter-nav">
+          <a href="02-raciocinio-e-tool-calling.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">&larr; Raciocínio e Tool Calling</span>
+            </span>
+          </a>
+          <a href="04-langgraph-na-pratica.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo</span>
+              <span class="nav-btn-title">LangGraph na Prática &rarr;</span>
+            </span>
+          </a>
+        </nav>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script>lucide.createIcons();</script>
+
+  <script>
+    /* ════════════════════════════════════════════════
+       Context Window Explorer v2 — Waffle Chart + Analysis
+       ════════════════════════════════════════════════ */
+    (function() {
+      var MODELS = [
+        { name: 'GPT-3', label: 'GPT-3 4K', tokens: 4096 },
+        { name: 'Claude 2', label: 'Claude 2 100K', tokens: 100000 },
+        { name: 'GPT-4 Turbo', label: 'GPT-4T 128K', tokens: 128000 },
+        { name: 'Gemini 1.5', label: 'Gemini 1M', tokens: 1000000 }
+      ];
+
+      var COMPONENTS = [
+        { id: 'system',  name: 'System Prompt',       color: '#7C3AED', tokens: 3000,  min: 500,   max: 15000 },
+        { id: 'history', name: 'Conversation History', color: '#3B82F6', tokens: 15000, min: 0,     max: 100000 },
+        { id: 'rag',     name: 'RAG Documents',        color: '#EC4899', tokens: 8000,  min: 0,     max: 50000 },
+        { id: 'tools',   name: 'Tool Definitions',     color: '#D97706', tokens: 4000,  min: 500,   max: 20000 },
+        { id: 'results', name: 'Tool Results',          color: '#3D6B52', tokens: 6000,  min: 0,     max: 30000 },
+        { id: 'memory',  name: 'Memoria',              color: '#06B6D4', tokens: 2000,  min: 0,     max: 10000 }
+      ];
+
+      function cloneComponents() { return JSON.parse(JSON.stringify(COMPONENTS)); }
+
+      var state = {
+        modelIdx: 2,
+        components: cloneComponents()
+      };
+
+      function totalUsed() {
+        return state.components.reduce(function(s, c) { return s + c.tokens; }, 0);
+      }
+      function windowSize() { return MODELS[state.modelIdx].tokens; }
+      function pctUsed() { return (totalUsed() / windowSize()) * 100; }
+
+      function fmt(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return Math.round(n / 1000) + 'K';
+        return String(n);
+      }
+
+      function fmtPct(n) { return Math.round(n) + '%'; }
+
+      // Which components overlap the 30-70% zone of the window
+      function componentsInMiddle() {
+        var ws = windowSize();
+        var pos = 0;
+        var result = [];
+        for (var i = 0; i < state.components.length; i++) {
+          var c = state.components[i];
+          if (c.tokens === 0) { continue; }
+          var startPct = (pos / ws) * 100;
+          var endPct = ((pos + c.tokens) / ws) * 100;
+          pos += c.tokens;
+          if (endPct > 30 && startPct < 70) {
+            var fully = startPct >= 30 && endPct <= 70;
+            result.push({ name: c.name, fully: fully });
+          }
+        }
+        return result;
+      }
+
+      // ── Render Model Buttons ──
+      function renderModels() {
+        var container = document.getElementById('cwe-models');
+        container.innerHTML = '';
+        MODELS.forEach(function(m, i) {
+          var btn = document.createElement('button');
+          btn.className = 'cwe-model-btn' + (i === state.modelIdx ? ' active' : '');
+          btn.textContent = m.label;
+          btn.addEventListener('click', function() {
+            state.modelIdx = i;
+            render();
+          });
+          container.appendChild(btn);
+        });
+      }
+
+      // ── Render Component Sliders ──
+      function renderSliders() {
+        var list = document.getElementById('cwe-comp-list');
+        list.innerHTML = '';
+        state.components.forEach(function(c, i) {
+          var comp = document.createElement('div');
+          comp.className = 'cwe-comp';
+
+          var header = document.createElement('div');
+          header.className = 'cwe-comp-header';
+
+          var dot = document.createElement('span');
+          dot.className = 'cwe-comp-dot';
+          dot.style.background = c.color;
+
+          var name = document.createElement('span');
+          name.className = 'cwe-comp-name';
+          name.textContent = c.name;
+
+          var value = document.createElement('span');
+          value.className = 'cwe-comp-value';
+          value.textContent = fmt(c.tokens) + ' tokens';
+
+          header.appendChild(dot);
+          header.appendChild(name);
+          header.appendChild(value);
+
+          var slider = document.createElement('input');
+          slider.type = 'range';
+          slider.min = c.min;
+          slider.max = c.max;
+          slider.value = c.tokens;
+          slider.step = Math.max(Math.floor(c.max / 200), 100);
+          slider.style.accentColor = c.color;
+          slider.setAttribute('data-idx', String(i));
+          slider.addEventListener('input', function() {
+            var idx = parseInt(this.getAttribute('data-idx'));
+            var newVal = parseInt(this.value);
+            // Cap: don't allow total to exceed window size
+            var ws = windowSize();
+            var othersTotal = state.components.reduce(function(s, comp, j) { return j === idx ? s : s + comp.tokens; }, 0);
+            var maxAllowed = Math.max(ws - othersTotal, 0);
+            if (newVal > maxAllowed) { newVal = maxAllowed; this.value = newVal; }
+            state.components[idx].tokens = newVal;
+            renderGrid();
+            renderBigNumbers();
+            renderAnalysis();
+            // Update only this slider's value text
+            this.previousElementSibling.querySelector('.cwe-comp-value').textContent = fmt(parseInt(this.value)) + ' tokens';
+          });
+
+          comp.appendChild(header);
+          comp.appendChild(slider);
+          list.appendChild(comp);
+        });
+      }
+
+      // ── Render Waffle Grid ──
+      // More cells for bigger windows, fixed 10px cells
+      function getGridSize() {
+        var ws = windowSize();
+        // cols × rows → total cells scale with window
+        if (ws <= 10000)  return { cols: 15, rows: 6 };   // 90 cells
+        if (ws <= 130000) return { cols: 20, rows: 8 };   // 160 cells
+        if (ws <= 500000) return { cols: 25, rows: 10 };  // 250 cells
+        return              { cols: 30, rows: 12 };       // 360 cells
+      }
+
+      function renderGrid() {
+        var grid = document.getElementById('cwe-grid');
+        var ws = windowSize();
+        var size = getGridSize();
+        var cols = size.cols;
+        var totalCells = size.cols * size.rows;
+        var tokensPerCell = ws / totalCells;
+
+        grid.style.setProperty('--cwe-cols', cols);
+
+        // Build token-to-component map using fractional coverage.
+        // Each cell asks: "which component covers my midpoint?"
+        var cellAssignments = new Array(totalCells).fill(null);
+        for (var i = 0; i < totalCells; i++) {
+          var cellMidToken = (i + 0.5) * tokensPerCell;
+          var cumulative = 0;
+          for (var j = 0; j < state.components.length; j++) {
+            var c = state.components[j];
+            if (c.tokens <= 0) continue;
+            if (cellMidToken >= cumulative && cellMidToken < cumulative + c.tokens) {
+              cellAssignments[i] = { color: c.color, name: c.name };
+              break;
+            }
+            cumulative += c.tokens;
+          }
+        }
+        var tokenPos = totalUsed();
+
+        // Overflow: mark cells beyond window
+        var overflowStart = totalCells; // no overflow by default
+        if (tokenPos > ws) {
+          overflowStart = Math.floor(ws / tokensPerCell);
+        }
+
+        var html = '';
+        for (var i = 0; i < totalCells; i++) {
+          var inMiddle = (i / totalCells >= 0.30 && i / totalCells < 0.70);
+          var assignment = cellAssignments[i];
+
+          if (i >= overflowStart && assignment) {
+            html += '<div class="cwe-cell cwe-cell-overflow" title="Overflow"></div>';
+          } else if (assignment) {
+            html += '<div class="cwe-cell cwe-cell-filled' + (inMiddle ? ' cwe-cell-middle' : '') + '" style="background:' + assignment.color + '" title="' + assignment.name + '"></div>';
+          } else {
+            html += '<div class="cwe-cell cwe-cell-empty' + (inMiddle ? ' cwe-cell-middle' : '') + '"></div>';
+          }
+        }
+
+        grid.innerHTML = html;
+      }
+
+      // ── Render Big Numbers ──
+      function renderBigNumbers() {
+        var pct = pctUsed();
+        var free = Math.max(windowSize() - totalUsed(), 0);
+        var pctEl = document.getElementById('cwe-pct');
+        var freeEl = document.getElementById('cwe-free');
+
+        pctEl.textContent = fmtPct(Math.min(pct, 999));
+        freeEl.textContent = fmt(free);
+
+        // Color the percentage
+        if (pct > 100) {
+          pctEl.style.color = '#EF4444';
+        } else if (pct > 85) {
+          pctEl.style.color = '#DC2626';
+        } else if (pct > 65) {
+          pctEl.style.color = '#D97706';
+        } else {
+          pctEl.style.color = 'var(--color-primary)';
+        }
+      }
+
+      // ── Render Analysis ──
+      function renderAnalysis() {
+        var pct = pctUsed();
+        var diagEl = document.getElementById('cwe-diagnosis');
+        var middleEl = document.getElementById('cwe-middle-info');
+
+        // Diagnosis
+        var icon, text, cls;
+        if (pct > 100) {
+          icon = '🚫'; text = 'Overflow — contexto excede a janela!';
+          cls = 'cwe-diagnosis cwe-diagnosis-overflow';
+        } else if (pct > 85) {
+          icon = '🔴'; text = 'Crítico — qualidade comprometida';
+          cls = 'cwe-diagnosis cwe-diagnosis-danger';
+        } else if (pct > 65) {
+          icon = '⚠️'; text = 'Atenção — risco de degradação';
+          cls = 'cwe-diagnosis cwe-diagnosis-warn';
+        } else if (pct > 40) {
+          icon = '✅'; text = 'Boa — balanceado';
+          cls = 'cwe-diagnosis cwe-diagnosis-ok';
+        } else {
+          icon = '✅'; text = 'Excelente — amplo espaço';
+          cls = 'cwe-diagnosis cwe-diagnosis-ok';
+        }
+        diagEl.className = cls;
+        diagEl.textContent = icon + ' ' + text;
+
+        // Lost in the Middle — line under grid
+        var inMiddle = componentsInMiddle();
+        var gridNote = document.getElementById('cwe-grid-note');
+        if (inMiddle.length > 0) {
+          var names = inMiddle.map(function(m) { return m.name; }).join(', ');
+          gridNote.innerHTML = '<span>Lost in the Middle:</span> ' + names;
+          gridNote.style.display = '';
+        } else {
+          gridNote.style.display = 'none';
+        }
+        middleEl.innerHTML = '';
+      }
+
+      // ── Full Render ──
+      function render() {
+        renderModels();
+        renderSliders();
+        renderGrid();
+        renderBigNumbers();
+        renderAnalysis();
+      }
+
+      render();
+    })();
+  </script>
+
+  <script>
+    var CHAPTER_IDS   = ['01', '02', '03', '04'];
+    var CHAPTER_PATHS = {
+      '01': '01-o-que-sao-agentes.html',
+      '02': '02-raciocinio-e-tool-calling.html',
+      '03': '03-context-engineering.html',
+      '04': '04-langgraph-na-pratica.html'
+    };
+    var CURRENT_ID = '03';
+
+    function chapterApp() {
+      return {
+        sidebarCollapsed: false,
+        activeSection: '',
+        currentChapter: CURRENT_ID,
+        init: function() {
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          localStorage.setItem('visited_' + location.pathname.split('/').pop(), 'true');
+          var self = this;
+          window.addEventListener('scroll', function() {
+            var doc = document.documentElement;
+            var pct = doc.scrollHeight > doc.clientHeight ? (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100 : 0;
+            document.getElementById('reading-progress').style.width = pct + '%';
+          });
+          var sections = document.querySelectorAll('h2[id], h3[id]');
+          var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(e) { if (e.isIntersecting) self.activeSection = e.target.id; });
+          }, { rootMargin: '-15% 0px -70% 0px' });
+          sections.forEach(function(s) { obs.observe(s); });
+        },
+        toggleSidebar: function() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited: function(id) {
+          return localStorage.getItem('visited_' + CHAPTER_PATHS[id]) === 'true';
+        }
+      };
+    }
+
+  </script>
+</body>
+</html>

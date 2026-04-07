@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.python-version
+*.egg-info/
+dist/
+uv.lock
+.DS_Store
+.playwright-mcp/
+data/

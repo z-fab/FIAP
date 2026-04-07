@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentes de IA: De LLMs a Sistemas Autônomos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body x-data="indexApp()" x-init="init()">
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <div class="sb-brand">
+          <div class="sb-icon">AI</div>
+          <span class="sb-title">Agentes de IA</span>
+        </div>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="capitulos/01-o-que-sao-agentes.html" class="ch-link" :class="{ 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">O que são Agentes de IA</span>
+        </a>
+        <a href="capitulos/02-raciocinio-e-tool-calling.html" class="ch-link" :class="{ 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Raciocínio e Tool Calling</span>
+        </a>
+        <a href="capitulos/03-context-engineering.html" class="ch-link" :class="{ 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">Context Engineering</span>
+        </a>
+        <a href="capitulos/04-langgraph-na-pratica.html" class="ch-link" :class="{ 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">LangGraph na Prática</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <section class="hero">
+        <div class="overline-tag"><span class="overline-dot"></span>PosTech · ML Engineering</div>
+        <h1>Agentes de IA: De LLMs a <em>Sistemas Autônomos</em></h1>
+        <p>Teoria, arquitetura e prática com LangGraph. De conceitos fundamentais sobre raciocínio e ferramentas até a construção de agentes com grafos de estado.</p>
+        <div class="meta">
+          <span class="meta-item"><i data-lucide="book-open" style="width:14px;height:14px;display:inline;vertical-align:-2px"></i> 4 capítulos</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item"><i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:-2px"></i> ~60 min de leitura</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">Introdutório–Intermediário</span>
+        </div>
+      </section>
+
+      <section class="prog-section">
+        <div class="prog-track"><div class="prog-fill" :style="`width: ${progressPct}%`"></div></div>
+        <span class="prog-lbl" x-text="`${visitedCount} de 4 capítulos lidos`"></span>
+      </section>
+
+      <section class="cards-section">
+        <div class="cards-grid">
+          <a href="capitulos/01-o-que-sao-agentes.html" class="card" :class="{ 'visited': isVisited('01') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 01</div>
+            <div class="card-title">O que são Agentes de IA</div>
+            <div class="card-obj">Compreender o conceito de agente, sua evolução histórica e o que diferencia um agente de uma simples chamada a um LLM.</div>
+            <div class="card-foot">
+              <span class="card-time"><i data-lucide="clock" style="width:12px;height:12px;display:inline;vertical-align:-1px"></i> ~10 min</span>
+              <span class="card-badge" x-text="isVisited('01') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/02-raciocinio-e-tool-calling.html" class="card" :class="{ 'visited': isVisited('02') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 02</div>
+            <div class="card-title">Raciocínio e Tool Calling</div>
+            <div class="card-obj">Desmistificar como LLMs raciocinam (tokens intermediários) e chamam ferramentas (sinalização, não execução).</div>
+            <div class="card-foot">
+              <span class="card-time"><i data-lucide="clock" style="width:12px;height:12px;display:inline;vertical-align:-1px"></i> ~15 min</span>
+              <span class="card-badge" x-text="isVisited('02') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/03-context-engineering.html" class="card" :class="{ 'visited': isVisited('03') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 03</div>
+            <div class="card-title">Context Engineering</div>
+            <div class="card-obj">Entender por que o contexto é o recurso mais crítico de um agente e como engenhá-lo corretamente.</div>
+            <div class="card-foot">
+              <span class="card-time"><i data-lucide="clock" style="width:12px;height:12px;display:inline;vertical-align:-1px"></i> ~12 min</span>
+              <span class="card-badge" x-text="isVisited('03') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/04-langgraph-na-pratica.html" class="card" :class="{ 'visited': isVisited('04') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 04</div>
+            <div class="card-title">LangGraph na Prática</div>
+            <div class="card-obj">Aplicar os conceitos teóricos construindo um agente ReAct e um workflow com LangGraph.</div>
+            <div class="card-foot">
+              <span class="card-time"><i data-lucide="clock" style="width:12px;height:12px;display:inline;vertical-align:-1px"></i> ~23 min</span>
+              <span class="card-badge" x-text="isVisited('04') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>lucide.createIcons();</script>
+  <script src="assets/main.js"></script>
+  <script>
+    function indexApp() {
+      const CHAPTER_IDS = ['01', '02', '03', '04'];
+      const CHAPTER_PATHS = {
+        '01': '01-o-que-sao-agentes.html',
+        '02': '02-raciocinio-e-tool-calling.html',
+        '03': '03-context-engineering.html',
+        '04': '04-langgraph-na-pratica.html'
+      };
+      return {
+        sidebarCollapsed: false,
+        visitedChapters: [],
+        init() {
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          this.visitedChapters = CHAPTER_IDS.filter(id => localStorage.getItem('visited_' + CHAPTER_PATHS[id]) === 'true');
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return this.visitedChapters.includes(id); },
+        get visitedCount() { return this.visitedChapters.length; },
+        get progressPct() { return Math.round((this.visitedCount / 4) * 100); },
+      };
+    }
+  </script>
+</body>
+</html>

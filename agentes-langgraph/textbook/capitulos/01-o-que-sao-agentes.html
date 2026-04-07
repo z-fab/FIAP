@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O que são Agentes de IA — Agentes de IA: De LLMs a Sistemas Autônomos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+
+  <style>
+    /* ── Quiz "Isso é um Agente?" ── */
+    .quiz-wrap {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 2rem 0;
+    }
+    .quiz-header {
+      background: var(--color-surface-2);
+      border-bottom: 1px solid var(--color-border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .quiz-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-primary);
+    }
+    .quiz-progress-text {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      font-family: var(--font-mono);
+    }
+    .quiz-progress-bar-wrap {
+      padding: 0 1.5rem;
+      padding-top: 1rem;
+    }
+    .quiz-progress-track {
+      height: 3px;
+      background: var(--color-border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .quiz-progress-fill {
+      height: 100%;
+      background: var(--color-primary);
+      border-radius: 99px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .quiz-body {
+      padding: 1.5rem;
+    }
+    .scenario-card {
+      border-left: 4px solid var(--color-border);
+      background: var(--color-surface-2);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      transition: border-color 0.3s ease;
+    }
+    .scenario-card.correct {
+      border-left-color: var(--color-success);
+      background: var(--color-success-light);
+    }
+    .scenario-card.wrong {
+      border-left-color: var(--color-danger);
+      background: var(--color-danger-light);
+    }
+    .scenario-text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--color-text);
+      margin: 0;
+    }
+    .quiz-choices {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .choice-btn {
+      flex: 1;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      border: 2px solid var(--color-border);
+      background: var(--color-surface);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--color-text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .choice-btn:hover:not(:disabled) {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background: var(--color-primary-light);
+    }
+    .choice-btn:disabled {
+      cursor: default;
+    }
+    .choice-btn.agent-yes {
+      border-color: var(--color-primary);
+      background: var(--color-primary-light);
+      color: var(--color-primary-dark);
+    }
+    .choice-btn.agent-no {
+      border-color: var(--color-border-strong);
+      background: var(--color-surface-2);
+      color: var(--color-text-secondary);
+    }
+    .quiz-feedback {
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-size: 0.875rem;
+      line-height: 1.65;
+      margin-bottom: 1rem;
+    }
+    .quiz-feedback.correct {
+      background: var(--color-success-light);
+      border: 1px solid var(--color-success-border);
+      color: var(--color-success);
+    }
+    .quiz-feedback.wrong {
+      background: var(--color-danger-light);
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-danger);
+    }
+    .quiz-feedback strong {
+      font-weight: 700;
+    }
+    .quiz-next-btn {
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      padding: 0.55rem 1.25rem;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .quiz-next-btn:hover { background: var(--color-primary-dark); }
+    .quiz-summary {
+      text-align: center;
+      padding: 2rem 1.5rem;
+    }
+    .quiz-score-ring {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      font-family: var(--font-mono);
+    }
+    .quiz-score-ring.perfect {
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+    .quiz-criteria {
+      text-align: left;
+      margin-top: 1.5rem;
+      background: var(--color-surface-2);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .quiz-criteria h4 {
+      font-size: 0.75rem !important;
+      font-weight: 700 !important;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.75rem !important;
+      margin-top: 0 !important;
+    }
+    .criteria-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+    .criteria-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      flex-shrink: 0;
+      margin-top: 0.45rem;
+    }
+    .quiz-restart-btn {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: all 0.15s;
+    }
+    .quiz-restart-btn:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    /* ── Diagrama Anatomia do Agente ── */
+    .anatomy-wrap {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 2rem 0;
+    }
+    .anatomy-header {
+      background: var(--color-surface-2);
+      border-bottom: 1px solid var(--color-border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .anatomy-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-primary);
+    }
+    .anatomy-hint {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+    }
+    .anatomy-body {
+      padding: 1.5rem;
+    }
+    .anatomy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 540px) {
+      .anatomy-grid { grid-template-columns: 1fr; }
+      .quiz-choices { flex-direction: column; }
+    }
+    .comp-card {
+      border-radius: 10px;
+      border: 2px solid;
+      padding: 1rem 1.125rem;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .comp-card:hover { transform: translateY(-2px); }
+    .comp-card.dimmed { opacity: 0.3; transform: none; }
+    .comp-card.expanded { }
+    .comp-card-llm    { background: #F3F0FF; border-color: #7C3AED; }
+    .comp-card-tools  { background: #EFF6FF; border-color: #2563EB; }
+    .comp-card-memory { background: #ECFDF5; border-color: #059669; }
+    .comp-card-orch   { background: #FFFBEB; border-color: #D97706; }
+    .comp-card-llm.dimmed    { background: var(--color-surface-2); border-color: var(--color-border); }
+    .comp-card-tools.dimmed  { background: var(--color-surface-2); border-color: var(--color-border); }
+    .comp-card-memory.dimmed { background: var(--color-surface-2); border-color: var(--color-border); }
+    .comp-card-orch.dimmed   { background: var(--color-surface-2); border-color: var(--color-border); }
+    .comp-num {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+      display: block;
+    }
+    .comp-num-llm    { color: #7C3AED; }
+    .comp-num-tools  { color: #2563EB; }
+    .comp-num-memory { color: #059669; }
+    .comp-num-orch   { color: #D97706; }
+    .comp-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+      color: var(--color-text);
+    }
+    .comp-subtitle {
+      font-size: 0.78rem;
+      color: var(--color-text-secondary);
+      margin-bottom: 0;
+    }
+    .comp-detail {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding-top 0.3s ease;
+      opacity: 0;
+      padding-top: 0;
+    }
+    .comp-detail.open {
+      max-height: 400px;
+      opacity: 1;
+      padding-top: 0.875rem;
+    }
+    .comp-detail-desc {
+      font-size: 0.85rem;
+      line-height: 1.65;
+      color: var(--color-text);
+      margin-bottom: 0.625rem;
+    }
+    .comp-detail-examples {
+      font-size: 0.78rem;
+      color: var(--color-text-secondary);
+      background: rgba(255,255,255,0.5);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.55;
+    }
+    .comp-detail-examples strong {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.2rem;
+    }
+    .comp-detail-connections {
+      font-size: 0.78rem;
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+    }
+    .comp-detail-connections strong {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.2rem;
+    }
+    .flow-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      padding: 0.55rem 1.25rem;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .flow-btn:hover { background: var(--color-primary-dark); }
+    .flow-btn.secondary {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+    }
+    .flow-btn.secondary:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background: var(--color-primary-light);
+    }
+    .flow-animation-area {
+      margin-top: 1rem;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface-2);
+      padding: 1rem 1.25rem;
+      overflow: hidden;
+    }
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--color-border);
+      opacity: 0;
+      transform: translateX(-8px);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .flow-step:last-child { border-bottom: none; }
+    .flow-step.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .flow-step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .flow-step-label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .flow-step-desc {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      line-height: 1.4;
+    }
+    .flow-step-active .flow-step-desc {
+      color: var(--color-text);
+      font-weight: 500;
+    }
+
+    /* ── Tabelas ── */
+    .table-wrap { overflow-x: auto; margin: 1.5rem 0; }
+
+    /* ── Spectrum visual ── */
+    .spectrum-bar {
+      background: linear-gradient(to right, var(--color-success-light), var(--color-primary-light));
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+    }
+    .spectrum-items {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin-bottom: 0.75rem;
+    }
+    .spectrum-item {
+      display: flex;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+    .spectrum-arrow {
+      color: var(--color-text-muted);
+      margin: 0 0.35rem;
+      font-size: 0.75rem;
+    }
+    .spectrum-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--color-text-secondary);
+    }
+
+    /* ── Copy button for code blocks ── */
+    .code-wrap {
+      position: relative;
+      margin: 1.5rem 0;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 10;
+      background: rgba(255,255,255,0.1);
+      color: #aaa;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 5px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+
+    /* ── Benchmark table highlight ── */
+    .table-highlight {
+      background: var(--color-primary-light) !important;
+      font-weight: 600;
+      color: var(--color-primary-dark);
+    }
+
+    /* ── Content wrapper (centralização) ── */
+    .content-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    .content-wrapper > .content {
+      width: 100%;
+    }
+
+    /* ── Referências ── */
+    .references {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .references h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.875rem;
+    }
+    /* references styled by global style.css */
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+
+  <div class="shell">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 6.5L6.5 1L12 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 5.5V11.5H5.5V8.5H7.5V11.5H11V5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="sb-home-lbl">Agentes de IA</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher sidebar">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-o-que-sao-agentes.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01-o-que-sao-agentes.html') }">
+          <span class="ch-num" x-text="isVisited('01-o-que-sao-agentes.html') && currentChapter !== '01' ? '✓' : '01'"></span>
+          <span class="ch-txt">O que são Agentes de IA</span>
+        </a>
+
+        <a href="02-raciocinio-e-tool-calling.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02-raciocinio-e-tool-calling.html') }">
+          <span class="ch-num" x-text="isVisited('02-raciocinio-e-tool-calling.html') && currentChapter !== '02' ? '✓' : '02'"></span>
+          <span class="ch-txt">Raciocínio e Tool Calling</span>
+        </a>
+
+        <a href="03-context-engineering.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03-context-engineering.html') }">
+          <span class="ch-num" x-text="isVisited('03-context-engineering.html') && currentChapter !== '03' ? '✓' : '03'"></span>
+          <span class="ch-txt">Context Engineering</span>
+        </a>
+
+        <a href="04-langgraph-na-pratica.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04-langgraph-na-pratica.html') }">
+          <span class="ch-num" x-text="isVisited('04-langgraph-na-pratica.html') && currentChapter !== '04' ? '✓' : '04'"></span>
+          <span class="ch-txt">LangGraph na Prática</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+
+        <a href="#introducao" class="sec-link" :class="{ 'active': activeSection==='introducao' }">Introdução</a>
+        <a href="#definicao-classica" class="sec-link" :class="{ 'active': activeSection==='definicao-classica' }">1.1 Definição Clássica</a>
+        <a href="#de-chatbots-a-agentes" class="sec-link" :class="{ 'active': activeSection==='de-chatbots-a-agentes' }">1.2 De Chatbots a Agentes</a>
+        <a href="#anatomia" class="sec-link" :class="{ 'active': activeSection==='anatomia' }">1.3 Anatomia de um Agente</a>
+        <a href="#quando-usar" class="sec-link" :class="{ 'active': activeSection==='quando-usar' }">1.4 Quando Usar</a>
+        <a href="#resumo" class="sec-link" :class="{ 'active': activeSection==='resumo' }">Resumo</a>
+      </nav>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Agentes de IA: De LLMs a Sistemas Autônomos</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">O que são Agentes de IA</span>
+      </header>
+
+      <article class="content-wrapper"><div class="content">
+        <div class="chapter-eyebrow">Capítulo 01 · PosTech · ML Engineering</div>
+        <h1>O que são <em>Agentes de IA</em></h1>
+        <p class="chapter-objective">Compreender o conceito de agente, sua evolução histórica e o que diferencia um agente de uma simples chamada a um LLM.</p>
+
+        <!-- ═══════════════════ INTRODUÇÃO ═══════════════════ -->
+        <h2 id="introducao">Introdução</h2>
+
+        <p>Em novembro de 2022, o lançamento do ChatGPT marcou um ponto de inflexão na percepção pública sobre inteligência artificial. Em questão de semanas, milhões de pessoas experimentaram pela primeira vez uma conversa fluida com um modelo de linguagem. Mas, apesar do impacto, aquela experiência ainda era fundamentalmente <strong>reativa</strong>: o usuário fazia uma pergunta, o modelo respondia. Sem memória persistente entre sessões, sem capacidade de executar ações no mundo real, sem planejamento de longo prazo.</p>
+
+        <p>A pergunta natural que surgiu — tanto na academia quanto na indústria — foi: <em>e se o modelo pudesse fazer mais do que responder?</em> E se ele pudesse pesquisar informações, executar código, chamar APIs, revisar seu próprio trabalho e orquestrar múltiplas etapas para atingir um objetivo?</p>
+
+        <p>Essa pergunta nos leva ao conceito de <strong>agente de IA</strong> — um sistema que vai além da geração de texto para se tornar capaz de perceber, raciocinar e agir de forma autônoma. Este capítulo apresenta os fundamentos desse conceito: de onde ele vem, como se manifesta nos sistemas modernos e, tão importante quanto, quando ele faz sentido — e quando não faz.</p>
+
+        <!-- ═══════════════════ 1.1 ═══════════════════ -->
+        <h2 id="definicao-classica">1.1 Definição Clássica de Agente: Percepção → Raciocínio → Ação</h2>
+
+        <p>O conceito de agente não nasceu com os LLMs. Ele é um dos pilares da inteligência artificial desde suas origens.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">
+            <i data-lucide="book-open" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Definição — Russell &amp; Norvig, AIMA
+          </div>
+          <p>"Anything that can be viewed as perceiving its environment through sensors and acting upon that environment through effectors." — Qualquer coisa que possa ser vista como percebendo seu ambiente por meio de sensores e agindo sobre esse ambiente por meio de atuadores.</p>
+        </div>
+
+        <p>Essa definição, presente em todas as edições do livro <em>Artificial Intelligence: A Modern Approach</em>, estabelece um ciclo fundamental:</p>
+
+        <div class="code-wrap" x-data="{ copiado: false }">
+          <button class="copy-btn" @click="navigator.clipboard.writeText($refs.ciclo.textContent.trim()); copiado = true; setTimeout(() => copiado = false, 2000)" x-text="copiado ? '✓ Copiado' : 'Copiar'"></button>
+          <pre x-ref="ciclo" style="margin:0;"><code class="language-none">Ambiente → [Sensores] → Percepção → Raciocínio → Decisão → [Atuadores] → Ambiente</code></pre>
+        </div>
+
+        <p>O agente observa o estado do mundo, processa essa informação e executa uma ação que modifica o ambiente — o que, por sua vez, gera novas percepções. Esse loop <strong>percepção–raciocínio–ação</strong> é o denominador comum de todo sistema que podemos chamar de agente, seja um termostato, um robô aspirador ou um sistema baseado em LLM.</p>
+
+        <h3>O Framework PEAS</h3>
+
+        <p>Para analisar qualquer agente de forma estruturada, Russell e Norvig propõem o framework <strong>PEAS</strong>:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th>Descrição</th>
+                <th>Exemplo (agente de atendimento ao cliente)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>P</strong>erformance</td>
+                <td>Como avaliar o sucesso do agente</td>
+                <td>Taxa de resolução, satisfação do cliente, tempo médio</td>
+              </tr>
+              <tr>
+                <td><strong>E</strong>nvironment</td>
+                <td>Onde o agente opera</td>
+                <td>Plataforma de chat, base de conhecimento, sistema de tickets</td>
+              </tr>
+              <tr>
+                <td><strong>A</strong>ctuators</td>
+                <td>Ações disponíveis</td>
+                <td>Enviar mensagem, abrir ticket, escalar para humano, consultar FAQ</td>
+              </tr>
+              <tr>
+                <td><strong>S</strong>ensors</td>
+                <td>O que o agente percebe</td>
+                <td>Mensagens do usuário, histórico da conversa, dados do CRM</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Os Cinco Tipos de Agente</h3>
+
+        <p>A taxonomia clássica organiza agentes em ordem crescente de sofisticação:</p>
+
+        <div class="numbered-list-fancy">
+          <div class="nlf-item">
+            <span class="nlf-num">1</span>
+            <div><strong>Simple Reflex Agent</strong><br><span style="color:var(--color-text-secondary)">Age com base apenas na percepção atual, seguindo regras do tipo <em>se–então</em>. Exemplo: um filtro de spam baseado em palavras-chave.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">2</span>
+            <div><strong>Model-Based Reflex Agent</strong><br><span style="color:var(--color-text-secondary)">Mantém um modelo interno do estado do mundo para lidar com observabilidade parcial. Exemplo: um sistema de recomendação que rastreia o histórico do usuário.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">3</span>
+            <div><strong>Goal-Based Agent</strong><br><span style="color:var(--color-text-secondary)">Considera estados futuros desejados para escolher ações. Exemplo: um GPS que planeja a rota até o destino.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">4</span>
+            <div><strong>Utility-Based Agent</strong><br><span style="color:var(--color-text-secondary)">Além de atingir objetivos, otimiza uma função de utilidade para escolher a <em>melhor</em> ação entre várias possíveis. Exemplo: um sistema de precificação dinâmica.</span></div>
+          </div>
+          <div class="nlf-item">
+            <span class="nlf-num">5</span>
+            <div><strong>Learning Agent</strong><br><span style="color:var(--color-text-secondary)">Melhora seu desempenho ao longo do tempo a partir da experiência. Exemplo: um agente de IA moderno que incorpora feedback do usuário.</span></div>
+          </div>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">
+            <i data-lucide="lightbulb" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Dica
+          </div>
+          <p>Os agentes baseados em LLM que estudaremos ao longo deste livro combinam características dos tipos 3, 4 e 5: eles perseguem objetivos, ponderam entre alternativas e podem melhorar com feedback. A diferença crucial é que o "raciocínio" é implementado por um modelo de linguagem, não por lógica simbólica ou busca em árvore.</p>
+        </div>
+
+        <!-- ═══════════════════ 1.2 ═══════════════════ -->
+        <h2 id="de-chatbots-a-agentes">1.2 De Chatbots a Agentes: A Evolução Recente</h2>
+
+        <p>A história recente pode ser dividida em fases distintas:</p>
+
+        <h3>Fase 1: Chatbots Clássicos (pré-2022)</h3>
+        <p>Sistemas baseados em regras ou modelos de linguagem menores. Árvores de decisão, intent classification, slot filling. Funcionavam bem em domínios restritos, mas eram frágeis fora do escopo previsto. Exemplos: chatbots de atendimento bancário, assistentes de FAQ.</p>
+
+        <h3>Fase 2: O Momento ChatGPT (Nov 2022)</h3>
+        <p>O GPT-3.5 em formato conversacional demonstrou fluência e versatilidade sem precedentes. Pela primeira vez, um modelo generalista podia lidar com uma diversidade enorme de tarefas via linguagem natural. Porém, o paradigma ainda era <strong>prompt → completion</strong>, sem ações externas ou memória persistente.</p>
+
+        <h3>Fase 3: Frameworks e Ferramentas (2023)</h3>
+        <p>Projetos como <strong>LangChain</strong> e <strong>AutoGPT</strong> exploraram a ideia de conectar LLMs a ferramentas externas e loops de execução. O conceito de <em>tool use</em> — o modelo decidindo chamar uma API, executar código ou consultar um banco de dados — transformou o LLM de gerador de texto em motor de decisão. Esta fase foi marcada por experimentação intensa e também por expectativas exageradas.</p>
+
+        <h3>Fase 4: Maturidade Arquitetural (2024–presente)</h3>
+        <p>Frameworks como <strong>LangGraph</strong> trouxeram controle de fluxo explícito via grafos de estado. A Anthropic publicou o guia <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank" rel="noopener"><em>Building Effective Agents</em></a> (dezembro de 2024), consolidando boas práticas. O foco migrou de "o que é possível" para "o que é confiável e produtivo". O mercado global de agentes de IA atingiu US$ 7,6 bilhões em 2025, com taxa de crescimento anual composta de aproximadamente 45%, e 64% das empresas planejam adotar alguma forma de sistema agêntico segundo a Gartner.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">
+            <i data-lucide="alert-triangle" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Hype vs. Realidade
+          </div>
+          <p>A trajetória de 2023 a 2025 seguiu um padrão clássico de ciclo de hype. Os primeiros agentes autônomos (como AutoGPT) geraram enorme entusiasmo, mas frequentemente falhavam em tarefas práticas. A maturidade veio com a compreensão de que <strong>controle e previsibilidade</strong> são tão importantes quanto autonomia.</p>
+        </div>
+
+        <p>Essa evolução reflete uma mudança conceitual importante. Como define Harrison Chase, criador do LangChain:</p>
+
+        <blockquote>
+          "An agent is a system that uses an LLM to decide the control flow of an application."
+        </blockquote>
+
+        <p>A ideia central é que o LLM deixa de ser um endpoint que recebe prompt e devolve texto — ele se torna o <strong>componente de decisão</strong> que determina o que o sistema faz a seguir. Chase propõe pensar em agência como um <strong>espectro</strong>:</p>
+
+        <ul>
+          <li><strong>Router</strong> — O LLM escolhe entre caminhos predefinidos (menor autonomia).</li>
+          <li><strong>State Machine</strong> — O LLM opera dentro de um grafo de estados com transições controladas.</li>
+          <li><strong>Autonomous Agent</strong> — O LLM determina livremente as próximas ações (maior autonomia).</li>
+        </ul>
+
+        <p>A Anthropic, no guia <em>Building Effective Agents</em>, faz uma distinção complementar entre <strong>workflows</strong> e <strong>agentes</strong>: em um workflow, o fluxo de execução é predefinido pelo desenvolvedor e o LLM preenche etapas específicas; em um agente, o próprio LLM dirige o processo, decidindo quais ferramentas usar, em que ordem e quando parar.</p>
+
+        <!-- ═══════════════════ 1.3 ═══════════════════ -->
+        <h2 id="anatomia">1.3 Anatomia de um Agente Moderno</h2>
+
+        <p>Um agente baseado em LLM é composto por quatro elementos fundamentais que trabalham em conjunto:</p>
+
+        <!-- ── INTERATIVO: Diagrama Anatomia do Agente ── -->
+        <div class="anatomy-wrap" x-data="anatomyDiagram()">
+          <div class="anatomy-header">
+            <div>
+              <div class="anatomy-label">
+                <i data-lucide="layers" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+                Diagrama Interativo — Anatomia de um Agente
+              </div>
+            </div>
+            <span class="anatomy-hint">Clique em um componente para explorar</span>
+          </div>
+          <div class="anatomy-body">
+            <div class="anatomy-grid">
+
+              <!-- LLM Core -->
+              <div class="comp-card comp-card-llm"
+                   :class="{
+                     'dimmed': activeComp !== null && activeComp !== 'llm',
+                     'expanded': activeComp === 'llm'
+                   }"
+                   @click="toggleComp('llm')">
+                <span class="comp-num comp-num-llm">
+                  <i data-lucide="brain" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:3px;"></i>
+                  Componente 1
+                </span>
+                <div class="comp-title">LLM Core</div>
+                <div class="comp-subtitle">O motor de raciocínio</div>
+                <div class="comp-detail" :class="{ 'open': activeComp === 'llm' }">
+                  <div class="comp-detail-desc">O modelo de linguagem é responsável por interpretar instruções, analisar contexto, raciocinar sobre o problema e decidir as próximas ações. Ele funciona como o "cérebro" do agente — mas, assim como um cérebro, precisa de sentidos (ferramentas), memória e um corpo (orquestrador) para ser útil.</div>
+                  <div class="comp-detail-examples">
+                    <strong>Exemplos</strong>
+                    GPT-4o, Claude Sonnet/Opus, Gemini Pro, LLaMA 3, Mistral Large
+                  </div>
+                  <div class="comp-detail-connections">
+                    <strong>Conexões</strong>
+                    Recebe contexto da Memória. Envia chamadas de função para Tools. É invocado pelo Orquestrador.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tools -->
+              <div class="comp-card comp-card-tools"
+                   :class="{
+                     'dimmed': activeComp !== null && activeComp !== 'tools',
+                     'expanded': activeComp === 'tools'
+                   }"
+                   @click="toggleComp('tools')">
+                <span class="comp-num comp-num-tools">
+                  <i data-lucide="wrench" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:3px;"></i>
+                  Componente 2
+                </span>
+                <div class="comp-title">Tools</div>
+                <div class="comp-subtitle">Os sentidos e as mãos do agente</div>
+                <div class="comp-detail" :class="{ 'open': activeComp === 'tools' }">
+                  <div class="comp-detail-desc">Ferramentas são funções que o agente pode invocar para interagir com o mundo externo ao modelo. Elas permitem que o agente busque informações atualizadas, execute código, manipule dados e se integre com sistemas. Sem ferramentas, o agente está limitado ao conhecimento congelado no treinamento do modelo.</div>
+                  <div class="comp-detail-examples">
+                    <strong>Exemplos</strong>
+                    Busca web (Tavily, Google), execução de código (Python REPL), consulta a banco de dados (SQL), APIs REST, busca vetorial (RAG)
+                  </div>
+                  <div class="comp-detail-connections">
+                    <strong>Conexões</strong>
+                    Invocadas pelo LLM via function calling. Retornam resultados ao LLM para análise. Registradas e gerenciadas pelo Orquestrador.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Memória -->
+              <div class="comp-card comp-card-memory"
+                   :class="{
+                     'dimmed': activeComp !== null && activeComp !== 'memory',
+                     'expanded': activeComp === 'memory'
+                   }"
+                   @click="toggleComp('memory')">
+                <span class="comp-num comp-num-memory">
+                  <i data-lucide="database" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:3px;"></i>
+                  Componente 3
+                </span>
+                <div class="comp-title">Memória</div>
+                <div class="comp-subtitle">Contexto e continuidade</div>
+                <div class="comp-detail" :class="{ 'open': activeComp === 'memory' }">
+                  <div class="comp-detail-desc">A memória resolve o problema de que cada chamada ao LLM é independente (stateless). Ela fornece contexto histórico, conhecimento de domínio e informações sobre interações anteriores, permitindo que o agente mantenha coerência ao longo de conversas longas e múltiplas sessões.</div>
+                  <div class="comp-detail-examples">
+                    <strong>Exemplos</strong>
+                    In-context: histórico na janela de contexto. Episódica: logs de conversas anteriores. Semântica: vector store com documentos (ChromaDB, Pinecone). Procedural: few-shot examples e instruções refinadas.
+                  </div>
+                  <div class="comp-detail-connections">
+                    <strong>Conexões</strong>
+                    Alimenta o LLM com contexto relevante. Atualizada pelo Orquestrador após cada interação. Consultada antes de cada invocação do LLM.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Orquestrador -->
+              <div class="comp-card comp-card-orch"
+                   :class="{
+                     'dimmed': activeComp !== null && activeComp !== 'orch',
+                     'expanded': activeComp === 'orch'
+                   }"
+                   @click="toggleComp('orch')">
+                <span class="comp-num comp-num-orch">
+                  <i data-lucide="git-branch" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:3px;"></i>
+                  Componente 4
+                </span>
+                <div class="comp-title">Orquestrador</div>
+                <div class="comp-subtitle">O loop de execução</div>
+                <div class="comp-detail" :class="{ 'open': activeComp === 'orch' }">
+                  <div class="comp-detail-desc">O orquestrador é o "sistema nervoso" que conecta tudo. Ele implementa o loop percepção–raciocínio–ação: recebe a entrada, invoca o LLM com o contexto adequado, processa a resposta, executa ferramentas se necessário, atualiza a memória e decide se o objetivo foi atingido ou se mais iterações são necessárias.</div>
+                  <div class="comp-detail-examples">
+                    <strong>Exemplos</strong>
+                    LangGraph (grafo de estados), CrewAI (multi-agente), Autogen (conversação entre agentes), ou mesmo um loop while em Python com lógica customizada.
+                  </div>
+                  <div class="comp-detail-connections">
+                    <strong>Conexões</strong>
+                    Controla o fluxo de todos os outros componentes. Define condições de parada, tratamento de erros e pontos de intervenção humana (human-in-the-loop).
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Controles de fluxo -->
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+              <button class="flow-btn" @click="startFlow()" :disabled="flowRunning">
+                <i data-lucide="play" style="width:13px;height:13px;"></i>
+                <span x-text="flowRunning ? 'Animando...' : 'Ver fluxo completo'"></span>
+              </button>
+              <button class="flow-btn secondary" @click="resetDiagram()" x-show="activeComp !== null || flowDone">
+                <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i>
+                Resetar
+              </button>
+            </div>
+
+            <!-- Área de animação de fluxo -->
+            <div class="flow-animation-area" x-show="showFlow" x-transition>
+              <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-text-muted);margin-bottom:0.75rem;">
+                Fluxo de execução — uma requisição real
+              </div>
+              <template x-for="(step, i) in flowSteps" :key="i">
+                <div class="flow-step" :class="{ 'visible': step.visible }" :id="'flow-step-' + i">
+                  <div class="flow-step-dot" :style="`background: ${step.color}`"></div>
+                  <div class="flow-step-label" x-text="step.component"></div>
+                  <div class="flow-step-desc" x-text="step.label"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <h3>1.3.1 LLM Core (O "Cérebro")</h3>
+
+        <p>O modelo de linguagem é o motor de raciocínio. Ele interpreta a tarefa, analisa o contexto, decide qual ação tomar e sintetiza resultados. Em termos da taxonomia clássica, o LLM implementa simultaneamente a percepção (compreensão da entrada) e o raciocínio (planejamento e decisão).</p>
+
+        <p>A qualidade do agente está diretamente ligada à capacidade do modelo subjacente. Porém — e este é um insight fundamental de Andrew Ng — <strong>um modelo menor com um workflow agêntico bem projetado pode superar um modelo maior usado de forma isolada</strong>. Em benchmarks como o HumanEval (geração de código):</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Configuração</th>
+                <th>Taxa de acerto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>GPT-3.5, zero-shot (chamada única)</td>
+                <td>48,1%</td>
+              </tr>
+              <tr>
+                <td>GPT-4, zero-shot (chamada única)</td>
+                <td>67,0%</td>
+              </tr>
+              <tr class="table-highlight">
+                <td>GPT-3.5 com workflow agêntico</td>
+                <td><strong>&gt; 67%</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Esse resultado é contraintuitivo e poderoso: a <strong>arquitetura</strong> ao redor do modelo importa tanto quanto — ou mais que — o modelo em si.</p>
+
+        <div class="box box-example">
+          <div class="box-label">
+            <i data-lucide="flask-conical" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Analogia
+          </div>
+          <p>Pense em um engenheiro júnior versus um sênior. O júnior, se receber a tarefa de escrever um módulo complexo de uma só vez, provavelmente cometerá erros. Mas se seguir um processo disciplinado — escrever testes primeiro, implementar incrementalmente, revisar o próprio código, iterar — pode alcançar um resultado comparável ao do sênior que escreve tudo de uma vez. O workflow agêntico é esse processo disciplinado aplicado ao LLM.</p>
+        </div>
+
+        <h3>1.3.2 Tools (Ferramentas)</h3>
+
+        <p>Ferramentas são funções que o agente pode invocar para interagir com o mundo externo. Elas estendem as capacidades do LLM para além da geração de texto:</p>
+
+        <ul>
+          <li><strong>Busca e Recuperação:</strong> consultar APIs de busca, bancos de dados vetoriais, bases de conhecimento.</li>
+          <li><strong>Execução de Código:</strong> rodar Python, SQL ou outras linguagens em sandbox.</li>
+          <li><strong>Integração com Sistemas:</strong> chamar APIs REST, enviar e-mails, criar tickets.</li>
+          <li><strong>Manipulação de Dados:</strong> ler e escrever arquivos, processar planilhas, gerar gráficos.</li>
+        </ul>
+
+        <p>O mecanismo de <em>function calling</em> (ou <em>tool use</em>), presente nos principais modelos atuais, permite que o LLM emita chamadas de função estruturadas em vez de texto livre, tornando a interação com ferramentas programática e confiável.</p>
+
+        <h3>1.3.3 Memória</h3>
+
+        <p>A memória resolve uma limitação crítica: LLMs são, por natureza, <em>stateless</em> — cada chamada é independente. Um agente eficaz precisa de múltiplas formas de memória:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Descrição</th>
+                <th>Implementação típica</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>In-context</strong></td>
+                <td>Informação presente na janela de contexto atual</td>
+                <td>Histórico da conversa, system prompt</td>
+              </tr>
+              <tr>
+                <td><strong>Episódica</strong></td>
+                <td>Registros de interações passadas</td>
+                <td>Banco de dados de conversas anteriores</td>
+              </tr>
+              <tr>
+                <td><strong>Semântica</strong></td>
+                <td>Conhecimento factual de longo prazo</td>
+                <td>Vector store com documentos indexados (RAG)</td>
+              </tr>
+              <tr>
+                <td><strong>Procedural</strong></td>
+                <td>"Como fazer" — padrões e habilidades aprendidos</td>
+                <td>Few-shot examples, instruções refinadas</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>1.3.4 Orquestrador</h3>
+
+        <p>O orquestrador é o componente que implementa o <strong>loop de execução</strong> do agente. Ele determina: quando o LLM é invocado, como as saídas são processadas, quando ferramentas são chamadas, como erros são tratados e quando o processo termina.</p>
+
+        <p>Os quatro padrões agênticos identificados por Andrew Ng mapeiam diretamente para estratégias de orquestração:</p>
+
+        <ol>
+          <li><strong>Reflexão</strong> — O agente avalia e critica sua própria saída, iterando até atingir um critério de qualidade.</li>
+          <li><strong>Tool Use</strong> — O agente decide dinamicamente quais ferramentas invocar com base no problema.</li>
+          <li><strong>Planejamento</strong> — O agente decompõe uma tarefa complexa em subtarefas e as executa em sequência ou paralelo.</li>
+          <li><strong>Multi-agente</strong> — Múltiplos agentes especializados colaboram, cada um com papel definido.</li>
+        </ol>
+
+        <p>Em LangGraph, que estudaremos em profundidade nos próximos capítulos, o orquestrador é implementado como um <strong>grafo de estados</strong> — cada nó é uma etapa de processamento e as arestas definem as transições possíveis, incluindo condições, loops e pontos de intervenção humana.</p>
+
+        <!-- ── INTERATIVO: Quiz "Isso é um Agente?" ── -->
+
+        <div class="quiz-wrap" x-data="agentQuiz()">
+
+          <!-- Header -->
+          <div class="quiz-header">
+            <div class="quiz-label">
+              <i data-lucide="help-circle" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+              Quiz — Isso é um Agente?
+            </div>
+            <span class="quiz-progress-text" x-show="!done" x-text="`${current + 1} / ${scenarios.length}`"></span>
+            <span class="quiz-progress-text" x-show="done">Concluído</span>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="quiz-progress-bar-wrap">
+            <div class="quiz-progress-track">
+              <div class="quiz-progress-fill" :style="`width: ${done ? 100 : (current / scenarios.length * 100)}%`"></div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="quiz-body">
+
+            <!-- Questão ativa -->
+            <div x-show="!done">
+              <!-- Scenario card -->
+              <div class="scenario-card"
+                   :class="{
+                     'correct': answered[current] !== undefined && answered[current].correct,
+                     'wrong': answered[current] !== undefined && !answered[current].correct
+                   }">
+                <p class="scenario-text" x-text="scenarios[current].desc"></p>
+              </div>
+
+              <!-- Choices -->
+              <div class="quiz-choices">
+                <button class="choice-btn"
+                        :class="{ 'agent-yes': answered[current] !== undefined && answered[current].choice === true }"
+                        :disabled="answered[current] !== undefined"
+                        @click="answer(true)">
+                  <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                  É um agente
+                </button>
+                <button class="choice-btn"
+                        :class="{ 'agent-no': answered[current] !== undefined && answered[current].choice === false }"
+                        :disabled="answered[current] !== undefined"
+                        @click="answer(false)">
+                  <i data-lucide="x-circle" style="width:14px;height:14px;"></i>
+                  Não é um agente
+                </button>
+              </div>
+
+              <!-- Feedback -->
+              <div class="quiz-feedback"
+                   x-show="answered[current] !== undefined"
+                   x-transition
+                   :class="answered[current]?.correct ? 'correct' : 'wrong'">
+                <strong x-text="answered[current]?.correct ? '✓ Correto!' : '✗ Incorreto.'"></strong>
+                <span x-text="' ' + scenarios[current].feedback"></span>
+              </div>
+
+              <!-- Avançar -->
+              <div x-show="answered[current] !== undefined && current < scenarios.length - 1" style="text-align:right;">
+                <button class="quiz-next-btn" @click="advance()">
+                  Próximo cenário
+                  <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+                </button>
+              </div>
+              <div x-show="answered[current] !== undefined && current === scenarios.length - 1" style="text-align:right;">
+                <button class="quiz-next-btn" @click="finish()">
+                  Ver resultado
+                  <i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="quiz-summary" x-show="done" x-transition>
+              <div class="quiz-score-ring" :class="{ 'perfect': score === scenarios.length }">
+                <span x-text="`${score}/${scenarios.length}`"></span>
+              </div>
+              <p style="font-size:1.05rem;font-weight:600;margin-bottom:0.25rem;" x-text="scoreMessage()"></p>
+              <p style="font-size:0.875rem;color:var(--color-text-secondary);">Os critérios que definem um agente genuíno:</p>
+
+              <div class="quiz-criteria">
+                <h4>Critérios definidores de um agente</h4>
+                <div class="criteria-item">
+                  <span class="criteria-dot"></span>
+                  <span><strong>Loop de execução:</strong> o sistema opera em ciclos, não em chamadas únicas — percebe, raciocina, age, repete.</span>
+                </div>
+                <div class="criteria-item">
+                  <span class="criteria-dot"></span>
+                  <span><strong>Autonomia de fluxo:</strong> o LLM decide o que fazer a seguir — não segue um caminho fixo predefinido.</span>
+                </div>
+                <div class="criteria-item">
+                  <span class="criteria-dot"></span>
+                  <span><strong>Uso de ferramentas:</strong> o agente pode interagir com sistemas externos para agir no mundo real.</span>
+                </div>
+                <div class="criteria-item">
+                  <span class="criteria-dot"></span>
+                  <span><strong>Orientação a objetivo:</strong> o agente avalia dinamicamente se o objetivo foi atingido antes de parar.</span>
+                </div>
+              </div>
+
+              <button class="quiz-restart-btn" @click="restart()">
+                <i data-lucide="rotate-ccw" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+                Tentar novamente
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ═══════════════════ 1.4 ═══════════════════ -->
+        <h2 id="quando-usar">1.4 Quando Usar (e Quando NÃO Usar) Agentes</h2>
+
+        <p>A Anthropic, em seu guia de dezembro de 2024, resume com precisão a regra de ouro:</p>
+
+        <blockquote>
+          "Add complexity only when it demonstrably improves outcomes."
+        </blockquote>
+
+        <p>Agentes são poderosos, mas introduzem complexidade, custo e imprevisibilidade. A decisão de usar um agente deve ser deliberada.</p>
+
+        <h3>Quando Usar Agentes</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cenário</th>
+                <th>Por quê</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A tarefa requer múltiplas etapas com decisões intermediárias</td>
+                <td>O LLM precisa avaliar resultados parciais e ajustar o caminho</td>
+              </tr>
+              <tr>
+                <td>O fluxo não pode ser totalmente predefinido</td>
+                <td>Diferentes entradas podem exigir caminhos de execução distintos</td>
+              </tr>
+              <tr>
+                <td>É necessário integrar múltiplas fontes de informação</td>
+                <td>O agente decide quais fontes consultar e em que ordem</td>
+              </tr>
+              <tr>
+                <td>Reflexão e autocorreção agregam valor</td>
+                <td>A qualidade melhora com iterações de revisão</td>
+              </tr>
+              <tr>
+                <td>A tarefa é complexa o suficiente para justificar o overhead</td>
+                <td>O ganho de qualidade compensa custo e latência adicionais</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Quando NÃO Usar Agentes</h3>
+
+        <div class="box box-warning">
+          <div class="box-label">
+            <i data-lucide="alert-triangle" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Regra prática
+          </div>
+          <p>Se uma única chamada a um LLM com um prompt bem elaborado resolve o problema com qualidade aceitável, não use um agente. Comece simples e adicione complexidade apenas quando os resultados exigirem.</p>
+        </div>
+
+        <p><strong>1. Quando uma chamada única resolve.</strong> Tradução, sumarização, classificação de texto — muitas tarefas de NLP são resolvidas de forma excelente com um prompt otimizado e uma única inferência. Adicionar um loop agêntico aqui é over-engineering.</p>
+
+        <p><strong>2. Quando o fluxo é completamente determinístico.</strong> Se você sabe de antemão que o processo é sempre "extrair → classificar → salvar", implemente um pipeline. Usar um agente para seguir um caminho fixo é desperdício.</p>
+
+        <p><strong>3. Quando custo e latência são restrições críticas.</strong> Agentes fazem múltiplas chamadas ao LLM. Cada chamada custa tokens e adiciona latência. Um agente que faz 5 chamadas ao GPT-4 para responder uma pergunta simples pode custar 10× mais e demorar 10× mais que uma chamada direta.</p>
+
+        <p><strong>4. Quando confiabilidade é requisito rígido.</strong> Agentes são inerentemente não-determinísticos — a mesma entrada pode gerar caminhos de execução diferentes. Em sistemas onde o comportamento precisa ser 100% previsível e auditável (ex: cálculos regulatórios), um pipeline determinístico é mais adequado.</p>
+
+        <p><strong>5. Quando erros se acumulam de forma inaceitável.</strong> Em um agente multi-step, a probabilidade de erro compõe a cada etapa. Se cada etapa tem 95% de acerto, após 5 etapas a probabilidade de sucesso completo cai para ~77%. Para fluxos longos, isso exige estratégias robustas de validação e recuperação.</p>
+
+        <h3>O Espectro da Complexidade</h3>
+
+        <p>Na prática, a escolha não é binária. Existe um espectro entre "chamada única" e "agente totalmente autônomo":</p>
+
+        <div class="spectrum-bar">
+          <div class="spectrum-items">
+            <span class="spectrum-item">Chamada única</span>
+            <span class="spectrum-arrow">→</span>
+            <span class="spectrum-item">RAG</span>
+            <span class="spectrum-arrow">→</span>
+            <span class="spectrum-item">Chain</span>
+            <span class="spectrum-arrow">→</span>
+            <span class="spectrum-item">Router</span>
+            <span class="spectrum-arrow">→</span>
+            <span class="spectrum-item">Workflow</span>
+            <span class="spectrum-arrow">→</span>
+            <span class="spectrum-item">Agente</span>
+          </div>
+          <div class="spectrum-labels">
+            <span>Menor complexidade · Mais previsível · Menor custo</span>
+            <span>Maior autonomia · Maior custo</span>
+          </div>
+        </div>
+
+        <p>A recomendação prática é começar pela esquerda e mover-se para a direita apenas quando necessário.</p>
+
+        <div class="box box-example">
+          <div class="box-label">
+            <i data-lucide="flask-conical" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i>
+            Caso Concreto — Helpdesk de Documentação Interna
+          </div>
+          <p><strong>Versão 1 (RAG simples):</strong> Busca vetorial + LLM gera resposta. Funciona para 80% dos casos.</p>
+          <p><strong>Versão 2 (Router):</strong> O LLM primeiro classifica a pergunta (técnica vs. RH vs. financeiro) e direciona para bases de conhecimento especializadas. Resolve mais 10%.</p>
+          <p><strong>Versão 3 (Agente):</strong> O sistema pode fazer múltiplas buscas, consultar APIs internas, pedir clarificação ao usuário e sintetizar informações de fontes diversas. Resolve os 10% restantes — mas com 3× mais custo e latência.</p>
+          <p>A decisão correta depende do seu contexto: os 10% adicionais justificam o custo? Para um helpdesk interno genérico, talvez não. Para um assistente de engenharia que precisa cruzar documentação, código e tickets, provavelmente sim.</p>
+        </div>
+
+        <!-- ═══════════════════ RESUMO ═══════════════════ -->
+        <h2 id="resumo">Resumo do Capítulo</h2>
+
+        <p>Este capítulo estabeleceu os fundamentos conceituais que guiarão todo o restante do livro:</p>
+
+        <ol>
+          <li><strong>Um agente é um sistema que percebe, raciocina e age</strong> — essa definição, que remonta às origens da IA, permanece válida e se aplica diretamente aos sistemas modernos baseados em LLM.</li>
+          <li><strong>A evolução de chatbots a agentes</strong> não foi apenas tecnológica, mas conceitual: o LLM migrou do papel de "gerador de texto" para o de "motor de decisão" que controla o fluxo de uma aplicação.</li>
+          <li><strong>A anatomia de um agente moderno</strong> compreende quatro componentes interdependentes: o LLM como núcleo de raciocínio, ferramentas como interface com o mundo externo, memória como mecanismo de continuidade e o orquestrador como loop de execução.</li>
+          <li><strong>Agentes não são sempre a resposta certa.</strong> A decisão de usar um agente deve ser guiada pelo princípio de adicionar complexidade apenas quando ela demonstravelmente melhora os resultados — considerando custo, latência, confiabilidade e a natureza da tarefa.</li>
+        </ol>
+
+        <p>No próximo capítulo, aprofundaremos o entendimento dos mecanismos de raciocínio e tool calling, explorando como LLMs "pensam" e "agem".</p>
+
+        <!-- Referências -->
+        <section class="references">
+          <h2>Referências</h2>
+          <ul>
+            <li><strong>Russell, S. &amp; Norvig, P.</strong> "Artificial Intelligence: A Modern Approach" (4th ed.). <em>Pearson</em>, 2020.</li>
+            <li><strong>Chase, H.</strong> "What is an AI Agent?" <em>LangChain Blog</em>, 2024. <a href="https://blog.langchain.dev/what-is-an-agent/" target="_blank" rel="noopener">Link</a></li>
+            <li><strong>Ng, A.</strong> "Agentic Design Patterns." <em>DeepLearning.AI</em>, 2024. <a href="https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-1/" target="_blank" rel="noopener">Link</a></li>
+            <li><strong>Anthropic.</strong> "Building Effective Agents." <em>Anthropic Research</em>, Dezembro 2024. <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank" rel="noopener">Link</a></li>
+            <li><strong>Gartner.</strong> "Emerging Tech: AI Agents." <em>Gartner Research</em>, 2025.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════════════ Navegação ═══════════════════ -->
+        <nav class="chapter-nav">
+          <a href="../index.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Início</span>
+              <span class="nav-btn-title">← Índice</span>
+            </span>
+          </a>
+          <a href="02-raciocinio-e-tool-calling.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo capítulo</span>
+              <span class="nav-btn-title">Raciocínio e Tool Calling →</span>
+            </span>
+          </a>
+        </nav>
+
+      </div></article>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+    // ── Chapter App (sidebar, scroll tracking, progress) ──
+    const CHAPTER_PATHS = {
+      '01': '01-o-que-sao-agentes.html',
+      '02': '02-raciocinio-e-tool-calling.html',
+      '03': '03-context-engineering.html',
+      '04': '04-langgraph-na-pratica.html',
+    };
+    const CURRENT_ID = '01';
+
+    function chapterApp() {
+      return {
+        sidebarCollapsed: false,
+        activeSection: '',
+        currentChapter: CURRENT_ID,
+
+        init() {
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          // Marcar como visitado
+          localStorage.setItem('visited_01-o-que-sao-agentes.html', 'true');
+
+          // Barra de leitura
+          window.addEventListener('scroll', () => {
+            const doc = document.documentElement;
+            const pct = doc.scrollHeight > doc.clientHeight
+              ? (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100
+              : 0;
+            document.getElementById('reading-progress').style.width = pct + '%';
+          }, { passive: true });
+
+          // Scroll tracking para seções
+          const sections = document.querySelectorAll('h2[id], h3[id]');
+          const obs = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+              if (e.isIntersecting) this.activeSection = e.target.id;
+            });
+          }, { rootMargin: '-10% 0px -75% 0px' });
+          sections.forEach(s => obs.observe(s));
+        },
+
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+
+        isVisited(filename) {
+          return localStorage.getItem('visited_' + filename) === 'true';
+        },
+      };
+    }
+
+    // ── Quiz: "Isso é um Agente?" ──
+    function agentQuiz() {
+      return {
+        current: 0,
+        answered: {},
+        score: 0,
+        done: false,
+
+        scenarios: [
+          {
+            desc: 'Um endpoint de API recebe um texto de contrato e retorna um resumo em 3 parágrafos usando GPT-4. Não há histórico, não há chamadas externas — apenas prompt in, texto out.',
+            correct: false,
+            feedback: 'Este é um caso clássico de chamada única a um LLM (single inference). Não há loop de execução, tomada de decisão sobre próximos passos ou interação com ferramentas. É poderoso, mas não é um agente — é uma aplicação de LLM.'
+          },
+          {
+            desc: 'Um sistema de suporte técnico recebe a mensagem do cliente, consulta a base de conhecimento via busca vetorial, verifica o status do pedido via API, decide se pode resolver ou se precisa escalar para um humano, e formula a resposta. Se o cliente responde, o ciclo recomeça com contexto atualizado.',
+            correct: true,
+            feedback: 'Este sistema percebe (mensagem do cliente), raciocina (decide entre resolver ou escalar), usa ferramentas (busca vetorial, API de pedidos) e opera em loop. Ele dirige seu próprio fluxo com base no contexto — é um agente.'
+          },
+          {
+            desc: 'Um pipeline de dados executa, em sequência fixa: (1) extrai texto de PDFs, (2) classifica o documento com um LLM, (3) extrai entidades com outro prompt, (4) salva no banco. A sequência é sempre a mesma, sem desvios.',
+            correct: false,
+            feedback: 'Embora use LLMs em múltiplas etapas, o fluxo é completamente predefinido e determinístico. Na terminologia da Anthropic, isso é um workflow, não um agente. O LLM não decide o que fazer a seguir — o pipeline decide.'
+          },
+          {
+            desc: 'Um assistente de pesquisa recebe uma pergunta acadêmica, formula queries de busca, analisa os artigos retornados, identifica lacunas na informação, formula novas queries, e itera até considerar que tem evidência suficiente para redigir uma resposta com citações.',
+            correct: true,
+            feedback: 'O sistema exibe autonomia clara: ele decide quantas iterações fazer, quais queries formular e quando parar. O LLM controla o fluxo da aplicação, avaliando dinamicamente se o objetivo foi atingido. Esse padrão combina tool use, planejamento e reflexão.'
+          },
+          {
+            desc: 'Um chatbot de FAQ de um e-commerce responde perguntas com base em um prompt fixo que contém todas as políticas da loja. Ele não acessa sistemas externos, não mantém memória entre sessões e não toma decisões além de gerar a próxima resposta.',
+            correct: false,
+            feedback: 'Apesar de ser conversacional, este chatbot é essencialmente um modelo com prompt estático. Não há uso de ferramentas, não há decisão sobre fluxo de execução e não há loop além da troca de mensagens. É um chatbot — útil, mas não um agente.'
+          }
+        ],
+
+        answer(choice) {
+          if (this.answered[this.current] !== undefined) return;
+          const correct = choice === this.scenarios[this.current].correct;
+          if (correct) this.score++;
+          this.answered[this.current] = { choice, correct };
+          // Re-trigger Lucide icons after DOM update
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        },
+
+        advance() {
+          if (this.current < this.scenarios.length - 1) {
+            this.current++;
+            this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+          }
+        },
+
+        finish() {
+          this.done = true;
+          if (this.score === this.scenarios.length) {
+            setTimeout(() => {
+              confetti({ particleCount: 120, spread: 70, origin: { y: 0.65 } });
+            }, 300);
+          }
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        },
+
+        restart() {
+          this.current = 0;
+          this.answered = {};
+          this.score = 0;
+          this.done = false;
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        },
+
+        scoreMessage() {
+          if (this.score === 5) return 'Perfeito! Você domina os critérios de agência.';
+          if (this.score >= 4) return 'Muito bem! Quase lá.';
+          if (this.score >= 3) return 'Bom progresso. Revise os feedbacks dos erros.';
+          return 'Continue praticando — releia a seção 1.2 e 1.3.';
+        }
+      };
+    }
+
+    // ── Diagrama: Anatomia do Agente ──
+    function anatomyDiagram() {
+      return {
+        activeComp: null,
+        showFlow: false,
+        flowRunning: false,
+        flowDone: false,
+
+        flowSteps: [
+          { component: 'Usuário',        label: 'Envia mensagem ou tarefa ao agente',                         color: '#9C968E', visible: false },
+          { component: 'Orquestrador',   label: 'Recebe a entrada e prepara o contexto inicial',              color: '#D97706', visible: false },
+          { component: 'Memória',        label: 'Consulta histórico e conhecimento relevante',                color: '#059669', visible: false },
+          { component: 'LLM Core',       label: 'Raciocina com o contexto e decide usar uma ferramenta',     color: '#7C3AED', visible: false },
+          { component: 'Tools',          label: 'Ferramenta é invocada via function calling',                 color: '#2563EB', visible: false },
+          { component: 'LLM Core',       label: 'Analisa o resultado da ferramenta e formula resposta final', color: '#7C3AED', visible: false },
+          { component: 'Memória',        label: 'Orquestrador atualiza o estado e salva a interação',         color: '#059669', visible: false },
+          { component: 'Usuário',        label: 'Resposta final entregue',                                    color: '#9C968E', visible: false },
+        ],
+
+        toggleComp(id) {
+          this.showFlow = false;
+          this.activeComp = this.activeComp === id ? null : id;
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        },
+
+        startFlow() {
+          if (this.flowRunning) return;
+          this.activeComp = null;
+          this.showFlow = true;
+          this.flowRunning = true;
+          this.flowDone = false;
+          // Reset visibility
+          this.flowSteps.forEach(s => s.visible = false);
+
+          const delays = [0, 1200, 2400, 3600, 4800, 6200, 7400, 8600];
+          delays.forEach((delay, i) => {
+            setTimeout(() => {
+              this.flowSteps[i].visible = true;
+              if (i === delays.length - 1) {
+                this.flowRunning = false;
+                this.flowDone = true;
+              }
+            }, delay);
+          });
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        },
+
+        resetDiagram() {
+          this.activeComp = null;
+          this.showFlow = false;
+          this.flowRunning = false;
+          this.flowDone = false;
+          this.flowSteps.forEach(s => s.visible = false);
+          this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
+        }
+      };
+    }
+  </script>
+</body>
+</html>

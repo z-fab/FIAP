@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LangGraph na Prática: Construindo Agentes com Grafos — Agentes de IA: De LLMs a Sistemas Autônomos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#EDE9FE',
+        primaryTextColor: '#5B21B6',
+        primaryBorderColor: '#7C3AED',
+        lineColor: '#CEC9BF',
+        secondaryColor: '#F0EDE6',
+        tertiaryColor: '#FDFBF7',
+        edgeLabelBackground: '#FDFBF7',
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: '13px',
+        nodeBorder: '#DDD6FE',
+        clusterBkg: '#F5F2EC',
+        clusterBorder: '#E2DDD4',
+        titleColor: '#1C1917',
+      }
+    });
+    // Render a mermaid diagram on demand into a target element
+    var _mermaidId = 0;
+    window.renderMermaidTo = async function(targetId, definition) {
+      var el = document.getElementById(targetId);
+      if (!el || el.dataset.rendered) return;
+      try {
+        var id = 'mm-' + (++_mermaidId);
+        var result = await mermaid.render(id, definition);
+        el.innerHTML = result.svg;
+        el.dataset.rendered = '1';
+      } catch(e) { console.error('Mermaid error:', e); }
+    };
+  </script>
+
+  <style>
+    /* ── Galeria de Padrões de Grafos ── */
+    .pg-container { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; overflow: hidden; margin: 2rem 0; }
+    .pg-header { padding: 1.25rem 1.5rem 1rem; }
+    .pg-header .interactive-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-primary); margin-bottom: 0.35rem; }
+    .pg-header h3 { font-size: 1.15rem !important; font-weight: 600 !important; margin: 0 !important; padding: 0 !important; border: none !important; color: var(--color-text); }
+    .pg-header p { font-size: 0.85rem; color: var(--color-text-secondary); margin: 0.35rem 0 0 0; }
+
+    .pg-pills { display: flex; flex-wrap: wrap; gap: 0.375rem; padding: 0 1.5rem 1rem; }
+    .pg-pill { padding: 0.35rem 0.75rem; border-radius: 99px; font-size: 0.7rem; font-weight: 500; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface-2); color: var(--color-text-secondary); transition: all 0.15s; font-family: var(--font-sans); }
+    .pg-pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .pg-pill.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+
+    .pg-body { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--color-border); min-height: 280px; }
+    .pg-diagram { padding: 1rem; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--color-border); background: var(--color-surface-2); overflow: hidden; position: relative; min-height: 150px; }
+    .pg-diagram svg { max-width: 100%; height: auto; }
+    .pg-info { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+    .pg-info h4 { font-size: 1.1rem !important; font-weight: 600 !important; margin: 0 !important; padding: 0 !important; border: none !important; color: var(--color-text); }
+    .pg-desc { font-size: 0.85rem; line-height: 1.6; color: var(--color-text-secondary); }
+    .pg-when { font-size: 0.78rem; line-height: 1.5; color: var(--color-text-muted); }
+    .pg-when strong { color: var(--color-text-secondary); font-weight: 600; }
+    .pg-code { background: var(--color-code-bg, #1C1917); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.72rem; color: #E5E7EB; line-height: 1.5; white-space: pre; overflow-x: auto; }
+
+    @media (max-width: 768px) { .pg-body { grid-template-columns: 1fr; } .pg-diagram { border-right: none; border-bottom: 1px solid var(--color-border); } }
+
+    /* ── Code Walkthrough ── */
+    .cw-container { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; margin: 2rem 0; }
+    .cw-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .cw-progress { display: flex; gap: 0.5rem; align-items: center; }
+    .cw-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--color-border); background: transparent; transition: all 0.2s; }
+    .cw-dot.visited { background: var(--color-primary-light); border-color: var(--color-primary-border); }
+    .cw-dot.active { background: var(--color-primary); border-color: var(--color-primary); }
+    .cw-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 260px; }
+    .cw-code-panel { background: #1C1917; padding: 0.75rem 1.5rem; overflow-x: auto; border-bottom: none; }
+    .cw-code-panel pre { margin: 0; background: transparent; padding: 0; border: none; }
+    .cw-explain-panel { padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; }
+    .cw-step-title { font-family: var(--font-sans); font-size: 1rem; font-weight: 500; margin-bottom: 0.75rem; color: var(--color-text); }
+    .cw-step-explain { font-size: 0.9rem; line-height: 1.7; color: var(--color-text-secondary); }
+    .cw-nav { padding: 0.75rem 1.5rem; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-surface-2); }
+    .cw-step-label { font-size: 0.8rem; color: var(--color-text-muted); }
+
+
+    @media (max-width: 900px) {
+      .gp-body { grid-template-columns: 1fr; }
+      .gp-sidebar { border-right: none; border-bottom: 1px solid var(--color-border); }
+      .cw-body { grid-template-columns: 1fr; }
+      .cw-explain-panel { border-top: 1px solid var(--color-border); }
+    }
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon"><i data-lucide="arrow-left" style="width:14px;height:14px"></i></span>
+          <span class="sb-home-lbl">Agentes de IA</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-o-que-sao-agentes.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '\u2713' : '01'"></span>
+          <span class="ch-txt">O que são Agentes de IA</span>
+        </a>
+        <a href="02-raciocinio-e-tool-calling.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '\u2713' : '02'"></span>
+          <span class="ch-txt">Raciocínio e Tool Calling</span>
+        </a>
+        <a href="03-context-engineering.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '\u2713' : '03'"></span>
+          <span class="ch-txt">Context Engineering</span>
+        </a>
+        <a href="04-langgraph-na-pratica.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '\u2713' : '04'"></span>
+          <span class="ch-txt">LangGraph na Prática</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#por-que-grafos" class="sec-link" :class="{ 'active': activeSection==='por-que-grafos' }">4.1 Por que Grafos?</a>
+        <a href="#o-que-ele-resolve" class="sec-link" :class="{ 'active': activeSection==='o-que-ele-resolve' }">4.2 O que Ele Resolve</a>
+        <a href="#anatomia" class="sec-link" :class="{ 'active': activeSection==='anatomia' }">4.3 Anatomia de um Grafo</a>
+        <a href="#agente-react" class="sec-link" :class="{ 'active': activeSection==='agente-react' }">4.4 Agente ReAct Passo a Passo</a>
+        <a href="#workflows" class="sec-link" :class="{ 'active': activeSection==='workflows' }">4.5 Workflows com Grafos</a>
+        <a href="#checkpointing" class="sec-link" :class="{ 'active': activeSection==='checkpointing' }">4.6 Checkpointing e Memória</a>
+        <a href="#human-in-the-loop" class="sec-link" :class="{ 'active': activeSection==='human-in-the-loop' }">4.7 Human-in-the-Loop</a>
+        <a href="#padroes-de-projeto" class="sec-link" :class="{ 'active': activeSection==='padroes-de-projeto' }">4.8 Padrões de Projeto</a>
+        <a href="#resumo" class="sec-link" :class="{ 'active': activeSection==='resumo' }">Resumo</a>
+        <a href="#langgraph-v1" class="sec-link" :class="{ 'active': activeSection==='langgraph-v1' }">O que mudou no v1</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Agentes de IA: De LLMs a Sistemas Autônomos</a>
+        <span class="topbar-sep">&rsaquo;</span>
+        <span class="topbar-current">LangGraph na Prática</span>
+      </header>
+
+      <article class="content-wrapper"><div class="content">
+        <div class="chapter-eyebrow">Capítulo 04</div>
+        <h1>LangGraph na Prática: Construindo Agentes com <em>Grafos</em></h1>
+        <p class="chapter-objective">Aplicar os conceitos teóricos construindo um agente ReAct e um workflow com LangGraph.</p>
+
+        <!-- ═══════════ INTRODUCAO ═══════════ -->
+
+        <p>No capítulo anterior, exploramos o padrão ReAct e a arquitetura conceitual de agentes que raciocinam e agem em ciclos. Agora, a pergunta natural é: <strong>como implementar isso na prática, com controle total sobre o fluxo de execução?</strong></p>
+
+        <p>Durante anos, o <code>AgentExecutor</code> do LangChain foi a forma padrão de orquestrar agentes. Ele funcionava como uma caixa preta: recebia um prompt, um modelo e ferramentas, e executava um loop binário &mdash; ou o modelo chamava uma ferramenta, ou ele parava. Para protótipos simples, era suficiente. Para sistemas de produção, era insuficiente. Não havia como inserir lógica de aprovação humana entre etapas, não havia como ramificar o fluxo condicionalmente, e o controle sobre o estado interno era mínimo.</p>
+
+        <p>A linguagem de composição LCEL (LangChain Expression Language) avançou nessa direção, mas só suportava grafos acíclicos dirigidos (DAGs). Agentes reais, no entanto, precisam de <strong>ciclos</strong> &mdash; o modelo chama uma ferramenta, recebe o resultado, raciocina novamente, e pode chamar outra ferramenta. Esse loop é a essência do padrão ReAct, e DAGs simplesmente não o representam.</p>
+
+        <p><strong>LangGraph</strong> surgiu para resolver exatamente isso: uma biblioteca que modela fluxos de trabalho de agentes como <strong>grafos cíclicos com estado</strong>, oferecendo controle total sobre cada nó, cada aresta e cada transição. Com mais de 28.500 estrelas no GitHub e adoção por empresas como Klarna, Uber, J.P. Morgan e BlackRock, LangGraph tornou-se a infraestrutura padrão para agentes em produção.</p>
+
+        <p>Neste capítulo, vamos construir. Começaremos pelo modelo mental de grafos, passaremos pela anatomia do LangGraph, e terminaremos com dois projetos completos: um agente ReAct e um workflow condicional.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção — LangGraph v1</div>
+          <p>Este capítulo segue a API do <strong>LangGraph 1.0</strong> (outubro 2025). Os primitivos do grafo (<code>StateGraph</code>, <code>MessagesState</code>, <code>tools_condition</code>) permanecem idênticos às versões anteriores. A principal mudança é que a API prebuilt para agentes passou a ser <code>create_agent</code>, importada de <code>langchain.agents</code>. Veja a seção "O que mudou no v1" ao final do capítulo.</p>
+        </div>
+
+        <!-- ═══════════ 4.1 ═══════════ -->
+
+        <h2 id="por-que-grafos">4.1 Por que Grafos? O Modelo Mental de Nós, Arestas e Estado</h2>
+
+        <p>Antes de abrir o editor de código, precisamos internalizar o modelo mental que fundamenta o LangGraph. Pense em qualquer processo de decisão complexo: há etapas (nós), transições entre elas (arestas) e informação que se acumula ao longo do caminho (estado).</p>
+
+        <div class="box box-definition">
+          <div class="box-label">Definição</div>
+          <p><strong>Grafo dirigido</strong>: Estrutura composta por <strong>nós</strong> (vértices) e <strong>arestas</strong> (arcos direcionados). Cada aresta conecta um nó de origem a um nó de destino, definindo a direção do fluxo. Quando o grafo permite ciclos &mdash; ou seja, caminhos que retornam a um nó já visitado &mdash; chamamos de <strong>grafo cíclico dirigido</strong>.</p>
+        </div>
+
+        <p>No contexto de agentes de IA, essa abstração se traduz diretamente:</p>
+
+        <div class="table-wrap"><table>
+          <thead>
+            <tr><th>Conceito do Grafo</th><th>Significado no Agente</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Nó</strong></td><td>Uma etapa de processamento: chamar o LLM, executar uma ferramenta, avaliar uma condição</td></tr>
+            <tr><td><strong>Aresta fixa</strong></td><td>Transição determinística: &ldquo;após executar a ferramenta, sempre volte ao modelo&rdquo;</td></tr>
+            <tr><td><strong>Aresta condicional</strong></td><td>Transição dinâmica: &ldquo;se o modelo pediu uma ferramenta, vá para o nó de ferramentas; senão, termine&rdquo;</td></tr>
+            <tr><td><strong>Estado</strong></td><td>Toda a informação acumulada: mensagens, resultados de ferramentas, decisões intermediárias</td></tr>
+          </tbody>
+        </table></div>
+
+        <p>A vantagem do modelo de grafos sobre um loop simples é a <strong>expressividade</strong>: você pode representar pipelines lineares, árvores de decisão, loops de retry, fluxos paralelos e padrões de aprovação humana &mdash; tudo na mesma abstração.</p>
+
+        <div class="box box-tip">
+          <div class="box-label">Dica</div>
+          <p><strong>Dica prática</strong>: Antes de escrever código, desenhe o grafo do seu agente em papel ou em uma ferramenta visual. Identifique os nós (o que cada etapa faz), as arestas (como as etapas se conectam) e o estado (que informação precisa fluir). Esse exercício evita retrabalho e torna o código significativamente mais claro.</p>
+        </div>
+
+        <!-- ═══════════ 4.2 ═══════════ -->
+
+        <h2 id="o-que-ele-resolve">4.2 LangGraph: O que Ele Resolve</h2>
+
+        <p>LangGraph não é apenas uma biblioteca de grafos genérica. Ele foi projetado especificamente para resolver quatro problemas centrais de agentes em produção:</p>
+
+        <ol>
+          <li><strong>Gerenciamento de estado</strong>: O estado do agente (mensagens, variáveis, contexto) é mantido de forma estruturada e tipada, com regras claras de como cada nó pode atualizá-lo.</li>
+          <li><strong>Memória e persistência</strong>: Através de checkpointing, o grafo pode ser pausado, persistido em banco de dados e retomado &mdash; essencial para agentes que interagem com humanos de forma assíncrona.</li>
+          <li><strong>Sessões e multi-tenancy</strong>: Cada conversa (thread) mantém seu próprio histórico de estado, permitindo múltiplos usuários simultâneos sem interferência.</li>
+          <li><strong>Execução de ferramentas orquestrada</strong>: Ferramentas são nós do grafo, não callbacks opacos. Você decide exatamente quando, como e sob quais condições uma ferramenta é executada.</li>
+        </ol>
+
+        <p>Os dois pilares arquiteturais do LangGraph são:</p>
+
+        <ul>
+          <li><strong>Controlabilidade</strong>: Não há prompts escondidos, loops implícitos ou comportamento mágico. Cada decisão do fluxo é explícita no grafo.</li>
+          <li><strong>Runtime de produção</strong>: Streaming token a token, estado persistente entre requisições, human-in-the-loop nativo e execução durável com garantias transacionais.</li>
+        </ul>
+
+        <div class="box box-definition">
+          <div class="box-label">Definição</div>
+          <p><strong>Modelo Pregel</strong>: LangGraph é inspirado no modelo Pregel (Google, 2010), usado para processar grafos em larga escala. A execução ocorre em <strong>super-steps</strong>: a cada passo, todos os nós elegíveis no mesmo nível executam em paralelo, produzem atualizações de estado, e o framework garante a aplicação transacional (&ldquo;tudo ou nada&rdquo;) dessas atualizações antes de avançar ao próximo super-step.</p>
+        </div>
+
+        <!-- ═══════════ 4.3 ═══════════ -->
+
+        <h2 id="anatomia">4.3 Anatomia de um Grafo LangGraph</h2>
+
+        <p>Vamos dissecar cada componente fundamental.</p>
+
+        <h3>4.3.1 StateGraph e a Definição de Estado</h3>
+
+        <p><code>StateGraph</code> é a classe central do LangGraph &mdash; é ela que orquestra todo o grafo. Ela recebe como parâmetro um <strong>schema de estado</strong>, tipicamente definido como um <code>TypedDict</code> (ou um modelo <code>Pydantic</code>). O <code>TypedDict</code> define a <em>forma</em> do estado: quais campos existem e seus tipos. O <code>StateGraph</code>, por sua vez, usa esse schema para validar e gerenciar as atualizações de estado durante a execução.</p>
+
+        <pre><code class="language-python">class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]
+
+graph = StateGraph(AgentState)  # StateGraph usa o TypedDict como schema</code></pre>
+
+        <p>Cada campo do estado representa uma informação que o grafo mantém e que os nós podem ler e atualizar. O <code>TypedDict</code> define <em>o que</em> existe no estado; o <code>StateGraph</code> define <em>como</em> esse estado flui entre os nós.</p>
+
+        <h3>4.3.2 Reducers: Como o Estado é Atualizado</h3>
+
+        <p>Quando um nó retorna <code>{"messages": [nova_msg]}</code>, como esse valor é combinado com o estado existente? A resposta são os <strong>reducers</strong>. Sem um reducer, o comportamento padrão é simplesmente <strong>sobrescrever</strong> &mdash; o último nó a atualizar um campo vence, e o valor anterior é perdido.</p>
+
+        <p><code>operator.add</code> é o reducer mais simples: ele <strong>concatena</strong> listas. Se o estado atual tem <code>[a, b]</code> e um nó retorna <code>[c]</code>, o resultado será <code>[a, b, c]</code>. Útil para acumular itens ao longo da execução. Já <code>add_messages</code> é um reducer <strong>especializado</strong> para mensagens de chat: ele apenda novas mensagens à lista, mas se uma mensagem tem o mesmo ID de uma existente, ele a <em>substitui</em> em vez de duplicar. Isso é útil para editar ou corrigir mensagens anteriores.</p>
+
+        <p>É possível criar reducers customizados &mdash; qualquer função com assinatura <code>(valor_atual, novo_valor) -> valor_merged</code> funciona:</p>
+
+        <pre><code class="language-python">def keep_max(current: int, new: int) -> int:
+    return max(current, new)
+
+class State(TypedDict):
+    best_score: Annotated[int, keep_max]</code></pre>
+
+        <p>A sintaxe utiliza <code>Annotated</code> do módulo <code>typing</code> para associar o reducer ao campo:</p>
+
+        <pre><code class="language-python">from langgraph.graph import add_messages
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]  # Apenda mensagens
+    iteration_count: int  # Sem reducer: sobrescrito a cada atualização</code></pre>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p>Se dois nós executarem em paralelo e ambos atualizarem o mesmo campo sem reducer, o último a ser processado vencerá, e o valor do outro será perdido. Use <code>operator.add</code> ou <code>add_messages</code> sempre que precisar acumular valores.</p>
+        </div>
+
+        <h3>4.3.3 MessagesState: O Atalho para Agentes Conversacionais</h3>
+
+        <p>Para o caso muito comum de agentes que mantêm um histórico de mensagens, o LangGraph oferece <code>MessagesState</code>, um estado pré-definido:</p>
+
+        <pre><code class="language-python">from langgraph.graph import MessagesState
+
+# Equivalente a:
+# class MessagesState(TypedDict):
+#     messages: Annotated[list[AnyMessage], add_messages]</code></pre>
+
+        <p>Você pode estendê-lo adicionando campos:</p>
+
+        <pre><code class="language-python">class MyAgentState(MessagesState):
+    user_name: str
+    approved: bool</code></pre>
+
+        <h3>4.3.4 Nós (Nodes)</h3>
+
+        <p>Nós são funções Python &mdash; síncronas ou assíncronas &mdash; que recebem o estado atual e retornam um dicionário com as atualizações:</p>
+
+        <pre><code class="language-python">def assistant(state: AgentState) -> dict:
+    """No que invoca o LLM."""
+    response = model.invoke(state["messages"])
+    return {"messages": [response]}
+
+async def analyze(state: AgentState) -> dict:
+    """No assincrono de analise."""
+    result = await run_analysis(state["messages"])
+    return {"current_step": "analysis_complete", "messages": [result]}</code></pre>
+
+        <p>Os nós são registrados no grafo com <code>add_node</code>:</p>
+
+        <pre><code class="language-python">builder = StateGraph(AgentState)
+builder.add_node("assistant", assistant)
+builder.add_node("analyze", analyze)</code></pre>
+
+        <h3>4.3.5 Arestas (Edges)</h3>
+
+        <p>Arestas definem o fluxo entre nós. Há dois tipos:</p>
+
+        <p><strong>Arestas fixas</strong> &mdash; transições determinísticas:</p>
+
+        <pre><code class="language-python">builder.add_edge(START, "assistant")     # Comeca no assistant
+builder.add_edge("tools", "assistant")   # Apos tools, volta ao assistant</code></pre>
+
+        <p><strong>Arestas condicionais</strong> &mdash; transições dinâmicas baseadas em uma função de roteamento:</p>
+
+        <pre><code class="language-python">def route_decision(state: AgentState) -> str:
+    last_message = state["messages"][-1]
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        return "tools"
+    return END
+
+builder.add_conditional_edges(
+    "assistant",          # No de origem
+    route_decision,       # Funcao de roteamento
+    {"tools": "tools", END: END}  # Mapeamento de retorno para no destino
+)</code></pre>
+
+        <p>A função de roteamento pode retornar uma <strong>lista de strings</strong> para disparar execução paralela de múltiplos nós.</p>
+
+        <h3>4.3.6 Compilação</h3>
+
+        <p>Após definir nós e arestas, o grafo precisa ser compilado:</p>
+
+        <pre><code class="language-python">graph = builder.compile()</code></pre>
+
+        <p>A compilação valida a estrutura (nós sem arestas, ciclos inválidos, etc.) e produz um objeto executável. A partir deste ponto, o grafo é imutável.</p>
+
+        <!-- ═══════════ 4.4 ═══════════ -->
+
+        <h2 id="agente-react">4.4 Construindo um Agente ReAct Passo a Passo</h2>
+
+        <p>Chegou o momento de colocar a teoria em prática. Vamos construir um agente ReAct de duas formas: usando o atalho prebuilt e construindo manualmente.</p>
+
+        <h3>4.4.1 Abordagem Prebuilt: Três Linhas</h3>
+
+        <p>A forma mais rápida de criar um agente é com <code>create_agent</code>, que encapsula o loop ReAct completo:</p>
+
+        <pre><code class="language-python">from langchain.agents import create_agent
+
+def check_weather(city: str) -> str:
+    """Retorna a previsao do tempo para uma cidade."""
+    forecasts = {"Sao Paulo": "25C, parcialmente nublado", "Rio": "32C, ensolarado"}
+    return forecasts.get(city, "Dados nao disponiveis")
+
+graph = create_agent(
+    "anthropic:claude-3-7-sonnet-latest",
+    tools=[check_weather],
+    system_prompt="Voce e um assistente meteorologico prestativo. Responda em portugues."
+)
+
+# Executar
+result = graph.invoke({
+    "messages": [{"role": "user", "content": "Como esta o tempo em Sao Paulo?"}]
+})</code></pre>
+
+        <div class="box box-tip">
+          <div class="box-label">Dica</div>
+          <p><code>create_agent</code> é a API padrão para agentes ReAct. Ela oferece middleware nativo, structured output e human-in-the-loop built-in. Quando precisar de controle total sobre o grafo &mdash; como lógica de retry ou roteamento complexo &mdash; use a construção manual.</p>
+        </div>
+
+        <h3>4.4.2 Abordagem Manual: Controle Total</h3>
+
+        <p>Agora vamos construir o mesmo agente &ldquo;tijolo por tijolo&rdquo;. O walkthrough interativo abaixo mostra cada etapa da construção manual:</p>
+
+        <div class="box box-definition">
+          <div class="box-label">Definição</div>
+          <p><strong><code>tools_condition</code></strong>: Função de roteamento prebuilt que inspeciona a última mensagem do estado. Se ela contém <code>tool_calls</code> (ou seja, o LLM decidiu chamar uma ferramenta), retorna <code>"tools"</code>. Caso contrário, retorna <code>END</code>. É o coração do ciclo ReAct: enquanto o modelo quiser usar ferramentas, o grafo continua ciclando; quando o modelo responde diretamente ao usuário, o grafo termina.</p>
+        </div>
+
+        <p>A execução segue este fluxo:</p>
+        <ol>
+          <li><strong>START &rarr; assistant</strong>: O modelo recebe as mensagens e decide se precisa de uma ferramenta.</li>
+          <li><strong>assistant &rarr; tools</strong> (condicional): Se o modelo gerou <code>tool_calls</code>, o nó <code>ToolNode</code> executa as ferramentas.</li>
+          <li><strong>tools &rarr; assistant</strong>: O resultado da ferramenta volta ao modelo para raciocínio.</li>
+          <li><strong>assistant &rarr; END</strong> (condicional): Quando o modelo responde sem tool calls, o grafo termina.</li>
+        </ol>
+
+        <!-- ═══════════ INTERATIVO 2: Code Walkthrough ═══════════ -->
+
+        <div class="cw-container" id="cw-react" x-data="codeWalkthrough()">
+          <div class="cw-header">
+            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-primary);">Code Walkthrough &mdash; Agente ReAct Manual</span>
+            <div class="cw-progress">
+              <template x-for="(s, i) in steps" :key="i">
+                <div class="cw-dot" :class="{ 'active': i === current, 'visited': i < current }"></div>
+              </template>
+            </div>
+          </div>
+
+          <div class="cw-body">
+            <div class="cw-code-panel" id="cw-code-region">
+              <!-- Code rendered via JS -->
+            </div>
+            <div class="cw-explain-panel">
+              <div class="cw-step-title" x-text="steps[current].title"></div>
+              <div class="cw-step-explain" x-text="steps[current].explain"></div>
+            </div>
+          </div>
+
+          <div class="cw-nav">
+            <button class="btn-secondary" :disabled="current === 0" @click="prev()" style="font-size:0.8rem; padding:0.4rem 1rem;">
+              Anterior
+            </button>
+            <span class="cw-step-label" x-text="'Step ' + (current + 1) + ' de ' + steps.length"></span>
+            <template x-if="current < steps.length - 1">
+              <button class="btn-primary" @click="next()" style="font-size:0.8rem; padding:0.4rem 1rem;">
+                Próximo
+              </button>
+            </template>
+            <template x-if="current === steps.length - 1 && !showFull">
+              <button class="btn-primary" @click="showFull = true; renderFullCode()" style="font-size:0.8rem; padding:0.4rem 1rem;">
+                Ver código completo
+              </button>
+            </template>
+          </div>
+
+          <div x-show="showFull" x-transition style="border-top: 1px solid var(--color-border);">
+            <div style="padding: 0.5rem 1.25rem; font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-text-muted); background: #1C1917; border-bottom: 1px solid rgba(255,255,255,0.06);">Código completo</div>
+            <pre style="margin:0; border-radius:0;"><code class="language-python" id="cw-full-code"></code></pre>
+          </div>
+        </div>
+
+        <!-- ═══════════ 4.5 ═══════════ -->
+
+        <h2 id="workflows">4.5 Construindo Workflows com Grafos</h2>
+
+        <p>Agentes ReAct são poderosos, mas nem todo problema requer um loop de raciocínio livre. Muitos fluxos de trabalho em produção seguem padrões mais estruturados: pipelines lineares (etapa A &rarr; B &rarr; C) ou grafos condicionais (avaliar &rarr; rotear &rarr; processar). O LangGraph suporta ambos.</p>
+
+        <h3>4.5.1 Pipeline Linear</h3>
+
+        <p>Considere um pipeline de processamento de texto: limpar &rarr; resumir &rarr; classificar.</p>
+
+        <pre><code class="language-python">from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+class PipelineState(TypedDict):
+    raw_text: str
+    clean_text: str
+    summary: str
+    category: str
+
+def clean(state: PipelineState) -> dict:
+    """Remove caracteres especiais e normaliza o texto."""
+    text = state["raw_text"].strip().lower()
+    text = " ".join(text.split())
+    return {"clean_text": text}
+
+def summarize(state: PipelineState) -> dict:
+    """Gera um resumo usando o LLM."""
+    response = model.invoke(
+        f"Resuma em uma frase: {state['clean_text']}"
+    )
+    return {"summary": response.content}
+
+def classify(state: PipelineState) -> dict:
+    """Classifica o texto em uma categoria."""
+    response = model.invoke(
+        f"Classifique em uma categoria (tech/business/science): {state['summary']}"
+    )
+    return {"category": response.content}
+
+# Construir o pipeline
+builder = StateGraph(PipelineState)
+builder.add_node("clean", clean)
+builder.add_node("summarize", summarize)
+builder.add_node("classify", classify)
+
+builder.add_edge(START, "clean")
+builder.add_edge("clean", "summarize")
+builder.add_edge("summarize", "classify")
+builder.add_edge("classify", END)
+
+pipeline = builder.compile()
+
+# Executar
+result = pipeline.invoke({"raw_text": "  A OpenAI anunciou o GPT-5...  "})
+print(result["category"])</code></pre>
+
+        <h3>4.5.2 Grafo Condicional</h3>
+
+        <p>Agora, um cenário mais realista: um sistema de avaliação que roteia documentos com base em uma pontuação.</p>
+
+        <pre><code class="language-python">class EvalState(TypedDict):
+    document: str
+    score: float
+    decision: str
+    feedback: str
+
+def evaluate(state: EvalState) -> dict:
+    """Avalia o documento e atribui uma pontuacao."""
+    response = model.invoke(
+        f"Avalie de 0 a 10 a qualidade deste texto. "
+        f"Retorne APENAS o numero: {state['document']}"
+    )
+    return {"score": float(response.content.strip())}
+
+def route_by_score(state: EvalState) -> str:
+    """Roteia com base na pontuacao."""
+    score = state["score"]
+    if score >= 8:
+        return "approve"
+    elif score <= 4:
+        return "reject"
+    else:
+        return "review"
+
+def approve(state: EvalState) -> dict:
+    return {"decision": "approved", "feedback": "Documento aprovado."}
+
+def reject(state: EvalState) -> dict:
+    return {"decision": "rejected", "feedback": "Documento nao atende criterios."}
+
+def review(state: EvalState) -> dict:
+    return {"decision": "needs_review", "feedback": "Encaminhado para revisao humana."}
+
+# Construir o grafo condicional
+builder = StateGraph(EvalState)
+builder.add_node("evaluate", evaluate)
+builder.add_node("approve", approve)
+builder.add_node("reject", reject)
+builder.add_node("review", review)
+
+builder.add_edge(START, "evaluate")
+builder.add_conditional_edges(
+    "evaluate",
+    route_by_score,
+    {"approve": "approve", "reject": "reject", "review": "review"}
+)
+builder.add_edge("approve", END)
+builder.add_edge("reject", END)
+builder.add_edge("review", END)
+
+eval_graph = builder.compile()
+
+result = eval_graph.invoke({"document": "Artigo sobre transformers..."})
+print(f"Decisao: {result['decision']} - {result['feedback']}")</code></pre>
+
+        <div class="box box-example">
+          <div class="box-label">Exemplo</div>
+          <p><strong>Exemplo do mundo real</strong>: Empresas de seguros usam grafos condicionais semelhantes para rotear sinistros. O nó de avaliação analisa o valor e a complexidade; sinistros simples e de baixo valor são aprovados automaticamente; sinistros complexos são roteados para analistas humanos; sinistros com indicadores de fraude são encaminhados para investigação.</p>
+        </div>
+
+        <!-- ═══════════ 4.6 ═══════════ -->
+
+        <h2 id="checkpointing">4.6 Checkpointing, Memória e Persistência de Estado</h2>
+
+        <p>Em aplicações reais, agentes não existem em execuções isoladas. Um chatbot precisa lembrar do que o usuário disse há cinco mensagens. Um agente de workflow pode ser pausado por horas enquanto aguarda aprovação humana. O <strong>checkpointing</strong> é o mecanismo que viabiliza tudo isso.</p>
+
+        <h3>4.6.1 Checkpointers Disponíveis</h3>
+
+        <div class="table-wrap"><table>
+          <thead>
+            <tr><th>Checkpointer</th><th>Persistencia</th><th>Caso de uso</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>InMemorySaver</code></td><td>Volátil (memória RAM)</td><td>Desenvolvimento e testes</td></tr>
+            <tr><td><code>SqliteSaver</code></td><td>Disco local</td><td>Protótipos e aplicações single-node</td></tr>
+            <tr><td><code>PostgresSaver</code></td><td>Banco relacional</td><td>Produção, múltiplas instâncias</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>4.6.2 Memória Conversacional com Threads</h3>
+
+        <p>Cada conversa é identificada por um <code>thread_id</code>. Todos os checkpoints de uma thread formam uma sequência ordenada do histórico de estados:</p>
+
+        <pre><code class="language-python">from langgraph.checkpoint.memory import InMemorySaver
+
+memory = InMemorySaver()
+graph = builder.compile(checkpointer=memory)
+
+config = {"configurable": {"thread_id": "session-42"}}
+
+# Turno 1
+result1 = graph.invoke(
+    {"messages": [{"role": "user", "content": "Meu nome e Ana."}]},
+    config=config
+)
+
+# Turno 2 - mesmo thread_id, o agente lembra do contexto
+result2 = graph.invoke(
+    {"messages": [{"role": "user", "content": "Qual e o meu nome?"}]},
+    config=config
+)
+# O agente respondera "Ana" porque o historico esta preservado</code></pre>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p>Sem checkpointer, cada chamada a <code>invoke</code> é completamente isolada. O agente não terá nenhuma memória de interações anteriores. Se você está construindo qualquer aplicação conversacional, o checkpointer é <strong>obrigatório</strong>, não opcional.</p>
+        </div>
+
+        <h3>4.6.3 Inspecionando o Estado</h3>
+
+        <pre><code class="language-python"># Obter o estado atual da thread
+snapshot = graph.get_state(config)
+print(snapshot.values)        # Estado completo atual
+print(snapshot.next)          # Proximo(s) no(s) a executar
+print(snapshot.created_at)    # Timestamp do checkpoint
+print(snapshot.parent_config) # Referencia ao checkpoint anterior
+
+# Navegar pelo historico completo
+for state in graph.get_state_history(config):
+    print(f"{state.created_at}: {len(state.values['messages'])} mensagens")
+
+# Atualizar o estado manualmente (util para correcoes)
+graph.update_state(config, {"messages": [{"role": "user", "content": "Correcao..."}]})</code></pre>
+
+        <h3>4.6.4 Memory Store: Memória Cross-Thread</h3>
+
+        <p>Enquanto o checkpointer mantém memória dentro de uma thread (uma conversa), o <strong>Memory Store</strong> permite compartilhar informações entre threads &mdash; por exemplo, preferências de um usuário que devem persistir entre sessões diferentes:</p>
+
+        <pre><code class="language-python">from langgraph.store.memory import InMemoryStore
+
+store = InMemoryStore()
+
+# Salvar uma preferencia do usuario (acessivel de qualquer thread)
+store.put(
+    namespace=("users", "ana"),
+    key="preferences",
+    value={"language": "pt-BR", "expertise": "ML Engineering"}
+)
+
+# Recuperar em qualquer thread futura
+memories = store.search(namespace=("users", "ana"))
+for mem in memories:
+    print(mem.value)  # {"language": "pt-BR", "expertise": "ML Engineering"}</code></pre>
+
+        <p>A distinção é fundamental:</p>
+        <ul>
+          <li><strong>Checkpointer (thread-scoped)</strong>: &ldquo;O que aconteceu <em>nesta</em> conversa?&rdquo;</li>
+          <li><strong>Memory Store (cross-thread)</strong>: &ldquo;O que sabemos <em>sobre este usuario</em> independente da conversa?&rdquo;</li>
+        </ul>
+
+        <!-- ═══════════ 4.7 ═══════════ -->
+
+        <h2 id="human-in-the-loop">4.7 Human-in-the-Loop: Quando o Agente Precisa de Aprovação Humana</h2>
+
+        <p>Nem toda decisão deve ser automatizada. Transferências bancárias, envio de e-mails em nome do usuário, exclusão de dados &mdash; essas ações exigem confirmação humana. O LangGraph oferece suporte nativo a esse padrão.</p>
+
+        <h3>4.7.1 Breakpoints Estáticos</h3>
+
+        <p>A forma mais simples: pausar o grafo antes ou depois de um nó específico.</p>
+
+        <pre><code class="language-python">graph = builder.compile(
+    checkpointer=memory,
+    interrupt_before=["tools"]  # Pausa ANTES de executar ferramentas
+)
+
+# Primeira execucao - para antes de "tools"
+result = graph.invoke(
+    {"messages": [{"role": "user", "content": "Envie um e-mail para o CEO"}]},
+    config=config
+)
+
+# Inspecionar o que o agente quer fazer
+snapshot = graph.get_state(config)
+print(snapshot.next)  # ("tools",)
+
+# Se aprovado, continuar a execucao passando None como input
+result = graph.invoke(None, config=config)</code></pre>
+
+        <h3>4.7.2 Interrupt Dinâmico (Recomendado para Produção)</h3>
+
+        <p>Para cenários mais sofisticados, a função <code>interrupt()</code> permite pausar <em>dentro</em> de um nó, com lógica condicional:</p>
+
+        <pre><code class="language-python">from langgraph.types import interrupt, Command
+
+def process_transfer(state):
+    amount = state["amount"]
+    recipient = state["recipient"]
+
+    # So pedir aprovacao para valores altos
+    if amount > 10000:
+        decision = interrupt(
+            f"Transferencia de R${amount:,.2f} para {recipient}. "
+            f"Aprovar? (approve/reject)"
+        )
+
+        if decision != "approve":
+            return {"status": "cancelled", "reason": "Rejeitado pelo usuario"}
+
+    # Executar a transferencia
+    execute_transfer(amount, recipient)
+    return {"status": "completed"}</code></pre>
+
+        <p>Para retomar a execução após a interrupção:</p>
+
+        <pre><code class="language-python"># O usuario analisa e decide aprovar
+result = graph.invoke(
+    Command(resume="approve"),
+    config=config
+)</code></pre>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p><strong>Regras importantes para <code>interrupt()</code>:</strong></p>
+          <p>1. <strong>Não envolva em <code>try/except</code> genérico</strong>: O <code>interrupt()</code> funciona levantando uma exceção especial internamente. Um <code>except Exception</code> capturaria essa exceção e quebraria o mecanismo.</p>
+          <p>2. <strong>Side effects antes do interrupt devem ser idempotentes</strong>: Quando a execução é retomada, o nó é re-executado desde o início. Se você escreveu no banco de dados antes do <code>interrupt()</code>, essa escrita acontecerá novamente. Use operações idempotentes (e.g., <code>INSERT ... ON CONFLICT DO NOTHING</code>).</p>
+        </div>
+
+
+        <!-- ═══════════ 4.8 ═══════════ -->
+
+        <h2 id="padroes-de-projeto">4.8 Padrões de Projeto com LangGraph</h2>
+
+        <p>LangGraph suporta diversos padrões arquiteturais para agentes. A escolha do padrão depende da complexidade da tarefa e do nível de controle desejado. Explore os 10 padrões abaixo &mdash; cada um com diagrama visual, descrição e código essencial:</p>
+
+        <!-- ═══════════ INTERATIVO: Galeria de Padrões de Grafos ═══════════ -->
+        <div class="pg-container" id="patterns-gallery" x-data="patternsGallery()">
+          <div class="pg-header">
+            <div class="interactive-label">Componente Interativo</div>
+            <h3>Galeria de Padrões de Grafos</h3>
+            <p>Explore os padrões arquiteturais do LangGraph</p>
+          </div>
+
+          <div class="pg-pills">
+            <template x-for="(pat, key) in patterns" :key="key">
+              <button class="pg-pill" :class="{ 'active': active === key }" @click="active = key" x-text="pat.name"></button>
+            </template>
+          </div>
+
+          <div class="pg-body">
+            <div class="pg-diagram">
+              <!-- Mermaid rendered on demand into this single target -->
+              <div id="pg-mermaid-target" style="width:100%;display:flex;align-items:center;justify-content:center;min-height:120px;"></div>
+            </div>
+
+            <!-- Info panel -->
+            <div class="pg-info">
+              <h4 x-text="current.name"></h4>
+              <div class="pg-desc" x-text="current.desc"></div>
+              <div class="pg-when"><strong>Quando usar:</strong> <span x-text="current.quando"></span></div>
+              <div class="pg-code" x-text="current.code"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════ Resumo ═══════════ -->
+
+        <h2 id="resumo">Resumo</h2>
+
+        <p>Neste capítulo, saímos da teoria e construímos agentes funcionais com LangGraph. Os conceitos-chave foram:</p>
+
+        <ol>
+          <li><strong>Grafos como modelo mental</strong>: Nós representam etapas de processamento, arestas representam transições, e o estado flui e se acumula ao longo da execução. Grafos cíclicos permitem representar o loop ReAct que DAGs não conseguem expressar.</li>
+          <li><strong>Anatomia do LangGraph</strong>: <code>StateGraph</code> como classe central, reducers controlando como o estado é atualizado (<code>add_messages</code> para conversações, <code>operator.add</code> para acumulação), nós como funções Python, e arestas fixas ou condicionais para definir o fluxo.</li>
+          <li><strong>Agente ReAct</strong>: Implementável em três linhas com <code>create_agent</code> (de <code>langchain.agents</code>) ou com controle total usando <code>StateGraph</code> + nós + <code>tools_condition</code>. O ciclo assistant &rarr; tools &rarr; assistant é o padrão fundamental.</li>
+          <li><strong>Workflows estruturados</strong>: Pipelines lineares para processamento sequencial e grafos condicionais para roteamento baseado em dados &mdash; nem todo problema requer um agente autônomo.</li>
+          <li><strong>Checkpointing e memória</strong>: <code>InMemorySaver</code>/<code>PostgresSaver</code> para persistência de estado entre turnos de conversa (thread-scoped), <code>InMemoryStore</code> para memória cross-thread.</li>
+          <li><strong>Human-in-the-loop</strong>: <code>interrupt()</code> como mecanismo de produção para pausar o agente e aguardar decisão humana, com <code>Command(resume=)</code> para retomar.</li>
+        </ol>
+
+        <!-- ═══════════ O que mudou no v1 ═══════════ -->
+
+        <h2 id="langgraph-v1">O que mudou no LangGraph v1</h2>
+
+        <p>O LangGraph 1.0 foi lançado em outubro de 2025 como a primeira versão estável do framework. A filosofia central foi <strong>"estabilidade, não ruptura"</strong> — os primitivos do grafo foram mantidos idênticos, e a maioria das mudanças são deprecações (não remoções imediatas).</p>
+
+        <h3>Primitivos preservados</h3>
+        <p><code>StateGraph</code>, <code>MessagesState</code>, <code>tools_condition</code>, <code>interrupt()</code>, <code>Command</code> — todos funcionam exatamente igual. Código que usa esses primitivos diretamente não precisa de alteração.</p>
+
+        <h3>O que mudou</h3>
+
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Componente</th><th>Antes (v0)</th><th>Agora (v1)</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>create_agent</code></td>
+              <td><code>from langgraph.prebuilt import create_react_agent</code></td>
+              <td><code>from langchain.agents import create_agent</code><br><small>API padrão com middleware nativo, structured output e human-in-the-loop built-in</small></td>
+            </tr>
+            <tr>
+              <td><code>ToolNode</code> error handling</td>
+              <td><code>handle_tool_errors=True</code> (padrão)</td>
+              <td><code>handle_tool_errors=False</code> (padrão no v1.0.1+)<br><small>Erros agora propagam por padrão — adicionar <code>handle_tool_errors=True</code> para manter comportamento anterior</small></td>
+            </tr>
+            <tr>
+              <td>Python</td>
+              <td>3.9+</td>
+              <td><strong>3.10+</strong> obrigatório</td>
+            </tr>
+            <tr>
+              <td>Middleware</td>
+              <td>Não existia</td>
+              <td>Nova API de middleware no <code>create_agent</code>: prompts dinâmicos, interceptação de tool calls, human-in-the-loop built-in</td>
+            </tr>
+            <tr>
+              <td><code>response_format</code></td>
+              <td>Exigia chamada extra ao LLM</td>
+              <td>Integrado ao <code>create_agent</code> — structured output nativo</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p>Use <code>create_agent</code> de <code>langchain.agents</code> — é a API padrão para agentes ReAct no LangGraph v1, com middleware, structured output e human-in-the-loop integrados.</p>
+        </div>
+
+        <section class="references">
+          <h2>Referências</h2>
+          <ul>
+            <li><strong>LangChain Inc.</strong> "LangGraph Documentation." <em>langchain-ai.github.io/langgraph</em>, 2024.</li>
+            <li><strong>Malevich, G. et al.</strong> "Pregel: A System for Large-Scale Graph Processing." <em>SIGMOD</em>, 2010.</li>
+            <li><strong>Yao, S. et al.</strong> "ReAct: Synergizing Reasoning and Acting in Language Models." <em>ICLR</em>, 2023.</li>
+            <li><strong>LangChain Inc.</strong> "LangGraph GitHub Repository." <em>github.com/langchain-ai/langgraph</em>, 2024.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ NAV ═══════════ -->
+
+        <nav class="chapter-nav">
+          <a href="03-context-engineering.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">&larr; Context Engineering</span>
+            </span>
+          </a>
+          <a href="../index.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Voltar</span>
+              <span class="nav-btn-title">&larr; Índice</span>
+            </span>
+          </a>
+        </nav>
+      </div></article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+  <script>lucide.createIcons();</script>
+
+  <!-- ═══════════ Chapter App ═══════════ -->
+  <script>
+    var CHAPTER_IDS   = ['01', '02', '03', '04'];
+    var CHAPTER_PATHS = { '01': '01-o-que-sao-agentes.html', '02': '02-raciocinio-e-tool-calling.html', '03': '03-context-engineering.html', '04': '04-langgraph-na-pratica.html' };
+    var CURRENT_ID    = '04';
+
+    function chapterApp() {
+      return {
+        sidebarCollapsed: false,
+        activeSection: '',
+        currentChapter: CURRENT_ID,
+        init: function() {
+          var self = this;
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          localStorage.setItem('visited_' + location.pathname.split('/').pop(), 'true');
+          window.addEventListener('scroll', function() {
+            var doc = document.documentElement;
+            var pct = doc.scrollHeight > doc.clientHeight ? (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100 : 0;
+            document.getElementById('reading-progress').style.width = pct + '%';
+          });
+          var sections = document.querySelectorAll('h2[id], h3[id]');
+          var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(e) { if (e.isIntersecting) self.activeSection = e.target.id; });
+          }, { rootMargin: '-15% 0px -70% 0px' });
+          sections.forEach(function(s) { obs.observe(s); });
+        },
+        toggleSidebar: function() { this.sidebarCollapsed = !this.sidebarCollapsed; localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed); },
+        isVisited: function(id) { return localStorage.getItem('visited_' + CHAPTER_PATHS[id]) === 'true'; },
+      };
+    }
+  </script>
+
+  <!-- ═══════════ Code Walkthrough (Alpine component) ═══════════ -->
+  <script>
+    var cwStepCodes = [
+      'from langchain_core.tools import tool\n\n@tool\ndef check_weather(city: str) -> str:\n    """Retorna a previsao do tempo para uma cidade."""\n    forecasts = {"Sao Paulo": "25C, parcialmente nublado"}\n    return forecasts.get(city, "Dados nao disponiveis")\n\ntools = [check_weather]',
+      'from langchain_anthropic import ChatAnthropic\n\nmodel = ChatAnthropic(model="claude-3-7-sonnet-latest")\nmodel_with_tools = model.bind_tools(tools)',
+      'from langgraph.graph import MessagesState\n\ndef assistant(state: MessagesState) -> dict:\n    response = model_with_tools.invoke(state["messages"])\n    return {"messages": [response]}',
+      'from langgraph.graph import StateGraph, START, END\nfrom langgraph.prebuilt import ToolNode\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node("assistant", assistant)\nbuilder.add_node("tools", ToolNode(tools))',
+      'from langgraph.prebuilt import tools_condition\n\nbuilder.add_edge(START, "assistant")\nbuilder.add_conditional_edges("assistant", tools_condition)\nbuilder.add_edge("tools", "assistant")',
+      'graph = builder.compile()\n\nresult = graph.invoke({\n    "messages": [{"role": "user", "content": "Qual o tempo em SP?"}]\n})\nprint(result["messages"][-1].content)'
+    ];
+
+    var cwFullCode = 'from langchain_core.tools import tool\nfrom langchain_anthropic import ChatAnthropic\nfrom langgraph.graph import StateGraph, MessagesState, START, END\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\n@tool\ndef check_weather(city: str) -> str:\n    """Retorna a previsao do tempo para uma cidade."""\n    forecasts = {"Sao Paulo": "25C, parcialmente nublado", "Rio": "32C, ensolarado"}\n    return forecasts.get(city, "Dados nao disponiveis")\n\ntools = [check_weather]\n\nmodel = ChatAnthropic(model="claude-3-7-sonnet-latest")\nmodel_with_tools = model.bind_tools(tools)\n\ndef assistant(state: MessagesState) -> dict:\n    response = model_with_tools.invoke(state["messages"])\n    return {"messages": [response]}\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node("assistant", assistant)\nbuilder.add_node("tools", ToolNode(tools))\n\nbuilder.add_edge(START, "assistant")\nbuilder.add_conditional_edges("assistant", tools_condition)\nbuilder.add_edge("tools", "assistant")\n\ngraph = builder.compile()\n\nresult = graph.invoke({\n    "messages": [{"role": "user", "content": "Qual o tempo em Sao Paulo?"}]\n})\nprint(result["messages"][-1].content)';
+
+    function renderCwCode(code) {
+      var panel = document.getElementById('cw-code-region');
+      var pre = document.createElement('pre');
+      pre.style.margin = '0';
+      pre.style.background = 'transparent';
+      pre.style.padding = '0';
+      var codeEl = document.createElement('code');
+      codeEl.className = 'language-python';
+      codeEl.textContent = code;
+      pre.appendChild(codeEl);
+      panel.textContent = '';
+      panel.appendChild(pre);
+      Prism.highlightElement(codeEl);
+    }
+
+    function renderFullCode() {
+      var el = document.getElementById('cw-full-code');
+      el.textContent = cwFullCode;
+      Prism.highlightElement(el);
+    }
+
+    function codeWalkthrough() {
+      return {
+        current: 0,
+        showFull: false,
+        steps: [
+          { title: 'Step 1 \u2014 Definindo Ferramentas', explain: 'Ferramentas s\u00e3o fun\u00e7\u00f5es Python decoradas com @tool. O decorator extrai automaticamente o nome, a descri\u00e7\u00e3o (docstring) e o schema dos par\u00e2metros. A lista tools ser\u00e1 usada tanto pelo modelo (para saber quais ferramentas existem) quanto pelo ToolNode (para execut\u00e1-las).' },
+          { title: 'Step 2 \u2014 Configurando o Modelo com Ferramentas', explain: 'bind_tools informa ao modelo quais ferramentas est\u00e3o dispon\u00edveis. O modelo n\u00e3o executa as ferramentas \u2014 apenas gera "tool_calls" no seu output quando decide que uma ferramenta \u00e9 necess\u00e1ria. A execu\u00e7\u00e3o real acontece no n\u00f3 de ferramentas.' },
+          { title: 'Step 3 \u2014 Criando o N\u00f3 do Assistente', explain: 'O n\u00f3 assistant \u00e9 uma fun\u00e7\u00e3o que recebe o estado (contendo todas as mensagens at\u00e9 o momento) e retorna um dict com a atualiza\u00e7\u00e3o. Gra\u00e7as ao reducer add_messages configurado em MessagesState, a resposta \u00e9 apendada \u00e0 lista existente, n\u00e3o sobrescrita.' },
+          { title: 'Step 4 \u2014 Registrando N\u00f3s no Grafo', explain: 'StateGraph \u00e9 instanciado com o tipo de estado. ToolNode \u00e9 um n\u00f3 prebuilt que sabe executar ferramentas: ele l\u00ea os tool_calls da \u00faltima mensagem do assistente, executa cada ferramenta e retorna os resultados como ToolMessage.' },
+          { title: 'Step 5 \u2014 Conectando com Arestas', explain: 'Tr\u00eas arestas definem todo o fluxo. A aresta START -> assistant inicia a execu\u00e7\u00e3o. A conditional edge decide: se h\u00e1 tool_calls, vai para tools; sen\u00e3o, vai para END. A aresta tools -> assistant cria o ciclo \u2014 o cora\u00e7\u00e3o do padr\u00e3o ReAct.' },
+          { title: 'Step 6 \u2014 Compilando e Executando', explain: 'compile() valida e congela o grafo. invoke() inicia a execu\u00e7\u00e3o a partir de START com o estado inicial fornecido. O resultado final cont\u00e9m todo o estado acumulado \u2014 todas as mensagens de todas as itera\u00e7\u00f5es do ciclo ReAct.' }
+        ],
+        init: function() {
+          var self = this;
+          this.$nextTick(function() { renderCwCode(cwStepCodes[self.current]); });
+        },
+        next: function() {
+          if (this.current < this.steps.length - 1) {
+            this.current++;
+            renderCwCode(cwStepCodes[this.current]);
+          }
+        },
+        prev: function() {
+          if (this.current > 0) {
+            this.current--;
+            renderCwCode(cwStepCodes[this.current]);
+          }
+        }
+      };
+    }
+  </script>
+
+
+  <!-- ═══════════ Galeria de Padrões de Grafos (Alpine component) ═══════════ -->
+  <script>
+    function patternsGallery() {
+      var DIAGRAMS = {
+        pipeline: 'graph LR\n  S((START))-->extract-->transform-->validate-->save-->E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        router: 'graph LR\n  S((START))-->classify\n  classify-.->tech_agent-->E((END))\n  classify-.->hr_agent-->E\n  classify-.->billing-->E\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        parallel: 'graph LR\n  S((START))-->split\n  split-->search_web-->merge\n  split-->search_db-->merge\n  split-->search_docs-->merge\n  merge-->E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        react: 'graph LR\n  S((START))-->agent\n  agent-.->|tool_calls|tools-->agent\n  agent-.->|done|E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        loop: 'graph LR\n  S((START))-->generate-->validate\n  validate-.->|falhou|generate\n  validate-.->|ok|E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        map_reduce: 'graph LR\n  S((START))-->orchestrate\n  orchestrate-.->|Send|w1["worker 1"]-->aggregate\n  orchestrate-.->|Send|w2["worker 2"]-->aggregate\n  orchestrate-.->|Send|w3["worker N"]-->aggregate\n  aggregate-->E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        reflection: 'graph LR\n  S((START))-->generate-->critique\n  critique-.->|melhorar|generate\n  critique-.->|bom|E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        plan_execute: 'graph LR\n  S((START))-->planner-->executor-->replan\n  replan-.->|mais passos|executor\n  replan-.->|"conclu\u00eddo"|E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        multi_agent: 'graph LR\n  S((START))-->supervisor\n  supervisor-.->researcher-->supervisor\n  supervisor-.->coder-->supervisor\n  supervisor-.->reviewer-->supervisor\n  supervisor-.->|done|E((END))\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  class S,E terminal',
+        human_loop: 'graph LR\n  S((START))-->agent-.->tools-->approve["⏸ approve"]\n  approve-.->|sim|execute-->E((END))\n  approve-.->|"n\u00e3o"|cancel-->E\n  classDef default fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6,rx:8\n  classDef terminal fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560\n  classDef pause fill:#FEF3C7,stroke:#D97706,color:#92400E,rx:8\n  class S,E terminal\n  class approve pause'
+      };
+      var _rendered = {};
+      async function renderDiagram(key) {
+        if (_rendered[key]) return;
+        if (!window.renderMermaidTo) { setTimeout(function(){ renderDiagram(key); }, 200); return; }
+        await window.renderMermaidTo('pg-mermaid-target', DIAGRAMS[key]);
+        // renderMermaidTo checks data-rendered, so we need to clear it for next switch
+      }
+      return {
+        active: 'react',
+        patterns: {
+          pipeline: { name: 'Pipeline Linear', desc: 'Fluxo sequencial onde cada n\u00f3 processa e passa adiante. N\u00e3o h\u00e1 ciclos nem decis\u00f5es \u2014 cada etapa sempre executa na mesma ordem.', quando: 'Processamento determin\u00edstico com ordem fixa: ETL, pipelines de dados, preprocessamento de texto.', code: 'graph.add_node("extract", extract_fn)\ngraph.add_node("transform", transform_fn)\ngraph.add_edge("extract", "transform")\ngraph.add_edge("transform", "validate")' },
+          router: { name: 'Router', desc: 'Um n\u00f3 classificador analisa o input e roteia para o caminho adequado via conditional edges. Cada ramo \u00e9 mutuamente exclusivo.', quando: 'Triagem de inten\u00e7\u00f5es: classificar tickets, direcionar perguntas para agentes especializados, multi-idioma.', code: 'def route(state):\n    return state["category"]\ngraph.add_conditional_edges("classify", route,\n    {"tech": "tech_agent", "hr": "hr_agent"})' },
+          parallel: { name: 'Paralelo (Branch + Merge)', desc: 'Um n\u00f3 dispara m\u00faltiplos caminhos que executam em paralelo no mesmo superstep. Um n\u00f3 de merge agrega os resultados.', quando: 'Consultar m\u00faltiplas APIs simultaneamente, gerar vers\u00f5es alternativas, an\u00e1lise multi-perspectiva.', code: 'graph.add_edge("split", "search_web")\ngraph.add_edge("split", "search_db")\ngraph.add_edge(["search_web","search_db"], "merge")' },
+          react: { name: 'ReAct', desc: 'O agente alterna entre racioc\u00ednio e a\u00e7\u00e3o em loop: pensa, chama uma ferramenta, analisa o resultado, e repete at\u00e9 ter a resposta.', quando: 'Agentes com ferramentas que precisam de m\u00faltiplas consultas e racioc\u00ednio intermedi\u00e1rio.', code: 'graph.add_conditional_edges("agent",\n    should_continue,\n    {"tools": "tools", "end": END})\ngraph.add_edge("tools", "agent")' },
+          loop: { name: 'Loop / Retry', desc: 'Um n\u00f3 executa uma a\u00e7\u00e3o e um verificador decide se repete (falha) ou avan\u00e7a (sucesso). Contador no estado evita loop infinito.', quando: 'Gera\u00e7\u00e3o de c\u00f3digo com valida\u00e7\u00e3o, chamadas de API com retry, valida\u00e7\u00e3o de output com crit\u00e9rios estritos.', code: 'def check(state):\n    if state["valid"]: return "end"\n    if state["retries"] >= 3: return "end"\n    return "retry"' },
+          map_reduce: { name: 'Map-Reduce', desc: 'Distribui trabalho dinamicamente para N workers paralelos usando Send(), depois agrega resultados. N \u00e9 determinado em runtime.', quando: 'Processar N documentos, gerar N an\u00e1lises, qualquer tarefa onde N \u00e9 vari\u00e1vel.', code: 'def dispatch(state):\n    return [Send("worker", {"item": i})\n            for i in state["items"]]' },
+          reflection: { name: 'Reflex\u00e3o', desc: 'Dois n\u00f3s em loop: um gerador produz um rascunho e um cr\u00edtico avalia. Repete at\u00e9 a qualidade ser satisfat\u00f3ria.', quando: 'Melhorar qualidade de textos, emails, respostas longas. Auto-cr\u00edtica para refinar output.', code: 'def should_revise(state):\n    if state["score"] >= 0.8: return "end"\n    return "revise"' },
+          plan_execute: { name: 'Plan-and-Execute', desc: 'Um planner gera um plano multi-etapas antes de executar. Um executor segue o plano passo a passo. Ao fim, pode replanejar.', quando: 'Tarefas longas e complexas onde planejar antecipadamente \u00e9 poss\u00edvel: pesquisa, gerenciamento de projetos.', code: 'def replan(state):\n    if state["steps_remaining"]:\n        return "executor"\n    return END' },
+          multi_agent: { name: 'Multi-Agente (Supervisor)', desc: 'Um supervisor coordena agentes especializados, delegando subtarefas e recolhendo resultados. Cada agente tem contexto pr\u00f3prio.', quando: 'Tarefas decompon\u00edveis em dom\u00ednios: pesquisa + c\u00f3digo + revis\u00e3o, an\u00e1lise multi-departamental.', code: 'def next_agent(state):\n    return state["next"]\ngraph.add_conditional_edges(\n    "supervisor", next_agent)' },
+          human_loop: { name: 'Human-in-the-Loop', desc: 'O agente pausa em pontos cr\u00edticos para aprova\u00e7\u00e3o humana antes de executar a\u00e7\u00f5es irrevers\u00edveis. Usa interrupt() para pausar.', quando: 'A\u00e7\u00f5es sens\u00edveis: enviar e-mail, deploy, transa\u00e7\u00f5es financeiras, qualquer opera\u00e7\u00e3o irrevers\u00edvel.', code: 'def get_approval(state):\n    decision = interrupt("Aprovar?")\n    return {"approved": decision == "sim"}' }
+        },
+        get current() { return this.patterns[this.active]; },
+        init() {
+          var self = this;
+          // Render initial diagram after mermaid loads
+          setTimeout(function() { self.renderActive(); }, 500);
+          this.$watch('active', function() { self.renderActive(); });
+        },
+        async renderActive() {
+          var el = document.getElementById('pg-mermaid-target');
+          if (!el || !window.renderMermaidTo) return;
+          // Clear previous and re-render
+          el.removeAttribute('data-rendered');
+          el.innerHTML = '<div style="color:var(--color-text-muted);font-size:0.8rem;">Carregando diagrama...</div>';
+          await window.renderMermaidTo('pg-mermaid-target', DIAGRAMS[this.active]);
+        }
+      };
+    }
+  </script>
+
+  <script src="../assets/main.js"></script>
+</body>
+</html>

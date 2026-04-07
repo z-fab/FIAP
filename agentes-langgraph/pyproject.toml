@@ -1,0 +1,41 @@
+[project]
+name = "agents-fiap"
+version = "0.1.0"
+description = "Projeto prático de Agentes de IA com LangGraph — FIAP ML Engineering"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.135.0",
+    "uvicorn>=0.34.0",
+    "langgraph>=1.0.0",
+    "langchain>=0.3.0",
+    "langchain-google-genai>=2.1.0",
+    "yfinance>=0.2.50",
+    "httpx>=0.28.0",
+    "tavily-python>=0.5.0",
+    "pydantic-settings>=2.7.0",
+    "rich>=13.0.0",
+    "aiosqlite>=0.22.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agents"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "TCH"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ty]
+src = ["src"]
+python-version = "3.12"

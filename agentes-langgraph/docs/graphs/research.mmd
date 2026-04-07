@@ -1,0 +1,17 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	assistant(assistant)
+	tools(tools)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> assistant;
+	assistant -.-> __end__;
+	assistant -.-> tools;
+	tools --> assistant;
+	classDef default fill:#282c34,line-height:1.2,color:#abb2bf,stroke:#61afef
+	classDef first fill-opacity:0,color:#abb2bf,stroke:#61afef
+	classDef last fill:#c678dd,color:#282c34,stroke:#c678dd

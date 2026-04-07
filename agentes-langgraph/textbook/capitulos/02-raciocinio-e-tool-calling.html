@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raciocínio e Tool Calling — Agentes de IA: De LLMs a Sistemas Autônomos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+
+  <style>
+    /* ── Token Generation Simulator v2 ── */
+    .token-gen-container {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin: 2rem 0;
+      padding: 0;
+    }
+    .token-gen-header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .token-gen-header-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-primary);
+    }
+    .token-gen-header-subtitle {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-top: 0.15rem;
+      color: var(--color-text);
+    }
+    .tg2-mode-toggle {
+      display: inline-flex;
+      gap: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      margin-top: 0.75rem;
+    }
+    .tg2-mode-btn {
+      padding: 0.4rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--color-surface-2);
+      color: var(--color-text-secondary);
+    }
+    .tg2-mode-btn.active {
+      background: var(--color-primary);
+      color: white;
+    }
+    .tg2-prompt {
+      padding: 1rem 2rem;
+      background: var(--color-surface-2);
+      border-bottom: 1px solid var(--color-border);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--color-text);
+    }
+    .tg2-prompt strong {
+      color: var(--color-text-secondary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .tg2-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 380px;
+    }
+    .tg2-left {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      border-right: 1px solid var(--color-border);
+    }
+    .tg2-right {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .tg2-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-secondary);
+    }
+    .tg2-token-area {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 200px;
+      max-height: 280px;
+      line-height: 2;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .tg2-token {
+      display: inline-block;
+      padding: 2px 6px;
+      margin: 2px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      opacity: 0;
+      animation: tg2FadeIn 0.2s ease-out forwards;
+      cursor: default;
+    }
+    @keyframes tg2FadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .tg2-token-thinking {
+      background: #EDE9FE;
+      border: 1px solid #C4B5FD;
+      color: var(--color-primary-dark, #5B21B6);
+    }
+    .tg2-token-response {
+      background: #D1FAE5;
+      border: 1px solid #6EE7B7;
+      color: #065F46;
+    }
+    .tg2-token-tag {
+      background: #7C3AED;
+      color: white;
+      font-weight: 700;
+      border: 1px solid #6D28D9;
+    }
+    .tg2-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: var(--color-primary);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+    /* Chart bars */
+    .tg2-chart-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .tg2-chart-label {
+      width: 24px;
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-text);
+      flex-shrink: 0;
+    }
+    .tg2-chart-bar-bg {
+      flex: 1;
+      height: 24px;
+      background: var(--color-surface-2);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .tg2-chart-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      background: var(--color-border);
+    }
+    .tg2-chart-bar-fill.highlight-correct {
+      background: var(--color-primary, #7C3AED);
+    }
+    .tg2-chart-bar-fill.highlight-wrong {
+      background: var(--color-danger, #EF4444);
+    }
+    .tg2-chart-pct {
+      width: 40px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--color-text-secondary);
+      flex-shrink: 0;
+    }
+    .tg2-chart-hint {
+      font-size: 0.8rem;
+      font-style: italic;
+      color: var(--color-text-muted);
+      margin-top: 0.5rem;
+    }
+    .tg2-chart-hint.success {
+      color: #059669;
+      font-style: normal;
+      font-weight: 500;
+    }
+    .tg2-chart-hint.error {
+      color: #DC2626;
+      font-style: normal;
+      font-weight: 500;
+    }
+    /* Summary card */
+    .tg2-summary {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-size: 0.85rem;
+      line-height: 1.65;
+      animation: tg2FadeIn 0.4s ease-out forwards;
+    }
+    .tg2-summary.success {
+      border-color: #6EE7B7;
+      background: #ECFDF5;
+    }
+    .tg2-summary.error {
+      border-color: #FCA5A5;
+      background: #FEF2F2;
+    }
+    /* Controls */
+    .tg2-footer {
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .tg2-footer-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .tg2-token-counter {
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      color: var(--color-text-muted);
+    }
+    .tg2-progress-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--color-border);
+      overflow: hidden;
+    }
+    .tg2-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+    .tg2-phase-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .tg2-phase-thinking { background: #EDE9FE; color: var(--color-primary); }
+    .tg2-phase-response { background: #D1FAE5; color: #065F46; }
+    .tg2-phase-idle { background: var(--color-surface-2); color: var(--color-text-muted); }
+    .tg2-phase-done { background: #D1FAE5; color: #065F46; }
+
+    /* ── Tool Calling Diagram v3 — single row ── */
+    .tc2-container {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin: 2rem 0;
+    }
+    .tc2-header {
+      padding: 1.25rem 1.5rem 1rem;
+    }
+    .tc2-header .interactive-label {
+      font-size: 0.7rem !important;
+      font-weight: 700 !important;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-primary);
+      margin: 0 0 0.5rem 0 !important;
+      display: block;
+    }
+    .tc2-header h3 {
+      font-size: 1.15rem !important;
+      font-weight: 600 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      color: var(--color-text);
+    }
+    /* Single-row flow */
+    .tc2-diagram {
+      padding: 1.25rem 1rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tc2-flow {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 0;
+      min-width: 620px;
+    }
+    .tc2-step {
+      width: 80px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .tc2-step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.3rem;
+      border: 2px solid var(--color-border);
+      background: var(--color-surface-2);
+      color: var(--color-text-muted);
+      font-size: 1.1rem;
+      transition: all 0.25s ease;
+    }
+    .tc2-step.active .tc2-step-icon {
+      transform: scale(1.1);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    }
+    .tc2-step-title {
+      font-size: 0.6rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      transition: color 0.25s ease;
+      line-height: 1.25;
+      max-width: 72px;
+    }
+    /* Arrows — vertically centered with icons (not with full step card) */
+    .tc2-arrow {
+      flex-shrink: 0;
+      width: 24px;
+      height: 40px; /* same as icon height — centers arrow with icon */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tc2-arrow svg { overflow: visible; }
+    .tc2-arrow-line {
+      stroke: var(--color-border);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 3;
+      fill: none;
+      transition: stroke 0.25s ease;
+    }
+    .tc2-arrow-head {
+      fill: var(--color-border);
+      transition: fill 0.25s ease;
+    }
+    .tc2-arrow.active .tc2-arrow-line {
+      animation: tc2DashFlow 0.6s linear infinite;
+    }
+    @keyframes tc2DashFlow {
+      to { stroke-dashoffset: -7; }
+    }
+    /* Legend */
+    .tc2-legend {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      padding: 0.25rem 1.5rem 1rem;
+      flex-wrap: wrap;
+    }
+    .tc2-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.65rem;
+      color: var(--color-text-secondary);
+    }
+    .tc2-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    /* Detail panel */
+    .tc2-detail {
+      margin: 0 1.5rem 1.5rem;
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 160px;
+      border: 1px solid var(--color-border);
+    }
+    .tc2-detail-bar { height: 3px; }
+    .tc2-detail-body { padding: 1.25rem 1.5rem; }
+    .tc2-detail-title {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    .tc2-detail-subtitle {
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+      margin-bottom: 1rem;
+    }
+    .tc2-detail-payload {
+      background: var(--color-code-bg);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #E5E7EB;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 0.75rem;
+      overflow-x: auto;
+    }
+    .tc2-detail-note {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: var(--color-text-secondary);
+      border-left: 3px solid var(--color-primary-border);
+      padding-left: 0.75rem;
+    }
+    .tc2-controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 1rem 1.5rem 1.25rem;
+    }
+    .tc2-step-indicator {
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+      margin-left: auto;
+    }
+
+    @media (max-width: 768px) {
+      .tg2-body { grid-template-columns: 1fr; }
+      .tg2-right { border-top: 1px solid var(--color-border); }
+      .tg2-left { border-right: none; }
+      .tc2-flow { min-width: 540px; }
+      .tc2-step { width: 68px; }
+      .tc2-step-icon { width: 34px; height: 34px; font-size: 0.95rem; }
+      .tc2-arrow { width: 18px; height: 34px; }
+      .tc2-step-title { font-size: 0.55rem; }
+    }
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon"><i data-lucide="arrow-left" style="width:14px;height:14px"></i></span>
+          <span class="sb-home-lbl">Agentes de IA</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-o-que-sao-agentes.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '\u2713' : '01'"></span>
+          <span class="ch-txt">O que são Agentes de IA</span>
+        </a>
+        <a href="02-raciocinio-e-tool-calling.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '\u2713' : '02'"></span>
+          <span class="ch-txt">Raciocínio e Tool Calling</span>
+        </a>
+        <a href="03-context-engineering.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '\u2713' : '03'"></span>
+          <span class="ch-txt">Context Engineering</span>
+        </a>
+        <a href="04-langgraph-na-pratica.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '\u2713' : '04'"></span>
+          <span class="ch-txt">LangGraph na Prática</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#raciocinio-geracao-tokens" class="sec-link" :class="{ 'active': activeSection==='raciocinio-geracao-tokens' }">2.1 O Raciocínio é Geração de Tokens</a>
+        <a href="#tokens-intermediarios" class="sec-link" :class="{ 'active': activeSection==='tokens-intermediarios' }">2.2 Tokens Intermediários</a>
+        <a href="#tool-calling" class="sec-link" :class="{ 'active': activeSection==='tool-calling' }">2.3 Tool Calling</a>
+        <a href="#loop-observe-think-act" class="sec-link" :class="{ 'active': activeSection==='loop-observe-think-act' }">2.4 O Loop Observe-Think-Act</a>
+        <a href="#papel-orquestrador" class="sec-link" :class="{ 'active': activeSection==='papel-orquestrador' }">2.5 O Papel do Orquestrador</a>
+        <a href="#juntando-tudo" class="sec-link" :class="{ 'active': activeSection==='juntando-tudo' }">2.6 Juntando Tudo</a>
+        <a href="#resumo" class="sec-link" :class="{ 'active': activeSection==='resumo' }">Resumo</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Agentes de IA: De LLMs a Sistemas Autônomos</a>
+        <span class="topbar-sep">&rsaquo;</span>
+        <span class="topbar-current">Raciocínio e Tool Calling</span>
+      </header>
+
+      <article class="content-wrapper"><div class="content">
+        <div class="chapter-eyebrow">Capítulo 02</div>
+        <h1>Raciocínio e Tool Calling: Como LLMs <em>"Pensam"</em> e <em>"Agem"</em></h1>
+        <p class="chapter-objective">Desmistificar como LLMs raciocinam (tokens intermediários) e chamam ferramentas (sinalização, não execução).</p>
+
+        <!-- ═══════════ CONTEÚDO DO CAPÍTULO ═══════════ -->
+
+        <p>No capítulo anterior, estabelecemos o que são Large Language Models e como eles se tornaram a base para sistemas de IA cada vez mais sofisticados. Agora, precisamos enfrentar duas perguntas fundamentais: <strong>como um modelo que "apenas" prevê o próximo token consegue raciocinar sobre problemas complexos?</strong> E <strong>como ele consegue "usar" ferramentas externas se não passa de uma função matemática que mapeia sequências de tokens em distribuições de probabilidade?</strong></p>
+
+        <p>As aspas nos verbos acima são intencionais. A tese central deste capítulo é dupla:</p>
+
+        <ol>
+          <li><strong>Raciocínio é geração de tokens.</strong> Quando um LLM "pensa", ele está gerando tokens intermediários que condicionam a distribuição de probabilidade dos tokens seguintes, melhorando a qualidade da resposta final.</li>
+          <li><strong>Tool calling é sinalização, não execução.</strong> Quando um LLM "usa" uma calculadora ou consulta um banco de dados, ele está emitindo uma estrutura de dados que <em>descreve</em> a chamada. Quem executa é outro componente &mdash; o orquestrador.</li>
+        </ol>
+
+        <p>Compreender essas duas mecânicas é pré-requisito para tudo que virá nos capítulos seguintes sobre agentes. Um agente, no fundo, é um loop que alterna entre raciocínio (geração de tokens) e ação (tool calling orquestrado). Sem clareza sobre o que acontece em cada etapa, é impossível projetar sistemas robustos.</p>
+
+        <!-- ═══════════ SEÇÃO 2.1 ═══════════ -->
+        <h2 id="raciocinio-geracao-tokens">2.1 O Raciocínio é "Só" Geração de Tokens</h2>
+
+        <h3>2.1.1 Autoregressive Decoding: A Mecânica Fundamental</h3>
+
+        <p>Todo LLM moderno baseado na arquitetura Transformer decoder opera da mesma forma: dado uma sequência de tokens de entrada, o modelo produz uma distribuição de probabilidade sobre o vocabulário para o próximo token. Esse token é selecionado (via sampling ou greedy decoding), concatenado à sequência, e o processo se repete.</p>
+
+        <p>Não há um módulo separado de "raciocínio". Não existe uma CPU interna que processa lógica. <strong>Tudo o que o modelo produz &mdash; seja uma piada, uma prova matemática ou a decisão de chamar uma ferramenta &mdash; emerge do mesmo processo autoregressivo de geração token a token.</strong></p>
+
+        <div class="box box-definition">
+          <div class="box-label">Definição</div>
+          <p><strong>Autoregressive decoding:</strong> Processo no qual o modelo gera uma sequência de saída um token por vez, onde cada novo token é condicionado em todos os tokens anteriores (tanto do input quanto dos já gerados). É o mecanismo único e universal pelo qual LLMs produzem qualquer tipo de output.</p>
+        </div>
+
+        <h3>2.1.2 Chain-of-Thought: Raciocínio como Subproduto</h3>
+
+        <p>Em 2022, Wei et al. demonstraram algo notável no paper <em>"Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"</em> (arXiv:2201.11903): quando você inclui exemplos de raciocínio passo a passo no prompt (few-shot), modelos suficientemente grandes passam a gerar passos intermediários antes da resposta final &mdash; e isso <strong>melhora drasticamente</strong> a acurácia em tarefas de raciocínio.</p>
+
+        <p>O resultado mais emblemático: o modelo PaLM com 540 bilhões de parâmetros, usando apenas 8 exemplos de chain-of-thought, atingiu o estado da arte no benchmark GSM8K (problemas matemáticos de ensino fundamental). Sem CoT, o mesmo modelo errava a maioria dos problemas.</p>
+
+        <div class="box box-example">
+          <div class="box-label">Exemplo</div>
+          <p><strong>Sem Chain-of-Thought:</strong></p>
+          <pre><code class="language-text">Pergunta: Roger tem 5 bolas de tênis. Ele compra mais 2 latas
+de 3 bolas cada. Quantas bolas ele tem agora?
+Resposta: 9  ← ERRADO</code></pre>
+          <p><strong>Com Chain-of-Thought:</strong></p>
+          <pre><code class="language-text">Pergunta: Roger tem 5 bolas de tênis. Ele compra mais 2 latas
+de 3 bolas cada. Quantas bolas ele tem agora?
+Pensamento: Roger começa com 5 bolas. Ele compra 2 latas com
+3 bolas cada, ou seja, 2 × 3 = 6 bolas. No total, 5 + 6 = 11.
+Resposta: 11  ← CORRETO</code></pre>
+          <p>No segundo caso, os tokens do "Pensamento" não são decoração &mdash; eles <strong>condicionam</strong> a distribuição de probabilidade dos tokens seguintes, tornando muito mais provável que o modelo gere "11" e não "9" ou "10".</p>
+        </div>
+
+        <p>Por que isso funciona? A intuição é a seguinte: um Transformer tem profundidade fixa (número de camadas). Cada passada forward pela rede representa uma quantidade fixa de "computação". Para problemas que exigem múltiplos passos de raciocínio, uma única passada forward pode não ser suficiente. Gerar tokens intermediários permite que o modelo execute <strong>múltiplas passadas forward sobre resultados parciais</strong>, efetivamente ampliando sua capacidade computacional.</p>
+
+        <div class="box box-tip">
+          <div class="box-label">Dica</div>
+          <p><strong>Chain-of-thought não requer fine-tuning.</strong> É uma propriedade emergente que pode ser ativada apenas com exemplos no prompt (few-shot) ou até com a instrução simples "pense passo a passo" (zero-shot CoT). Isso a torna uma das técnicas mais acessíveis e poderosas para melhorar a performance de LLMs.</p>
+        </div>
+
+        <p>Um ponto crucial observado por Wei et al.: CoT é uma <strong>propriedade emergente de escala</strong>. Modelos com menos de ~100 bilhões de parâmetros não apresentam melhoria significativa com chain-of-thought &mdash; e em alguns casos, a performance até piora. Isso sugere que a capacidade de "decompor" problemas em passos intermediários coerentes surge apenas quando o modelo atinge certo nível de capacidade.</p>
+
+        <h3>2.1.3 Reasoning Tokens: A Institucionalização do Pensamento</h3>
+
+        <p>A partir de 2024, os principais laboratórios passaram a <strong>institucionalizar</strong> a geração de tokens intermediários como mecanismo central de raciocínio, indo além do CoT induzido por prompt. Em 2026, o raciocínio integrado já é o padrão em todos os modelos de fronteira.</p>
+
+        <h4>OpenAI: de o1 ao GPT-5.x</h4>
+
+        <p>O modelo <strong>o1</strong> (setembro de 2024) foi o primeiro a introduzir o conceito de <em>reasoning tokens</em>: antes de gerar a resposta visível ao usuário, o modelo produz um "scratchpad" interno. Depois vieram o <strong>o3</strong> e o <strong>o4-mini</strong> (abril de 2025), aprofundando essa linha. O grande marco veio com o <strong>GPT-5</strong> (maio de 2025), que unificou raciocínio e geração em um único modelo &mdash; o controle passou a ser feito via o parâmetro <code>reasoning.effort</code> (<code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>). Os modelos mais recentes são o <strong>GPT-5.2 Thinking</strong> (dezembro de 2025) e o <strong>GPT-5.4</strong> (março de 2026). Uma característica importante: reasoning tokens brutos <strong>nunca são expostos</strong> via API &mdash; apenas resumos via <code>reasoning.summary</code>.</p>
+
+        <h4>Google Gemini: thinking como padrão</h4>
+
+        <p>O <strong>Gemini 2.5 Pro/Flash</strong> introduziu thinking ativado por padrão com <code>thinkingBudget</code> dinâmico. Com o <strong>Gemini 3</strong> (dezembro de 2025) e o <strong>3.1</strong> (fevereiro de 2026), o thinking está praticamente sempre presente, com controle via <code>thinking_level</code>. Os pensamentos <strong>não são retornados por padrão</strong> &mdash; é necessário usar <code>includeThoughts: true</code> para acessá-los.</p>
+
+        <h4>Anthropic Claude: transparência no raciocínio</h4>
+
+        <p>O <strong>Claude 4.5/4.6</strong> (Opus/Sonnet) implementa <em>Extended Thinking</em> com <em>Adaptive Thinking</em>: blocos internos de tipo <code>thinking</code> que são retornados sumarizados por padrão &mdash; uma abordagem mais transparente que a da OpenAI. O controle é feito via o parâmetro <code>effort</code> (<code>low</code>, <code>medium</code>, <code>high</code>); o antigo <code>budget_tokens</code> está deprecated nos modelos 4.6. Uma evolução importante é o <em>Interleaved Thinking</em>, que permite ao modelo <strong>alternar entre blocos de thinking e chamadas de ferramentas</strong> &mdash; pensar, agir, pensar novamente, agir novamente.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Provedor</th>
+                <th>Raciocínio oculto?</th>
+                <th>Resumo disponível?</th>
+                <th>Controle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>OpenAI (o3/GPT-5.x)</strong></td>
+                <td>Sim (brutos ocultos)</td>
+                <td>Via <code>reasoning.summary</code></td>
+                <td><code>reasoning.effort</code></td>
+              </tr>
+              <tr>
+                <td><strong>Gemini 2.5/3</strong></td>
+                <td>Pensamentos opt-in</td>
+                <td>Via <code>includeThoughts</code></td>
+                <td><code>thinkingBudget</code> / <code>thinking_level</code></td>
+              </tr>
+              <tr>
+                <td><strong>Claude 4.6</strong></td>
+                <td>Sumarizado por padrão</td>
+                <td>Blocos <code>thinking</code> na resposta</td>
+                <td><code>effort</code> (Adaptive Thinking)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p><strong>Reasoning tokens têm custo real.</strong> Um modelo que "pensa" por 10.000 tokens antes de responder custa proporcionalmente mais. Em produção, é essencial calibrar o budget de raciocínio: problemas simples não justificam cadeias longas de pensamento, enquanto problemas complexos se beneficiam enormemente. Esse é um trade-off fundamental entre custo/latência e qualidade.</p>
+        </div>
+
+        <p>O ponto unificador é este: <strong>independentemente da implementação</strong>, o mecanismo é o mesmo. O modelo gera tokens intermediários que servem como "memória de trabalho" temporária, condicionando a geração subsequente. Não há magia &mdash; há mais computação.</p>
+
+        <!-- ═══════════ DIAGRAMA: Chain-of-Thought Visual ═══════════ -->
+        <div class="diagram-wrap" style="margin: 2rem 0;">
+          <div style="text-align: center; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-primary); margin-bottom: 0.75rem;">Processo Chain-of-Thought</div>
+          <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <div style="display: flex; align-items: center; gap: 0; min-width: 700px; justify-content: center; padding: 1rem 0;">
+              <!-- Prompt -->
+              <div style="background: var(--color-surface-2); border: 2px solid var(--color-border-strong); border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.78rem; font-weight: 600; color: var(--color-text); white-space: nowrap;">Prompt</div>
+              <div style="width: 24px; height: 2px; background: var(--color-border-strong); flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 8px solid var(--color-border-strong); flex-shrink: 0; margin-right: 4px;"></div>
+              <!-- Thinking tokens -->
+              <div style="background: #EDE9FE; border: 1.5px solid #C4B5FD; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.72rem; font-family: var(--font-mono); color: var(--color-primary-dark); white-space: nowrap;">Token 1</div>
+              <div style="width: 12px; height: 2px; background: #C4B5FD; flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #C4B5FD; flex-shrink: 0; margin-right: 2px;"></div>
+              <div style="background: #EDE9FE; border: 1.5px solid #C4B5FD; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.72rem; font-family: var(--font-mono); color: var(--color-primary-dark); white-space: nowrap;">Token 2</div>
+              <div style="width: 12px; height: 2px; background: #C4B5FD; flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #C4B5FD; flex-shrink: 0; margin-right: 2px;"></div>
+              <div style="font-size: 0.85rem; color: var(--color-text-muted); padding: 0 0.3rem;">...</div>
+              <div style="width: 12px; height: 2px; background: #C4B5FD; flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #C4B5FD; flex-shrink: 0; margin-right: 2px;"></div>
+              <div style="background: #EDE9FE; border: 1.5px solid #C4B5FD; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.72rem; font-family: var(--font-mono); color: var(--color-primary-dark); white-space: nowrap;">Token N</div>
+              <div style="width: 12px; height: 2px; background: #C4B5FD; flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #C4B5FD; flex-shrink: 0; margin-right: 4px;"></div>
+              <!-- Response tokens -->
+              <div style="background: #D1FAE5; border: 1.5px solid #6EE7B7; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.72rem; font-family: var(--font-mono); color: #065F46; white-space: nowrap;">Token 1</div>
+              <div style="width: 12px; height: 2px; background: #6EE7B7; flex-shrink: 0;"></div>
+              <div style="width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #6EE7B7; flex-shrink: 0; margin-right: 4px;"></div>
+              <!-- Final -->
+              <div style="background: #D1FAE5; border: 2px solid #10B981; border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.78rem; font-weight: 600; color: #065F46; white-space: nowrap;">Resposta Final</div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--color-text-secondary);">
+              <span style="display: inline-block; width: 12px; height: 12px; background: #EDE9FE; border: 1px solid #C4B5FD; border-radius: 3px;"></span> Thinking tokens
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--color-text-secondary);">
+              <span style="display: inline-block; width: 12px; height: 12px; background: #D1FAE5; border: 1px solid #6EE7B7; border-radius: 3px;"></span> Response tokens
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 0.6rem; font-size: 0.75rem; font-style: italic; color: var(--color-text-muted);">Mesma mecânica autoregressiva</div>
+        </div>
+
+        <!-- ═══════════ INTERATIVO 1: Token Generation Simulator v2 ═══════════ -->
+        <div class="token-gen-container" id="token-gen">
+          <!-- Header -->
+          <div class="token-gen-header">
+            <div class="token-gen-header-title">Simulador Interativo</div>
+            <div class="token-gen-header-subtitle">Como Thinking Tokens Mudam a Resposta</div>
+            <div class="tg2-mode-toggle">
+              <button class="tg2-mode-btn active" id="tg2-btn-thinking" onclick="tg2SetMode('thinking')">Com Thinking</button>
+              <button class="tg2-mode-btn" id="tg2-btn-no-thinking" onclick="tg2SetMode('no-thinking')">Sem Thinking</button>
+            </div>
+          </div>
+          <!-- Prompt -->
+          <div class="tg2-prompt">
+            <strong>Pergunta:</strong><br>
+            Maria tem 3 cestas com 4 maçãs cada. Ela dá 5 maçãs para João. Quantas maçãs Maria tem agora?
+          </div>
+          <!-- Body: side by side -->
+          <div class="tg2-body">
+            <!-- Left: Token generation -->
+            <div class="tg2-left">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="tg2-section-title">Geração de Tokens</span>
+                <span id="tg2-phase" class="tg2-phase-label tg2-phase-idle">IDLE</span>
+              </div>
+              <div id="tg2-token-area" class="tg2-token-area"><span class="tg2-cursor"></span></div>
+              <div id="tg2-summary-area"></div>
+            </div>
+            <!-- Right: Distribution chart -->
+            <div class="tg2-right">
+              <span class="tg2-section-title">Distribuição da Resposta Final</span>
+              <div id="tg2-chart"></div>
+              <div id="tg2-chart-hint" class="tg2-chart-hint">Se respondesse agora...</div>
+            </div>
+          </div>
+          <!-- Footer: controls + progress -->
+          <div style="padding: 0 2rem;">
+            <div class="tg2-progress-bar">
+              <div id="tg2-progress-fill" class="tg2-progress-fill" style="width: 0%; background: var(--color-border);"></div>
+            </div>
+          </div>
+          <div class="tg2-footer">
+            <button class="btn-primary" onclick="tg2Next()" id="tg2-btn-next" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              &#9654; Próximo token
+            </button>
+            <button class="btn-secondary" onclick="tg2ToggleAuto()" id="tg2-btn-auto" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              &#9193; <span id="tg2-auto-label">Auto-play</span>
+            </button>
+            <button class="btn-reset" onclick="tg2Reset()" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              &#9198; Reiniciar
+            </button>
+            <div class="tg2-footer-right">
+              <span id="tg2-counter" class="tg2-token-counter">Token 0 de 0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════ SEÇÃO 2.2 ═══════════ -->
+        <h2 id="tokens-intermediarios">2.2 Tokens Intermediários: Por Que o Modelo "Pensa Antes de Responder"</h2>
+
+        <h3>2.2.1 A Limitação Computacional de Uma Única Passada</h3>
+
+        <p>Para entender por que tokens intermediários são necessários, considere uma analogia. Imagine que alguém lhe peça para multiplicar 47 x 83 mentalmente, mas com uma restrição: você deve dar a resposta em no máximo um segundo, sem papel, sem calculadora. A maioria das pessoas erraria.</p>
+
+        <p>Agora, se permitirmos que você use um rascunho: 47 x 80 = 3.760; 47 x 3 = 141; 3.760 + 141 = 3.901. Com espaço para resultados intermediários, o problema se torna tratável.</p>
+
+        <p>Um LLM enfrenta uma versão análoga desse problema. Cada token gerado corresponde a uma única passada forward pela rede &mdash; um número fixo de operações matriciais. Para problemas que exigem raciocínio em múltiplas etapas, uma única passada forward simplesmente <strong>não contém computação suficiente</strong> para chegar à resposta correta.</p>
+
+        <p>Os tokens intermediários funcionam como o rascunho: cada um representa uma nova passada forward que pode operar sobre os resultados parciais já gerados. Em termos técnicos, eles expandem a <strong>profundidade efetiva de computação</strong> do modelo.</p>
+
+        <h3>2.2.2 Evidência Empírica: Mais Tokens, Melhor Raciocínio</h3>
+
+        <p>Os dados dos modelos de reasoning corroboram essa intuição. A OpenAI reportou que a acurácia do o1 melhora <strong>logaritmicamente</strong> com o budget de tokens de raciocínio. Isso significa que:</p>
+
+        <ul>
+          <li>Permitir 100 tokens de raciocínio vs. 0 produz um ganho substancial</li>
+          <li>Ir de 100 para 1.000 tokens produz ganho significativo mas menor</li>
+          <li>Ir de 1.000 para 10.000 tokens produz ganho incremental</li>
+          <li>Os retornos são decrescentes, mas nunca irrelevantes para problemas complexos</li>
+        </ul>
+
+        <p>Essa relação logarítmica tem implicação prática direta: em produção, é fundamental <strong>calibrar o budget de raciocínio por tipo de tarefa</strong>. Um chatbot de FAQ não precisa de 10.000 tokens de pensamento; um sistema de resolução de provas matemáticas pode se beneficiar de cada token adicional.</p>
+
+        <h3>2.2.3 O Que Está nos Thinking Tokens?</h3>
+
+        <p>Embora a OpenAI oculte o conteúdo dos reasoning tokens do o1, a Anthropic disponibiliza os blocos <code>thinking</code> do Claude via API. Analisando esses blocos, observamos padrões recorrentes:</p>
+
+        <ul>
+          <li><strong>Decomposição:</strong> O modelo quebra o problema em subproblemas menores</li>
+          <li><strong>Verificação:</strong> O modelo frequentemente "checa" resultados parciais ("deixa eu verificar: 3 x 4 é mesmo 12...")</li>
+          <li><strong>Exploração e backtracking:</strong> O modelo considera abordagens alternativas quando a primeira não funciona</li>
+          <li><strong>Síntese:</strong> Ao final, o modelo consolida os resultados parciais em uma resposta coerente</li>
+        </ul>
+
+        <p>Esses padrões são notavelmente similares às estratégias de resolução de problemas que humanos usam &mdash; mas é crucial lembrar: o modelo não está "decidindo" usar essas estratégias. Ele está gerando tokens que, probabilisticamente, se parecem com raciocínio humano, porque foi treinado em vastas quantidades de texto onde humanos raciocinam dessa forma.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">Definição</div>
+          <p><strong>Reasoning tokens (tokens de raciocínio):</strong> Tokens gerados pelo modelo antes da resposta final, que servem como "memória de trabalho" temporária. Eles condicionam a geração subsequente, permitindo ao modelo executar múltiplos passos de computação sobre resultados intermediários. Podem ser visíveis (Claude thinking blocks) ou ocultos (o1 reasoning).</p>
+        </div>
+
+        <!-- ═══════════ SEÇÃO 2.3 ═══════════ -->
+        <h2 id="tool-calling">2.3 Tool Calling: O LLM Não Executa Ferramentas</h2>
+
+        <h3>2.3.1 A Ilusão da Execução</h3>
+
+        <p>Quando alguém diz que "o ChatGPT consultou a Wikipedia" ou "o Claude executou um código Python", está cometendo um erro conceitual fundamental. Como Martin Fowler sintetiza de forma precisa:</p>
+
+        <blockquote>
+          <p>"The LLM does not execute these calls directly, instead it creates a data structure that describes the call, passing that to a separate program for execution."</p>
+        </blockquote>
+
+        <p>O LLM faz exatamente uma coisa: <strong>gera tokens</strong>. Quando esses tokens formam uma estrutura JSON que descreve uma chamada de ferramenta, o modelo está <em>sinalizando uma intenção</em> &mdash; não executando nada. A execução é responsabilidade de um componente externo: o <strong>orquestrador</strong>.</p>
+
+        <h3>2.3.2 O Fluxo Completo de Tool Calling</h3>
+
+        <p>Vamos detalhar o fluxo passo a passo, usando como exemplo a API da Anthropic:</p>
+
+        <h4>1. Definição de schemas (developer-time):</h4>
+
+        <p>O desenvolvedor define quais ferramentas o modelo pode "usar", especificando nome, descrição e parâmetros em JSON Schema:</p>
+
+        <pre><code class="language-json">{
+  "name": "consultar_clima",
+  "description": "Retorna a temperatura atual de uma cidade",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "cidade": {
+        "type": "string",
+        "description": "Nome da cidade"
+      }
+    },
+    "required": ["cidade"]
+  }
+}</code></pre>
+
+        <h4>2. Análise do input (inference-time):</h4>
+
+        <p>O modelo recebe a mensagem do usuário ("Qual a temperatura em São Paulo?") junto com as definições das ferramentas disponíveis.</p>
+
+        <h4>3. Geração do JSON de chamada (o modelo gera tokens):</h4>
+
+        <p>O modelo produz um bloco de tipo <code>tool_use</code>:</p>
+
+        <pre><code class="language-json">{
+  "type": "tool_use",
+  "id": "toolu_01A09q90qw90lq917835lq9",
+  "name": "consultar_clima",
+  "input": {
+    "cidade": "São Paulo"
+  }
+}</code></pre>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p><strong>Neste ponto, nada foi executado.</strong> O modelo apenas gerou uma sequência de tokens que, quando parseada, descreve uma chamada de função. Não houve consulta a nenhuma API de clima. Não houve acesso à internet. O modelo simplesmente produziu texto estruturado.</p>
+        </div>
+
+        <h4>4. Parsing e execução pelo orquestrador:</h4>
+
+        <p>O orquestrador (seu código, o framework LangChain, o LangGraph, etc.) recebe a resposta da API, identifica o bloco <code>tool_use</code>, extrai o nome da função e os parâmetros, e <strong>executa a chamada real</strong>:</p>
+
+        <pre><code class="language-python"># O orquestrador faz isso - não o LLM
+resultado = api_clima.consultar(cidade="São Paulo")
+# resultado: {"temperatura": 24, "unidade": "celsius"}</code></pre>
+
+        <h4>5. Reinjeção do resultado:</h4>
+
+        <p>O orquestrador envia o resultado de volta ao modelo como uma mensagem de tipo <code>tool_result</code>:</p>
+
+        <pre><code class="language-json">{
+  "type": "tool_result",
+  "tool_use_id": "toolu_01A09q90qw90lq917835lq9",
+  "content": "{\"temperatura\": 24, \"unidade\": \"celsius\"}"
+}</code></pre>
+
+        <h4>6. Geração da resposta final:</h4>
+
+        <p>Agora, com o resultado da ferramenta no contexto, o modelo gera a resposta ao usuário: "A temperatura atual em São Paulo é de 24 graus celsius."</p>
+
+        <h3>2.3.3 As Três Capacidades Aprendidas</h3>
+
+        <p>Para que o tool calling funcione, o modelo precisa ter aprendido &mdash; durante o treinamento ou fine-tuning &mdash; três capacidades distintas:</p>
+
+        <ol>
+          <li><strong>Reconhecimento de intenção (intent recognition):</strong> Identificar que a pergunta do usuário requer uma ferramenta externa, e não apenas conhecimento paramétrico.</li>
+          <li><strong>Seleção de ferramenta (tool selection):</strong> Dentre as ferramentas disponíveis, escolher a mais adequada para a tarefa.</li>
+          <li><strong>Geração de parâmetros (parameter generation):</strong> Preencher corretamente os argumentos da ferramenta com base no contexto da conversa.</li>
+        </ol>
+
+        <div class="box box-example">
+          <div class="box-label">Exemplo</div>
+          <p><strong>As três capacidades em ação:</strong></p>
+          <p>Usuário: "Quanto custa um dólar hoje?"</p>
+          <ol>
+            <li><strong>Intent recognition:</strong> O modelo reconhece que a cotação do dólar é informação em tempo real &rarr; precisa de ferramenta.</li>
+            <li><strong>Tool selection:</strong> Dentre <code>[consultar_clima, consultar_cotacao, enviar_email]</code>, seleciona <code>consultar_cotacao</code>.</li>
+            <li><strong>Parameter generation:</strong> Gera <code>{"moeda_origem": "USD", "moeda_destino": "BRL"}</code> extraindo informações do contexto.</li>
+          </ol>
+          <p>Se o modelo errasse em qualquer uma das três etapas &mdash; por exemplo, tentando responder com conhecimento desatualizado (1), escolhendo <code>consultar_clima</code> (2), ou gerando <code>{"moeda_origem": "EUR"}</code> (3) &mdash; o resultado seria incorreto.</p>
+        </div>
+
+        <h3>2.3.4 Structured Outputs: Garantindo JSON Válido</h3>
+
+        <p>Um desafio prático do tool calling é que o modelo pode gerar JSON malformado &mdash; afinal, ele está apenas gerando tokens, e nada no processo autoregressivo garante que as chaves serão fechadas corretamente ou que os tipos estarão corretos.</p>
+
+        <p>Para mitigar isso, a OpenAI introduziu em junho de 2024 o mecanismo de <strong>Structured Outputs</strong> com <code>strict: true</code>, que utiliza <em>constrained decoding</em> para garantir que a saída do modelo obedece exatamente ao JSON Schema especificado. Na prática, isso funciona modificando as probabilidades dos tokens durante a geração: tokens que violariam o schema recebem probabilidade zero.</p>
+
+        <!-- ═══════════ SEÇÃO 2.4 ═══════════ -->
+        <h2 id="loop-observe-think-act">2.4 O Loop Observe &rarr; Think &rarr; Act</h2>
+
+        <h3>2.4.1 ReAct: Unificando Raciocínio e Ação</h3>
+
+        <p>Em 2022, Yao et al. propuseram o framework <strong>ReAct</strong> (<em>Reasoning + Acting</em>, arXiv:2210.03629, ICLR 2023), que formaliza a integração de raciocínio e tool calling em um loop iterativo. O padrão é:</p>
+
+        <ol>
+          <li><strong>Observe:</strong> O modelo recebe uma observação (input do usuário ou resultado de uma ferramenta)</li>
+          <li><strong>Think:</strong> O modelo gera tokens de raciocínio ("Preciso descobrir X. Para isso, posso usar a ferramenta Y com o parâmetro Z.")</li>
+          <li><strong>Act:</strong> O modelo gera uma chamada de ferramenta estruturada</li>
+        </ol>
+
+        <p>O ciclo se repete quantas vezes forem necessárias até que o modelo julgue ter informação suficiente para produzir a resposta final.</p>
+
+        <p>Os resultados experimentais foram expressivos: <strong>+34 pontos</strong> em ALFWorld (tarefas de navegação em ambientes virtuais) e <strong>+10 pontos</strong> em WebShop (tarefas de compra online) comparados aos baselines.</p>
+
+        <p>Um achado particularmente importante: <strong>interleaving raciocínio e ação supera cada um isoladamente.</strong> Chain-of-thought puro (só raciocínio, sem ação) tende a alucinar &mdash; o modelo "inventa" fatos quando não tem acesso a informações reais. Ação pura (sem raciocínio) executa ferramentas de forma mecânica, sem capacidade de sintetizar resultados ou corrigir o curso.</p>
+
+        <h3>2.4.2 Quem Faz o Quê: A Divisão de Responsabilidades</h3>
+
+        <p>Este é um dos pontos mais importantes do capítulo. No loop ReAct, existem <strong>três atores</strong> com responsabilidades distintas:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ator</th>
+                <th>Responsabilidade</th>
+                <th>Exemplo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>LLM</strong></td>
+                <td>Gerar raciocínio + decidir ação + gerar JSON estruturado</td>
+                <td>"Preciso consultar o clima. Vou usar <code>consultar_clima</code> com cidade='SP'."</td>
+              </tr>
+              <tr>
+                <td><strong>Orquestrador</strong></td>
+                <td>Parsear a resposta, executar a ferramenta, reinjetar o resultado</td>
+                <td>Recebe o JSON, chama a API de clima, retorna <code>{"temp": 24}</code> ao LLM</td>
+              </tr>
+              <tr>
+                <td><strong>Ambiente</strong></td>
+                <td>Executar a ação concreta e retornar resultado</td>
+                <td>O servidor da API de clima processa a requisição e retorna os dados</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">Atenção</div>
+          <p><strong>O LLM nunca toca o ambiente diretamente.</strong> Existe sempre uma camada de orquestração entre o modelo e o mundo externo. Isso não é uma limitação &mdash; é um princípio de design fundamental que permite validação, logging, rate limiting, tratamento de erros e controle de acesso. Em sistemas de produção, essa separação é o que torna o sistema seguro e auditável.</p>
+        </div>
+
+        <h3>2.4.3 Exemplo Concreto: Um Ciclo ReAct Completo</h3>
+
+        <p>Considere um assistente com acesso a duas ferramentas: <code>buscar_produto(query)</code> e <code>consultar_estoque(produto_id)</code>.</p>
+
+        <p><strong>Turno 1 &mdash; Observe:</strong> Usuário pergunta "Vocês têm o iPhone 15 Pro em estoque?"</p>
+
+        <p><strong>Turno 1 &mdash; Think (tokens gerados pelo LLM):</strong><br>
+        "O usuário quer saber sobre disponibilidade de um produto específico. Preciso primeiro buscar o produto para obter o ID, depois consultar o estoque."</p>
+
+        <p><strong>Turno 1 &mdash; Act (JSON gerado pelo LLM):</strong></p>
+        <pre><code class="language-json">{"name": "buscar_produto", "input": {"query": "iPhone 15 Pro"}}</code></pre>
+
+        <p><strong>Turno 2 &mdash; Observe:</strong> Orquestrador executa e retorna <code>{"id": "SKU-8834", "nome": "iPhone 15 Pro 256GB"}</code></p>
+
+        <p><strong>Turno 2 &mdash; Think:</strong><br>
+        "Encontrei o produto com ID SKU-8834. Agora preciso verificar o estoque."</p>
+
+        <p><strong>Turno 2 &mdash; Act:</strong></p>
+        <pre><code class="language-json">{"name": "consultar_estoque", "input": {"produto_id": "SKU-8834"}}</code></pre>
+
+        <p><strong>Turno 3 &mdash; Observe:</strong> Orquestrador retorna <code>{"disponivel": true, "quantidade": 3}</code></p>
+
+        <p><strong>Turno 3 &mdash; Think:</strong><br>
+        "O produto está disponível com 3 unidades em estoque. Posso responder ao usuário."</p>
+
+        <p><strong>Turno 3 &mdash; Resposta final:</strong><br>
+        "Sim, temos o iPhone 15 Pro 256GB em estoque! No momento, há 3 unidades disponíveis."</p>
+
+        <p>Note que o LLM precisou de <strong>dois ciclos</strong> de tool calling para responder &mdash; e em cada ciclo, o raciocínio intermediário guiou a próxima ação. Sem o "Think", o modelo poderia ter tentado consultar o estoque sem o ID, ou parado após a busca sem verificar disponibilidade.</p>
+
+        <!-- ═══════════ SEÇÃO 2.5 ═══════════ -->
+        <h2 id="papel-orquestrador">2.5 O Papel do Orquestrador</h2>
+
+        <h3>2.5.1 Muito Além de Um "Proxy"</h3>
+
+        <p>É tentador pensar no orquestrador como um simples intermediário que repassa mensagens entre o LLM e as ferramentas. Na prática, ele é o componente mais crítico da arquitetura. Suas responsabilidades incluem:</p>
+
+        <p><strong>Parsing da resposta do modelo:</strong><br>
+        O orquestrador precisa interpretar a saída do modelo e identificar se contém uma chamada de ferramenta, uma resposta final, ou ambos. Com structured outputs e stop reasons explícitos (como <code>stop_reason: "tool_use"</code> na API da Anthropic), isso se torna mais confiável, mas o orquestrador ainda precisa lidar com edge cases.</p>
+
+        <p><strong>Execução real da ferramenta:</strong><br>
+        O orquestrador é quem de fato chama a API externa, executa o SQL, roda o código Python. Ele deve implementar timeouts, retries, circuit breakers e error handling adequados.</p>
+
+        <p><strong>Reinjeção do resultado:</strong><br>
+        Após a execução, o orquestrador formata o resultado como uma mensagem de tipo <code>tool_result</code> e a injeta na conversa, permitindo que o modelo prossiga.</p>
+
+        <p><strong>Controle do loop:</strong><br>
+        O orquestrador decide quando parar o loop. Sem limites, um modelo poderia ficar em loop infinito de tool calls. Na prática, implementa-se um número máximo de iterações e/ou um timeout global.</p>
+
+        <p><strong>Segurança e validação:</strong><br>
+        Antes de executar uma chamada de ferramenta, o orquestrador pode (e deve) validar se os parâmetros são seguros, se o usuário tem permissão para a ação, se a ferramenta está disponível, etc.</p>
+
+        <pre><code class="language-python"># Pseudocódigo de um orquestrador simplificado
+def run_agent(user_message, tools, max_iterations=10):
+    messages = [{"role": "user", "content": user_message}]
+
+    for i in range(max_iterations):
+        response = llm.generate(messages, tools=tools)
+
+        if response.stop_reason == "end_turn":
+            return response.text  # Resposta final
+
+        if response.stop_reason == "tool_use":
+            for tool_call in response.tool_calls:
+                # Validação
+                if tool_call.name not in allowed_tools:
+                    raise SecurityError(f"Tool não permitida: {tool_call.name}")
+
+                # Execução real
+                result = execute_tool(tool_call.name, tool_call.input)
+
+                # Reinjeção
+                messages.append({"role": "assistant", "content": response})
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_call.id,
+                        "content": json.dumps(result)
+                    }]
+                })
+
+    raise MaxIterationsError("Loop excedeu o limite")</code></pre>
+
+        <div class="box box-tip">
+          <div class="box-label">Dica</div>
+          <p><strong>O orquestrador é onde frameworks como LangGraph brilham.</strong> Ele abstrai o loop de execução, o gerenciamento de estado, o parsing de respostas e a reinjeção de resultados. Nos próximos capítulos, veremos como o LangGraph modela esse loop como um grafo de estados, dando ao desenvolvedor controle granular sobre cada transição.</p>
+        </div>
+
+        <!-- ═══════════ INTERATIVO 2: Tool Calling Loop Diagram ═══════════ -->
+        <div class="tc2-container" id="tool-calling-diagram" x-data="toolCallingDiagram()">
+          <!-- Header -->
+          <div class="tc2-header">
+            <span class="interactive-label">Diagrama Interativo</span>
+            <h3>Loop de Tool Calling — Passo a Passo</h3>
+          </div>
+
+          <!-- Diagrama — linha única -->
+          <div class="tc2-diagram">
+            <div class="tc2-flow">
+              <template x-for="idx in [0,1,2,3,4,5,6]" :key="'s'+idx">
+                <div style="display:contents">
+                  <!-- Seta antes do step (exceto o primeiro) -->
+                  <div class="tc2-arrow" x-show="idx > 0"
+                    :class="{ 'active': current >= idx && visited.has(idx) }">
+                    <svg width="24" height="12" viewBox="0 0 24 12">
+                      <line x1="0" y1="6" x2="16" y2="6" class="tc2-arrow-line"
+                        :style="(current >= idx) ? 'stroke:' + steps[idx].color : ''"/>
+                      <polygon points="16,2.5 24,6 16,9.5" class="tc2-arrow-head"
+                        :style="(current >= idx) ? 'fill:' + steps[idx].color : ''"/>
+                    </svg>
+                  </div>
+                  <!-- Step -->
+                  <div class="tc2-step"
+                    :class="{ 'active': current === idx, 'visited': visited.has(idx) && current !== idx }"
+                    @click="goto(idx)">
+                    <div class="tc2-step-icon"
+                      :style="current === idx
+                        ? 'border-color:'+steps[idx].color+';background:'+steps[idx].bg+';color:'+steps[idx].color+';box-shadow:0 0 0 3px '+steps[idx].bg
+                        : (visited.has(idx)
+                          ? 'border-color:'+steps[idx].color+';background:'+steps[idx].bg+';color:'+steps[idx].color
+                          : '')">
+                      <span x-text="steps[idx].icon"></span>
+                      </div>
+                      <div class="tc2-step-title"
+                        :style="current === idx ? 'color:'+steps[idx].color+';font-weight:600' : ''"
+                        x-text="steps[idx].shortTitle"></div>
+                    </div>
+                  </div>
+                </template>
+              </div><!-- /tc2-flow -->
+          </div><!-- /tc2-diagram -->
+
+          <!-- Legenda de cores -->
+          <div class="tc2-legend">
+            <div class="tc2-legend-item">
+              <span class="tc2-legend-dot" style="background:#DBEAFE;border:1px solid #3B82F6"></span>
+              Usuário / Resposta
+            </div>
+            <div class="tc2-legend-item">
+              <span class="tc2-legend-dot" style="background:#EDE9FE;border:1px solid #7C3AED"></span>
+              LLM
+            </div>
+            <div class="tc2-legend-item">
+              <span class="tc2-legend-dot" style="background:#FEF3C7;border:1px solid #D97706"></span>
+              Orquestrador
+            </div>
+            <div class="tc2-legend-item">
+              <span class="tc2-legend-dot" style="background:#E8F0EB;border:1px solid #3D6B52"></span>
+              Execução
+            </div>
+          </div>
+
+          <!-- Controles -->
+          <div class="tc2-controls">
+            <button class="btn-secondary" @click="prev()" :disabled="current <= 0" style="display:inline-flex;align-items:center;gap:0.3rem;">
+              <i data-lucide="chevron-left" style="width:14px;height:14px"></i> Anterior
+            </button>
+            <button class="btn-primary" @click="next()" :disabled="current >= 6" style="display:inline-flex;align-items:center;gap:0.3rem;">
+              Próximo <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+            </button>
+            <button class="btn-secondary" @click="playAll()" :disabled="playing" style="display:inline-flex;align-items:center;gap:0.3rem;">
+              <i data-lucide="play" style="width:14px;height:14px"></i> Animação completa
+            </button>
+            <button class="btn-reset" @click="reset()" style="display:inline-flex;align-items:center;gap:0.3rem;">
+              <i data-lucide="rotate-ccw" style="width:12px;height:12px"></i> Reiniciar
+            </button>
+            <span class="tc2-step-indicator" x-text="'Passo ' + (current + 1) + ' de 7'"></span>
+          </div>
+
+          <!-- Painel de detalhe -->
+          <div class="tc2-detail" :style="'border: 1px solid ' + steps[current].color + '33'">
+            <div class="tc2-detail-bar" :style="'background:' + steps[current].color"></div>
+            <div class="tc2-detail-body">
+              <div class="tc2-detail-title" :style="'color:' + steps[current].color" x-text="steps[current].title"></div>
+              <div class="tc2-detail-subtitle" x-text="steps[current].subtitle"></div>
+              <div class="tc2-detail-payload" x-text="steps[current].payload"></div>
+              <div class="tc2-detail-note" x-text="steps[current].note"></div>
+            </div>
+          </div>
+
+          <div style="height: 1.25rem;"></div>
+        </div>
+
+        <!-- ═══════════ SEÇÃO 2.6 ═══════════ -->
+        <h2 id="juntando-tudo">2.6 Juntando Tudo: Do Token ao Agente</h2>
+
+        <p>Agora podemos ver como raciocínio e tool calling se compõem para formar a base dos agentes que estudaremos nos próximos capítulos:</p>
+
+        <ol>
+          <li>O modelo recebe o contexto (mensagem do usuário + ferramentas disponíveis + histórico)</li>
+          <li>Gera <strong>reasoning tokens</strong> para analisar a situação e planejar</li>
+          <li>Decide se precisa de informação externa ou se pode responder diretamente</li>
+          <li>Se precisa de ferramenta: gera <strong>tokens que formam um JSON</strong> de tool call</li>
+          <li>O <strong>orquestrador</strong> parseia, valida e executa</li>
+          <li>O resultado é <strong>reinjetado</strong> no contexto</li>
+          <li>O modelo analisa o novo contexto e decide o próximo passo</li>
+          <li>O ciclo se repete até a resposta final</li>
+        </ol>
+
+        <p>Cada etapa desse fluxo é geração de tokens. Cada decisão &mdash; "preciso de uma ferramenta?", "qual ferramenta?", "com quais parâmetros?", "tenho informação suficiente para responder?" &mdash; emerge do mesmo processo autoregressivo. O que diferencia um agente de um chatbot simples é o <strong>loop de orquestração</strong> que permite múltiplos ciclos de raciocínio e ação.</p>
+
+        <!-- ═══════════ RESUMO ═══════════ -->
+        <h2 id="resumo">Resumo do Capítulo</h2>
+
+        <p>Este capítulo desmistificou as duas mecânicas fundamentais dos agentes:</p>
+
+        <ol>
+          <li><strong>Raciocínio é geração de tokens.</strong> Não há módulo separado de "pensamento" — o modelo gera tokens intermediários que condicionam a resposta final. Mais tokens de raciocínio = mais computação efetiva, com retornos logarítmicos.</li>
+          <li><strong>Chain-of-Thought é propriedade emergente</strong> que surge em modelos com 100B+ parâmetros. Pode ser ativada por prompt ("pense passo a passo") sem fine-tuning.</li>
+          <li><strong>Reasoning tokens foram institucionalizados</strong> pelos principais provedores: GPT-5.x (ocultos, resumo via API), Claude (sumarizados por padrão), Gemini (opt-in via <code>includeThoughts</code>).</li>
+          <li><strong>Tool calling é sinalização, não execução.</strong> O LLM gera um JSON descrevendo a intenção. O orquestrador parseia, valida, executa e reinjeta o resultado.</li>
+          <li><strong>ReAct (Observe → Think → Act)</strong> formaliza o loop de raciocínio + ação. Interleaving supera cada um isoladamente.</li>
+          <li><strong>O orquestrador é o componente crítico</strong> — responsável por parsing, execução real, reinjeção, controle de loop e segurança. É engenharia de software clássica.</li>
+        </ol>
+
+        <p>A grande lição: não há magia. LLMs são máquinas de gerar tokens — extraordinariamente sofisticadas, mas mecanicamente simples. Quando "raciocinam", geram tokens intermediários. Quando "agem", geram JSON.</p>
+
+        <p>No próximo capítulo, veremos como o contexto &mdash; a informação que alimenta o modelo &mdash; é o recurso mais crítico de um agente, e como engenhrá-lo corretamente.</p>
+
+        <section class="references">
+          <h2>Referências</h2>
+          <ul>
+            <li><strong>Wei, J. et al.</strong> "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models." <em>arXiv</em>, 2022. arXiv:2201.11903.</li>
+            <li><strong>Yao, S. et al.</strong> "ReAct: Synergizing Reasoning and Acting in Language Models." <em>ICLR</em>, 2023. arXiv:2210.03629.</li>
+            <li><strong>Fowler, M.</strong> "LLM Tool Usage." <em>martinfowler.com</em>, 2024.</li>
+            <li><strong>OpenAI.</strong> "Learning to Reason with LLMs." <em>Documentação o1</em>, 2024.</li>
+            <li><strong>OpenAI.</strong> "Introducing GPT-5." <em>OpenAI Blog</em>, 2025.</li>
+            <li><strong>Google.</strong> "Gemini Thinking." <em>Google AI for Developers</em>, 2025.</li>
+            <li><strong>Anthropic.</strong> "Extended Thinking with Claude." <em>Documentação da API Claude</em>, 2025.</li>
+            <li><strong>OpenAI.</strong> "Structured Outputs." <em>Documentação da API</em>, 2024.</li>
+          </ul>
+        </section>
+
+        <!-- ═══════════ FIM DO CONTEÚDO ══════════════ -->
+
+        <nav class="chapter-nav">
+          <a href="01-o-que-sao-agentes.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">&larr; O que são Agentes de IA</span>
+            </span>
+          </a>
+          <a href="03-context-engineering.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo</span>
+              <span class="nav-btn-title">Context Engineering &rarr;</span>
+            </span>
+          </a>
+        </nav>
+      </div></article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="../assets/main.js"></script>
+
+  <script>lucide.createIcons();</script>
+
+  <!-- ═══════════ INTERATIVO 1: Token Generation Simulator v2 ═══════════ -->
+  <script>
+  (function() {
+    /* ── Data ── */
+    var CANDIDATES = [5, 6, 7, 8, 9, 10, 11, 12];
+
+    var MODES = {
+      'thinking': {
+        tokens: [
+          {t:'<thinking>', tag:true, phase:'thinking'},
+          {t:'Maria', phase:'thinking'}, {t:'tem', phase:'thinking'}, {t:'3', phase:'thinking'},
+          {t:'cestas', phase:'thinking'}, {t:'com', phase:'thinking'}, {t:'4', phase:'thinking'},
+          {t:'maçãs', phase:'thinking'}, {t:'cada', phase:'thinking'}, {t:'.', phase:'thinking'},
+          {t:'Total', phase:'thinking'}, {t:'inicial', phase:'thinking'}, {t:':', phase:'thinking'},
+          {t:'3', phase:'thinking'}, {t:'\u00d7', phase:'thinking'}, {t:'4', phase:'thinking'},
+          {t:'=', phase:'thinking'}, {t:'12', phase:'thinking'}, {t:'maçãs', phase:'thinking'},
+          {t:'.', phase:'thinking'}, {t:'Ela', phase:'thinking'}, {t:'dá', phase:'thinking'},
+          {t:'5', phase:'thinking'}, {t:'para', phase:'thinking'}, {t:'João', phase:'thinking'},
+          {t:'.', phase:'thinking'}, {t:'Restam', phase:'thinking'}, {t:':', phase:'thinking'},
+          {t:'12', phase:'thinking'}, {t:'\u2212', phase:'thinking'}, {t:'5', phase:'thinking'},
+          {t:'=', phase:'thinking'}, {t:'7', phase:'thinking'}, {t:'maçãs', phase:'thinking'},
+          {t:'.', phase:'thinking'}, {t:'</thinking>', tag:true, phase:'thinking'},
+          {t:'Maria', phase:'response'}, {t:'tem', phase:'response'}, {t:'7', phase:'response'},
+          {t:'maçãs', phase:'response'}, {t:'agora', phase:'response'}, {t:'.', phase:'response'}
+        ],
+        thinkingCount: 36,
+        keyframes: [
+          {index: 0,  dist: {11:0.22, 9:0.18, 7:0.14, 10:0.13, 12:0.11, 8:0.10, 5:0.07, 6:0.05}},
+          {index: 9,  dist: {12:0.25, 11:0.20, 7:0.16, 8:0.13, 9:0.10, 10:0.08, 5:0.05, 6:0.03}},
+          {index: 17, dist: {7:0.38, 8:0.18, 12:0.14, 6:0.10, 11:0.08, 5:0.05, 9:0.04, 10:0.03}},
+          {index: 25, dist: {7:0.55, 8:0.15, 6:0.10, 12:0.07, 5:0.05, 11:0.04, 9:0.02, 10:0.02}},
+          {index: 32, dist: {7:0.92, 8:0.03, 6:0.02, 5:0.01, 12:0.008, 11:0.005, 9:0.004, 10:0.003}},
+          {index: 35, dist: {7:0.95, 8:0.02, 6:0.01, 5:0.008, 12:0.005, 11:0.003, 9:0.002, 10:0.002}},
+          {index: 41, dist: {7:0.97, 8:0.01, 6:0.008, 5:0.005, 12:0.003, 11:0.002, 9:0.001, 10:0.001}}
+        ],
+        correctAnswer: 7,
+        chosenAnswer: 7,
+        summaryDone: '\u2705 Com 36 tokens de raciocínio, o modelo chegou à resposta correta (7) com 97% de confiança. Os thinking tokens funcionaram como "memória de trabalho", permitindo ao modelo decompor o problema em passos.',
+        summaryClass: 'success'
+      },
+      'no-thinking': {
+        tokens: [
+          {t:'Maria', phase:'response'}, {t:'tem', phase:'response'}, {t:'9', phase:'response'},
+          {t:'maçãs', phase:'response'}, {t:'.', phase:'response'}
+        ],
+        thinkingCount: 0,
+        keyframes: [
+          {index: 0, dist: {11:0.22, 9:0.18, 7:0.14, 10:0.13, 12:0.11, 8:0.10, 5:0.07, 6:0.05}},
+          {index: 2, dist: {9:0.24, 11:0.21, 7:0.15, 10:0.13, 8:0.11, 12:0.08, 5:0.05, 6:0.03}},
+          {index: 4, dist: {9:0.35, 11:0.20, 7:0.15, 10:0.12, 8:0.08, 12:0.05, 5:0.03, 6:0.02}}
+        ],
+        correctAnswer: 7,
+        chosenAnswer: 9,
+        summaryDone: '\u274C Sem raciocínio intermediário, o modelo escolheu 9 (incorreto) com apenas 35% de confiança. A resposta correta é 7. Sem espaço para decompor o problema, o modelo "chutou" baseado em padrões superficiais.',
+        summaryClass: 'error'
+      }
+    };
+
+    /* ── State ── */
+    var state = {
+      mode: 'thinking',
+      currentIndex: 0,
+      isPlaying: false,
+      autoTimer: null
+    };
+
+    /* ── Interpolation ── */
+    function getDistributionAtIndex(modeKey, index) {
+      var kfs = MODES[modeKey].keyframes;
+      // Clamp
+      if (index <= kfs[0].index) return Object.assign({}, kfs[0].dist);
+      if (index >= kfs[kfs.length - 1].index) return Object.assign({}, kfs[kfs.length - 1].dist);
+      // Find surrounding keyframes
+      var lo = kfs[0], hi = kfs[kfs.length - 1];
+      for (var i = 0; i < kfs.length - 1; i++) {
+        if (index >= kfs[i].index && index <= kfs[i + 1].index) {
+          lo = kfs[i];
+          hi = kfs[i + 1];
+          break;
+        }
+      }
+      var range = hi.index - lo.index;
+      var t = range > 0 ? (index - lo.index) / range : 0;
+      var result = {};
+      for (var c = 0; c < CANDIDATES.length; c++) {
+        var key = CANDIDATES[c];
+        var vLo = lo.dist[key] || 0;
+        var vHi = hi.dist[key] || 0;
+        result[key] = vLo + (vHi - vLo) * t;
+      }
+      return result;
+    }
+
+    /* ── Render Chart ── */
+    function renderChart() {
+      var m = MODES[state.mode];
+      var dist = getDistributionAtIndex(state.mode, state.currentIndex);
+      var isDone = state.currentIndex >= m.tokens.length;
+
+      // Sort candidates by probability descending
+      var sorted = CANDIDATES.slice().sort(function(a, b) { return (dist[b] || 0) - (dist[a] || 0); });
+
+      var chartEl = document.getElementById('tg2-chart');
+      chartEl.innerHTML = '';
+
+      for (var i = 0; i < sorted.length; i++) {
+        var val = sorted[i];
+        var prob = dist[val] || 0;
+        var pctWidth = Math.max(prob * 100, 0.5); // min width for visibility
+
+        var row = document.createElement('div');
+        row.className = 'tg2-chart-row';
+
+        var label = document.createElement('span');
+        label.className = 'tg2-chart-label';
+        label.textContent = val;
+        row.appendChild(label);
+
+        var barBg = document.createElement('div');
+        barBg.className = 'tg2-chart-bar-bg';
+        var barFill = document.createElement('div');
+        barFill.className = 'tg2-chart-bar-fill';
+        barFill.style.width = pctWidth + '%';
+
+        // Highlight logic
+        if (state.mode === 'thinking' && val === m.correctAnswer) {
+          barFill.classList.add('highlight-correct');
+        } else if (state.mode === 'no-thinking' && val === m.chosenAnswer) {
+          barFill.classList.add('highlight-wrong');
+        } else if (state.mode === 'no-thinking' && val === m.correctAnswer) {
+          // Subtle highlight for correct answer in no-thinking mode
+          barFill.style.background = '#C4B5FD';
+        }
+
+        barBg.appendChild(barFill);
+        row.appendChild(barBg);
+
+        var pctLabel = document.createElement('span');
+        pctLabel.className = 'tg2-chart-pct';
+        pctLabel.textContent = (prob * 100).toFixed(1) + '%';
+        row.appendChild(pctLabel);
+
+        chartEl.appendChild(row);
+      }
+
+      // Hint text
+      var hint = document.getElementById('tg2-chart-hint');
+      if (isDone) {
+        if (state.mode === 'thinking') {
+          hint.textContent = '\u2705 Resposta correta: 7';
+          hint.className = 'tg2-chart-hint success';
+        } else {
+          hint.textContent = '\u274C Resposta incorreta: 9 (correto seria 7)';
+          hint.className = 'tg2-chart-hint error';
+        }
+      } else {
+        hint.textContent = 'Se respondesse agora...';
+        hint.className = 'tg2-chart-hint';
+      }
+    }
+
+    /* ── Render Controls / Progress ── */
+    function renderControls() {
+      var m = MODES[state.mode];
+      var total = m.tokens.length;
+      var pct = total > 0 ? (state.currentIndex / total * 100) : 0;
+      var isDone = state.currentIndex >= total;
+
+      // Progress bar
+      var fill = document.getElementById('tg2-progress-fill');
+      fill.style.width = pct + '%';
+      if (state.mode === 'no-thinking') {
+        fill.style.background = '#9CA3AF'; // gray
+      } else if (state.currentIndex <= m.thinkingCount) {
+        fill.style.background = 'var(--color-primary)';
+      } else {
+        fill.style.background = '#10B981';
+      }
+
+      // Counter
+      document.getElementById('tg2-counter').textContent = 'Token ' + state.currentIndex + ' de ' + total;
+
+      // Phase label
+      var phaseEl = document.getElementById('tg2-phase');
+      if (isDone) {
+        phaseEl.textContent = 'DONE';
+        phaseEl.className = 'tg2-phase-label tg2-phase-done';
+      } else if (state.currentIndex === 0) {
+        phaseEl.textContent = 'IDLE';
+        phaseEl.className = 'tg2-phase-label tg2-phase-idle';
+      } else if (state.mode === 'no-thinking') {
+        phaseEl.textContent = 'RESPONSE';
+        phaseEl.className = 'tg2-phase-label tg2-phase-response';
+      } else if (state.currentIndex <= m.thinkingCount) {
+        phaseEl.textContent = 'THINKING';
+        phaseEl.className = 'tg2-phase-label tg2-phase-thinking';
+      } else {
+        phaseEl.textContent = 'RESPONSE';
+        phaseEl.className = 'tg2-phase-label tg2-phase-response';
+      }
+
+      // Auto-play label
+      document.getElementById('tg2-auto-label').textContent = state.isPlaying ? 'Pausar' : 'Auto-play';
+      var autoBtn = document.getElementById('tg2-btn-auto');
+      if (autoBtn) {
+        autoBtn.innerHTML = (state.isPlaying ? '\u23F8 ' : '\u23E9 ') + '<span id="tg2-auto-label">' + (state.isPlaying ? 'Pausar' : 'Auto-play') + '</span>';
+      }
+    }
+
+    /* ── Generate Next Token ── */
+    function tg2Next() {
+      var m = MODES[state.mode];
+      if (state.currentIndex >= m.tokens.length) return;
+
+      var token = m.tokens[state.currentIndex];
+      var area = document.getElementById('tg2-token-area');
+
+      // Remove cursor
+      var cursor = area.querySelector('.tg2-cursor');
+      if (cursor) cursor.remove();
+
+      // Create token element
+      var el = document.createElement('span');
+      if (token.tag) {
+        el.className = 'tg2-token tg2-token-tag';
+      } else if (token.phase === 'thinking') {
+        el.className = 'tg2-token tg2-token-thinking';
+      } else {
+        el.className = 'tg2-token tg2-token-response';
+      }
+      el.textContent = token.t;
+      area.appendChild(el);
+
+      // Re-add cursor
+      var newCursor = document.createElement('span');
+      newCursor.className = 'tg2-cursor';
+      area.appendChild(newCursor);
+      area.scrollTop = area.scrollHeight;
+
+      state.currentIndex++;
+      renderChart();
+      renderControls();
+
+      // Check if done
+      if (state.currentIndex >= m.tokens.length) {
+        // Remove cursor
+        var c2 = area.querySelector('.tg2-cursor');
+        if (c2) c2.remove();
+        showSummary();
+        if (state.isPlaying) tg2StopAuto();
+      }
+    }
+    window.tg2Next = tg2Next;
+
+    /* ── Summary ── */
+    function showSummary() {
+      var m = MODES[state.mode];
+      var summaryArea = document.getElementById('tg2-summary-area');
+      summaryArea.innerHTML = '';
+      var div = document.createElement('div');
+      div.className = 'tg2-summary ' + m.summaryClass;
+      div.textContent = m.summaryDone;
+      summaryArea.appendChild(div);
+    }
+
+    /* ── Auto-play ── */
+    function tg2ToggleAuto() {
+      if (state.isPlaying) {
+        tg2StopAuto();
+      } else {
+        tg2StartAuto();
+      }
+    }
+    window.tg2ToggleAuto = tg2ToggleAuto;
+
+    function tg2StartAuto() {
+      state.isPlaying = true;
+      renderControls();
+      state.autoTimer = setInterval(function() {
+        var m = MODES[state.mode];
+        if (state.currentIndex >= m.tokens.length || !state.isPlaying) {
+          tg2StopAuto();
+          return;
+        }
+        tg2Next();
+      }, 350);
+    }
+
+    function tg2StopAuto() {
+      state.isPlaying = false;
+      if (state.autoTimer) clearInterval(state.autoTimer);
+      state.autoTimer = null;
+      renderControls();
+    }
+
+    /* ── Reset ── */
+    function tg2Reset() {
+      tg2StopAuto();
+      state.currentIndex = 0;
+      var area = document.getElementById('tg2-token-area');
+      area.innerHTML = '<span class="tg2-cursor"></span>';
+      document.getElementById('tg2-summary-area').innerHTML = '';
+      renderChart();
+      renderControls();
+    }
+    window.tg2Reset = tg2Reset;
+
+    /* ── Mode Switch ── */
+    function tg2SetMode(mode) {
+      if (mode === state.mode) return;
+      state.mode = mode;
+      // Update toggle buttons
+      var btnT = document.getElementById('tg2-btn-thinking');
+      var btnN = document.getElementById('tg2-btn-no-thinking');
+      if (mode === 'thinking') {
+        btnT.classList.add('active');
+        btnN.classList.remove('active');
+      } else {
+        btnN.classList.add('active');
+        btnT.classList.remove('active');
+      }
+      tg2Reset();
+    }
+    window.tg2SetMode = tg2SetMode;
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', function() {
+      renderChart();
+      renderControls();
+    });
+  })();
+  </script>
+
+  <!-- ═══════════ INTERATIVO 2: Tool Calling Diagram v2 (Alpine.js) ═══════════ -->
+  <script>
+    function toolCallingDiagram() {
+      return {
+        current: 0,
+        visited: new Set([0]),
+        playing: false,
+        _timer: null,
+        steps: [
+          {
+            title: 'Usuário envia mensagem',
+            shortTitle: 'Usuário',
+            subtitle: 'O ciclo começa com uma necessidade expressa em linguagem natural.',
+            icon: '👤',
+            color: '#3B82F6',
+            bg: '#DBEAFE',
+            payload: '"Qual a temperatura em São Paulo agora?"',
+            note: 'O ciclo sempre começa com uma necessidade do usuário expressa em linguagem natural.'
+          },
+          {
+            title: 'LLM recebe input + tools',
+            shortTitle: 'LLM Recebe',
+            subtitle: 'O modelo recebe a mensagem junto com as definições de ferramentas.',
+            icon: '🧠',
+            color: '#7C3AED',
+            bg: '#EDE9FE',
+            payload: '{\n  "messages": [\n    {"role": "user", "content": "Qual a temperatura em São Paulo?"}\n  ],\n  "tools": [\n    {\n      "name": "consultar_clima",\n      "description": "Retorna temperatura atual"\n    }\n  ]\n}',
+            note: 'O modelo recebe não apenas a mensagem, mas a lista completa de ferramentas disponíveis como parte do contexto.'
+          },
+          {
+            title: 'LLM gera tool_use',
+            shortTitle: 'Gera tool_use',
+            subtitle: 'O modelo gera tokens que formam JSON descrevendo a chamada.',
+            icon: '✨',
+            color: '#7C3AED',
+            bg: '#EDE9FE',
+            payload: '{\n  "type": "tool_use",\n  "name": "consultar_clima",\n  "input": {"cidade": "São Paulo"}\n}',
+            note: 'O momento-chave: o modelo gera texto estruturado que descreve uma intenção. Nenhuma ferramenta foi executada ainda.'
+          },
+          {
+            title: 'Orquestrador parseia a resposta',
+            shortTitle: 'Parseia',
+            subtitle: 'Seu código extrai o nome da função e os parâmetros do JSON.',
+            icon: '⚙️',
+            color: '#D97706',
+            bg: '#FEF3C7',
+            payload: 'name = "consultar_clima"\ninput = {"cidade": "São Paulo"}\n→ Validando parâmetros...\n→ Ferramenta autorizada ✓',
+            note: 'O orquestrador é código escrito por você. Ele decide se a chamada é válida e como executá-la.'
+          },
+          {
+            title: 'Execução real da ferramenta',
+            shortTitle: 'Executa',
+            subtitle: 'O orquestrador faz a chamada HTTP real à API externa.',
+            icon: '⚡',
+            color: '#3D6B52',
+            bg: '#E8F0EB',
+            payload: 'GET https://api.clima.com/v1/current?city=São+Paulo\n\nResponse 200 OK:\n{"temperatura": 24, "unidade": "celsius", "condição": "parcialmente nublado"}',
+            note: 'Somente aqui a ação concreta acontece — e ela é executada pelo orquestrador, não pelo LLM.'
+          },
+          {
+            title: 'Reinjeção do resultado',
+            shortTitle: 'Reinjeção',
+            subtitle: 'O resultado é formatado e enviado de volta ao modelo como contexto.',
+            icon: '🔄',
+            color: '#D97706',
+            bg: '#FEF3C7',
+            payload: '{\n  "type": "tool_result",\n  "content": "{\\"temperatura\\": 24, \\"unidade\\": \\"celsius\\"}"\n}',
+            note: 'O resultado retorna ao modelo como contexto adicional, exatamente como uma nova mensagem na conversa.'
+          },
+          {
+            title: 'LLM gera resposta final',
+            shortTitle: 'Resposta',
+            subtitle: 'Com informação factual, o modelo produz a resposta ao usuário.',
+            icon: '✅',
+            color: '#3B82F6',
+            bg: '#DBEAFE',
+            payload: '"A temperatura atual em São Paulo é de 24°C, com céu parcialmente nublado."',
+            note: 'Com informação factual no contexto, o modelo gera uma resposta precisa e atualizada.'
+          }
+        ],
+
+        goto(i) {
+          if (i < 0 || i > 6) return;
+          this.current = i;
+          this.visited.add(i);
+        },
+        next() { if (this.current < 6) this.goto(this.current + 1); },
+        prev() { if (this.current > 0) this.goto(this.current - 1); },
+        reset() {
+          if (this._timer) clearTimeout(this._timer);
+          this.playing = false;
+          this.current = 0;
+          this.visited = new Set([0]);
+        },
+        async playAll() {
+          this.reset();
+          this.playing = true;
+          for (var i = 0; i <= 6 && this.playing; i++) {
+            this.goto(i);
+            await new Promise(function(r) { setTimeout(r, 2000); });
+          }
+          this.playing = false;
+        }
+      };
+    }
+  </script>
+
+  <!-- ═══════════ Chapter App (Sidebar, Scroll, Progress) ═══════════ -->
+  <script>
+    var CHAPTER_IDS   = ['01', '02', '03', '04'];
+    var CHAPTER_PATHS = {
+      '01': '01-o-que-sao-agentes.html',
+      '02': '02-raciocinio-e-tool-calling.html',
+      '03': '03-context-engineering.html',
+      '04': '04-langgraph-na-pratica.html'
+    };
+    var CURRENT_ID = '02';
+
+    function chapterApp() {
+      return {
+        sidebarCollapsed: false,
+        activeSection: '',
+        currentChapter: CURRENT_ID,
+        init() {
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          localStorage.setItem('visited_' + location.pathname.split('/').pop(), 'true');
+          window.addEventListener('scroll', function() {
+            var doc = document.documentElement;
+            var pct = doc.scrollHeight > doc.clientHeight ? (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100 : 0;
+            document.getElementById('reading-progress').style.width = pct + '%';
+          });
+          var self = this;
+          var sections = document.querySelectorAll('h2[id], h3[id]');
+          var obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(e) { if (e.isIntersecting) self.activeSection = e.target.id; });
+          }, { rootMargin: '-15% 0px -70% 0px' });
+          sections.forEach(function(s) { obs.observe(s); });
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) {
+          return localStorage.getItem('visited_' + CHAPTER_PATHS[id]) === 'true';
+        }
+      };
+    }
+  </script>
+</body>
+</html>
