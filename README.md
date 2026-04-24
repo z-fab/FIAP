@@ -9,6 +9,7 @@ Repositório com projetos e materiais desenvolvidos durante a pós-graduação (
 | [teste-hipotese](./teste-hipotese/)         | Teste de Hipótese aplicado à avaliação e comparação de modelos de ML. Inclui apostila interativa, pipeline de treinamento com grid search, tracking com MLflow e comparação estatística entre modelos.                       |
 | [deploy-agentes-llm](./deploy-agentes-llm/) | Como transformar um agente funcional em um serviço confiável, resiliente e deployável, passando por três padrões de comunicação e controles de produção. Inclui apostila interativa e implementação de casos de uso          |
 | [agentes-langgraph](./agentes-langgraph/)   | Implementa três padrões distintos de agentes com [LangGraph](https://langchain-ai.github.io/langgraph/), cada um demonstrando uma abordagem arquitetural diferente: prebuilt simplificado, ReAct manual e Human-in-the-Loop. |
+| [documentacao-ml](./documentacao-ml/)       | Documentação em projetos de ML — Model Cards, README, Mermaid, docstrings com IA, MLflow como documento científico e método STAR.                                                                                            |
 
 ## Tecnologias Utilizadas
 
@@ -25,8 +26,10 @@ Cada projeto está em seu próprio diretório com README dedicado, dependências
 
 ```
 repositorio/
-├── teste-hipotese/    # Teste de Hipótese em ML
-└── ...                # Próximos projetos
+├── teste-hipotese/       # Teste de Hipótese em ML
+├── deploy-agentes-llm/   # Deploy e serving de agentes LLM
+├── agentes-langgraph/    # Padrões de agentes com LangGraph
+└── documentacao-ml/      # Documentação em projetos de ML
 ```
 
 ## Como Usar

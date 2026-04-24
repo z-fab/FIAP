@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docstrings, type hints e IA — Documentação em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+      primaryColor: '#EDE9FE', primaryTextColor: '#5B21B6', primaryBorderColor: '#7C3AED',
+      lineColor: '#CEC9BF', secondaryColor: '#F0EDE6', tertiaryColor: '#FDFBF7',
+      edgeLabelBackground: '#FDFBF7', fontFamily: "'DM Sans', sans-serif", fontSize: '14px',
+      nodeBorder: '#E2DDD4', clusterBkg: '#F5F2EC', clusterBorder: '#E2DDD4', titleColor: '#1C1917',
+    }});
+  </script>
+  <style>
+    /* Comparador de docstrings — tabs + cards */
+    .doc-tabs {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 2px solid var(--color-border);
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .doc-tabs button {
+      padding: 0.55rem 1.1rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      font-size: 0.88rem;
+      color: var(--color-text-secondary);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+    .doc-tabs button:hover { color: var(--color-primary); }
+    .doc-tabs button.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+    }
+    .doc-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .doc-meta-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.875rem;
+    }
+    .doc-meta-card p {
+      margin: 0;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: var(--color-text);
+    }
+    .doc-meta-card .section-label {
+      margin-bottom: 0.4rem;
+      color: var(--color-text-muted);
+    }
+    .doc-meta-pros {
+      background: var(--color-success-light);
+      border-color: var(--color-success-border);
+    }
+    .doc-meta-pros .section-label { color: var(--color-success); }
+    .doc-meta-cons {
+      background: var(--color-danger-light);
+      border-color: var(--color-danger-border);
+    }
+    .doc-meta-cons .section-label { color: var(--color-danger); }
+    @media (max-width: 640px) {
+      .doc-meta-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== 4.8.5 Prompts bons vs ruins ===== */
+    .prompt-compare {
+      display: flex; flex-direction: column;
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .prompt-card {
+      border: 1.5px solid;
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+      background: var(--color-surface);
+    }
+    .prompt-bad {
+      background: var(--color-danger-light);
+      border-color: var(--color-danger-border);
+    }
+    .prompt-good {
+      background: var(--color-success-light);
+      border-color: var(--color-success-border);
+    }
+    .prompt-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; margin-bottom: 0.55rem; flex-wrap: wrap;
+    }
+    .prompt-tag {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0.25rem 0.55rem;
+      border-radius: 99px;
+      border: 1px solid currentColor;
+      background: var(--color-surface);
+    }
+    .prompt-tag-bad  { color: var(--color-danger); }
+    .prompt-tag-good { color: var(--color-success); }
+    .prompt-label {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+      font-family: var(--font-mono);
+    }
+    .prompt-text {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.55;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.75rem 0.9rem;
+      margin: 0 0 0.6rem;
+      color: var(--color-text);
+    }
+    .prompt-outcome {
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: var(--color-text-secondary);
+    }
+    .prompt-outcome strong { color: var(--color-text); }
+
+    .prompt-principles {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 1.25rem 1.35rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .prompt-principles-label {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--color-primary);
+      margin-bottom: 0.9rem;
+    }
+    .prompt-principles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .prompt-principle {
+      display: flex;
+      gap: 0.65rem;
+      align-items: flex-start;
+    }
+    .prompt-principle > i {
+      color: var(--color-primary);
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+    .prompt-principle strong {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.005em;
+    }
+    .prompt-principle p {
+      font-size: 0.82rem;
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+      margin: 0;
+    }
+    @media (max-width: 820px) {
+      .prompt-principles-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon">←</span>
+          <span class="sb-home-lbl">Documentação em ML</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-importancia-documentacao.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="02-model-cards.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="03-readme-mermaid.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="04-docstrings-type-hints.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="currentChapter==='04' ? '04' : (isVisited('04') ? '✓' : '04')"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="05-mlflow-star.html" class="ch-link" :class="{ 'active': currentChapter==='05', 'visited': isVisited('05') }">
+          <span class="ch-num" x-text="isVisited('05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="06-checklist-tech-challenge.html" class="ch-link" :class="{ 'active': currentChapter==='06', 'visited': isVisited('06') }">
+          <span class="ch-num" x-text="isVisited('06') ? '✓' : '06'"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#sec-4-1" class="sec-link" :class="{ 'active': activeSection==='sec-4-1' }">4.1 Por que documentar código</a>
+        <a href="#sec-4-2" class="sec-link" :class="{ 'active': activeSection==='sec-4-2' }">4.2 Self-documenting code</a>
+        <a href="#sec-4-3" class="sec-link" :class="{ 'active': activeSection==='sec-4-3' }">4.3 Quando comentar</a>
+        <a href="#sec-4-4" class="sec-link" :class="{ 'active': activeSection==='sec-4-4' }">4.4 PEP 257</a>
+        <a href="#sec-4-5" class="sec-link" :class="{ 'active': activeSection==='sec-4-5' }">4.5 Os três estilos</a>
+        <a href="#sec-4-6" class="sec-link" :class="{ 'active': activeSection==='sec-4-6' }">4.6 Type hints modernos</a>
+        <a href="#sec-4-7" class="sec-link" :class="{ 'active': activeSection==='sec-4-7' }">4.7 Auto-geração de docs</a>
+        <a href="#sec-4-8" class="sec-link" :class="{ 'active': activeSection==='sec-4-8' }">4.8 Documentação com IA</a>
+        <a href="#sec-4-9" class="sec-link" :class="{ 'active': activeSection==='sec-4-9' }">4.9 Aplicação ao Tech Challenge</a>
+        <a href="#sec-4-10" class="sec-link" :class="{ 'active': activeSection==='sec-4-10' }">4.10 Checklist de saída</a>
+        <a href="#sec-4-11" class="sec-link" :class="{ 'active': activeSection==='sec-4-11' }">4.11 Síntese</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Documentação em ML</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">Capítulo 4 — Docstrings, type hints e IA</span>
+      </header>
+
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 4</div>
+        <h1>Documentação de código: <em>docstrings</em>, type hints e IA</h1>
+
+        <blockquote class="chapter-epigraph">
+          "Code is read much more often than it is written." — Guido van Rossum
+        </blockquote>
+
+        <p>Você escreve código uma vez e lê dezenas de vezes — você mesmo, seis meses depois. Docstrings, type hints e comentários "porquê" são o que separa um arquivo que se explica sozinho de uma arqueologia digital. Este capítulo é sobre fazer o código se documentar.</p>
+
+        <hr>
+
+        <!-- ═══════════ 4.1 ═══════════ -->
+        <h2 id="sec-4-1">4.1 Por que documentar código (e por que ML é especial)</h2>
+
+        <p>Quando você abre <code>src/models/mlp.py</code> do seu Tech Challenge três meses depois de tê-lo escrito, duas coisas podem acontecer. Na primeira, você lê a assinatura, entende a função em segundos e segue em frente. Na segunda, você passa quarenta minutos rastreando o que <code>def forward(x)</code> faz, qual o shape esperado de <code>x</code>, o que retorna, e por que aquele <code>+ 1e-8</code> está ali.</p>
+
+        <p>A diferença entre os dois cenários não é inteligência. É <strong>documentação de código</strong>: o conjunto de práticas que faz o código se explicar para quem o lê.</p>
+
+        <p>Em projetos de ML, documentação de código importa ainda mais que em backend tradicional, por três razões:</p>
+
+        <ol>
+          <li><strong>Tensores não têm tipo no sentido tradicional.</strong> Um <code>torch.Tensor</code> pode ter shape <code>(B, C, H, W)</code> ou <code>(B, T, D)</code>. O sistema de tipos do Python não captura isso nativamente.</li>
+          <li><strong>A semântica é numérica.</strong> Um threshold de <code>0.5</code> versus <code>0.65</code> muda comportamento de produção. Quem lê precisa saber <strong>por que</strong> está ali.</li>
+          <li><strong>O ciclo de vida envolve experimentação.</strong> O código produzido em notebooks migra para módulos, depois para a API. Sem documentação, o conhecimento se perde no caminho.</li>
+        </ol>
+
+        <p>Neste capítulo, você vai aprender a escrever código que se explica sozinho, dominar os três estilos canônicos de docstring (Google, NumPy, reST), usar type hints modernos do Python 3.12+, e — talvez o tópico mais importante para 2026 — usar IA como aliada na documentação <strong>sem cair em armadilhas</strong>.</p>
+
+        <!-- ═══════════ 4.2 ═══════════ -->
+        <h2 id="sec-4-2">4.2 A hierarquia do self-documenting code</h2>
+
+        <p>Robert C. Martin, em <em>Clean Code</em>, propõe uma hierarquia: você só recorre ao próximo nível quando o anterior falha. Para Python moderno, ela fica assim:</p>
+
+<pre><code class="language-text">1. Nomes expressivos    (variáveis, funções, classes)
+2. Type hints           (assinatura clara)
+3. Docstrings           (contrato externo)
+4. Comentários inline   (último recurso, explica PORQUÊ)</code></pre>
+
+        <p>A regra é simples: <strong>antes de escrever um comentário, pergunte se um nome melhor ou um type hint resolveria.</strong></p>
+
+        <h3>Exemplo: do ruim ao bom</h3>
+
+        <p>Versão 1 — depende de comentários:</p>
+
+<pre><code class="language-python"># d = dataframe de clientes; t = threshold de churn
+def proc(d, t):
+    # filtra clientes ativos
+    d = d[d['s'] == 1]
+    # aplica modelo
+    return d['p'] > t</code></pre>
+
+        <p>Versão 2 — depende de nomes e tipos:</p>
+
+<pre><code class="language-python">import pandas as pd
+
+def predict_churn_for_active_customers(
+    customers: pd.DataFrame,
+    churn_threshold: float,
+) -> pd.Series:
+    active_customers = customers[customers["status"] == 1]
+    return active_customers["churn_probability"] > churn_threshold</code></pre>
+
+        <p>A versão 2 dispensa comentários: nomes contam a história, tipos fixam o contrato. Comentários só entram quando há informação que <strong>não cabe no nome nem no tipo</strong>.</p>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> A regra de Robert Martin</div>
+          <p>Se você precisa de um comentário para explicar o que o código faz, considere se o código pode ser reescrito para se explicar sozinho. Comentários explicam <strong>por quê</strong>; código explica <strong>o quê</strong>.</p>
+        </div>
+
+        <!-- ═══════════ 4.3 ═══════════ -->
+        <h2 id="sec-4-3">4.3 Quando comentar (e quando NÃO)</h2>
+
+        <h3>Bons comentários: explicam <em>porquê</em></h3>
+
+<pre><code class="language-python"># Workaround: bug do pandas #29111
+# Remover apos upgrade para pandas >= 2.1
+result = df.groupby(level=0).apply(fn).reset_index(drop=True)
+
+# Decisao: BFS em vez de DFS porque arvore e larga e rasa
+seen = list()
+
+# threshold >= 0.5 em producao por decisao do produto. Ver ADR-007
+threshold = config.get("churn_threshold", 0.65)
+
+# Score de Wilson para intervalo de confianca binomial
+# Ver: wikipedia/Binomial_proportion_confidence_interval
+z = 1.96</code></pre>
+
+        <p>Esses comentários carregam informação que <strong>não cabe em nome nenhum</strong>: links para issues, decisões arquiteturais (ADR — <em>Architectural Decision Record</em>), referências matemáticas, justificativas de produto.</p>
+
+        <h3>Maus comentários: ruído ou pior</h3>
+
+<pre><code class="language-python"># Incrementa i em 1            &lt;- obvio, nao acrescenta nada
+i += 1
+
+# Verifica se usuario esta ativo   &lt;- o nome ja diz
+if user.is_active:
+    ...
+
+# result = old_algorithm(data)     &lt;- codigo morto: use git</code></pre>
+
+        <p>Pior que comentário inútil é <strong>comentário desatualizado</strong>: quando o código evolui e o comentário fica para trás, ele vira desinformação ativa. Quem lê confia no comentário e debuga o problema errado por horas.</p>
+
+        <h3>Convenções de tags em comentários</h3>
+
+        <table>
+          <thead>
+            <tr><th>Tag</th><th>Significado</th><th>Exemplo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>TODO</code></td><td>Trabalho planejado, não urgente</td><td><code># TODO(fabricio, 2026-04-22): adicionar early stopping</code></td></tr>
+            <tr><td><code>FIXME</code></td><td>Bug conhecido que precisa correção</td><td><code># FIXME: NaN no batch quando feature 'tenure' = 0</code></td></tr>
+            <tr><td><code>HACK</code></td><td>Solução temporária e suja</td><td><code># HACK: forcar device='cpu' ate resolver issue 142 do MLflow</code></td></tr>
+            <tr><td><code>XXX</code></td><td>Código perigoso, atenção</td><td><code># XXX: ordem das operacoes importa para reprodutibilidade</code></td></tr>
+            <tr><td><code>NOTE</code></td><td>Observação informativa</td><td><code># NOTE: este DataFrame ja vem ordenado por customer_id</code></td></tr>
+          </tbody>
+        </table>
+
+        <p>A convenção <code>TODO(autor, data):</code> permite rastrear dívida técnica. Em projetos com <code>ruff</code>, você pode até <strong>falhar o CI</strong> se houver <code>FIXME</code> no diff (regra <code>FIX002</code>).</p>
+
+        <!-- ═══════════ 4.4 ═══════════ -->
+        <h2 id="sec-4-4">4.4 PEP 257: o contrato canônico das docstrings</h2>
+
+        <p>A <a href="https://peps.python.org/pep-0257/" target="_blank" rel="noopener">PEP 257 — Docstring Conventions</a> é de 2001 e continua <em>Active</em>. Ela define apenas as <strong>regras estruturais</strong>, não o estilo de seções (que vem dos três estilos que veremos a seguir).</p>
+
+        <p>Tim Peters, autor do <em>Zen of Python</em>, abre a PEP com uma frase que vale memorizar:</p>
+
+        <blockquote>
+          <p>"A universal convention supplies all of maintainability, clarity, consistency, and a foundation for good programming habits too."</p>
+        </blockquote>
+
+        <p>Em português: convenção universal entrega manutenibilidade, clareza, consistência e ainda serve de fundação para bons hábitos.</p>
+
+        <h3>Regras essenciais da PEP 257</h3>
+
+        <ul>
+          <li><strong>Aspas triplas sempre</strong>, mesmo em docstring de uma linha: <code>"""Soma dois inteiros."""</code></li>
+          <li><strong>Primeira linha imperativa</strong>: <code>"""Calcula score de churn."""</code> (e não <code>"""Calcula o score..."""</code> ou <code>"""Esta funcao calcula..."""</code>)</li>
+          <li><strong>Linha em branco entre o resumo e o restante</strong>, se houver mais de uma linha</li>
+          <li><strong><code>__all__</code></strong> define a API pública do módulo</li>
+        </ul>
+
+<pre><code class="language-python">"""Modulo de pre-processamento de features de churn.
+
+Este modulo concentra os transformadores customizados usados no pipeline
+do Tech Challenge. Todos sao compativeis com sklearn.Pipeline.
+"""
+
+__all__ = ["TenureBucketizer", "MonetaryLogScaler"]</code></pre>
+
+        <p>A PEP 257 não diz como você lista parâmetros e retornos. <strong>Quem diz isso é o estilo escolhido.</strong></p>
+
+        <!-- ═══════════ 4.5 ═══════════ -->
+        <h2 id="sec-4-5">4.5 Os três estilos de docstring</h2>
+
+        <p>Há três estilos canônicos. Todos satisfazem a PEP 257. A escolha entre eles é <strong>convenção do projeto</strong>, não certo ou errado.</p>
+
+        <h3>4.5.1 Google Style</h3>
+
+        <p>Usado por: <strong>Google, TensorFlow, JAX, Keras</strong>.<br>
+        Documentação: <a href="https://google.github.io/styleguide/pyguide.html#383-functions-and-methods" target="_blank" rel="noopener">Google Python Style Guide § 3.8.3</a>.</p>
+
+        <p>Exemplo oficial do guia do Google:</p>
+
+<pre><code class="language-python">def fetch_smalltable_rows(
+    table_handle: smalltable.Table,
+    keys: Sequence[bytes | str],
+    require_all_keys: bool = False,
+) -> Mapping[bytes, tuple[str, ...]]:
+    """Fetches rows from a Smalltable.
+
+    Retrieves rows pertaining to the given keys from the Table instance
+    represented by table_handle.  String keys will be UTF-8 encoded.
+
+    Args:
+        table_handle: An open smalltable.Table instance.
+        keys: A sequence of strings representing the key of each table
+          row to fetch.  String keys will be UTF-8 encoded.
+        require_all_keys: If True only rows with values set for all keys will be
+          returned.
+
+    Returns:
+        A dict mapping keys to the corresponding table row data
+        fetched. Each row is represented as a tuple of strings.
+
+    Raises:
+        IOError: An error occurred accessing the smalltable.
+    """</code></pre>
+
+        <p>Seções padrão: <code>Args</code>, <code>Returns</code>, <code>Raises</code>, <code>Yields</code>, <code>Note</code>, <code>Example</code>, <code>Attributes</code>. Layout enxuto, pouca pontuação.</p>
+
+        <h3>4.5.2 NumPy Style</h3>
+
+        <p>Usado por: <strong>NumPy, SciPy, pandas, scikit-learn, matplotlib, statsmodels, xarray</strong>.<br>
+        Documentação: <a href="https://numpydoc.readthedocs.io/en/latest/format.html" target="_blank" rel="noopener">numpydoc format</a>.</p>
+
+        <p>Exemplo oficial do <code>numpydoc</code>:</p>
+
+<pre><code class="language-python">def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
+    """Example function with PEP 484 type annotations.
+
+    Extended description of the function.
+
+    Parameters
+    ----------
+    param1 : int
+        The first parameter.
+    param2 : str
+        The second parameter.
+
+    Returns
+    -------
+    bool
+        True if successful, False otherwise.
+
+    Raises
+    ------
+    AttributeError
+        The ``Raises`` section is a list of all exceptions
+        that are relevant to the interface.
+    ValueError
+        If `param2` is equal to `param1`.
+
+    Notes
+    -----
+    Do not include the `self` parameter in the ``Parameters`` section.
+
+    Examples
+    --------
+    &gt;&gt;&gt; from package import function_with_pep484_type_annotations
+    &gt;&gt;&gt; print(function_with_pep484_type_annotations(1, 'hello'))
+    False
+    """</code></pre>
+
+        <p>Cabeçalhos sublinhados com hífens. Seções padrão: <code>Parameters</code>, <code>Returns</code>, <code>Raises</code>, <code>Yields</code>, <code>Receives</code>, <code>Other Parameters</code>, <code>Attributes</code>, <code>Notes</code>, <code>References</code>, <code>Examples</code>.</p>
+
+        <h3>4.5.3 reStructuredText (Sphinx) Style</h3>
+
+        <p>Usado por: <strong>Python core (CPython), Django historicamente</strong>.<br>
+        Documentação: <a href="https://www.sphinx-doc.org/en/master/usage/domains/python.html" target="_blank" rel="noopener">Sphinx Python Domain</a>.</p>
+
+<pre><code class="language-python">def add(a, b):
+    """Add two integers together.
+
+    :param a: The base integer to use in the add operation.
+    :type a: int
+    :param b: The integer to add to `a`.
+    :type b: int
+    :return: The sum of both integers.
+    :rtype: int
+    :raises ValueError: If either `a` or `b` is not an integer.
+    """</code></pre>
+
+        <p>Sintaxe baseada em campos <code>:param:</code>, <code>:type:</code>, <code>:return:</code>, <code>:rtype:</code>, <code>:raises:</code>. Mais verbosa, mas é a sintaxe nativa do Sphinx — render impecável quando se usa Sphinx puro.</p>
+
+        <h3>4.5.4 Por que ML gravita para o NumPy style</h3>
+
+        <p>Há cinco razões concretas:</p>
+
+        <ol>
+          <li><strong>Histórico</strong>: NumPy e SciPy estabeleceram o ecossistema científico Python. Quando pandas, scikit-learn, matplotlib e statsmodels surgiram, copiaram o estilo já estabelecido.</li>
+          <li><strong>Legibilidade como texto puro</strong>: os hífens demarcam seções visualmente, mesmo sem renderização. Você lê a docstring direto no terminal.</li>
+          <li><strong>Seções "Notes", "References", "See Also"</strong> são naturais para código científico, onde frequentemente se cita papers e conceitos relacionados.</li>
+          <li><strong>Jupyter renderiza bem</strong>: o famoso <code>função?</code> (e <code>função??</code>) no notebook mostra a docstring NumPy de forma clara.</li>
+          <li><strong>Massa crítica</strong>: todo o ecossistema científico já usa. Manter consistência reduz fricção cognitiva para quem lê.</li>
+        </ol>
+
+        <h3>Comparador interativo dos 3 estilos</h3>
+
+        <!-- INTERATIVO: comparador-tabs -->
+        <div class="interactive" x-data="docstringComparator()">
+          <div class="interactive-label"><i data-lucide="layers" style="width:14px;height:14px"></i> Comparador de Estilos</div>
+          <h4>A mesma função em três estilos de docstring</h4>
+          <p>Clique nas abas para comparar <code>calculate_churn_score</code> em cada estilo.</p>
+
+          <div class="doc-tabs">
+            <button @click="active='google'" :class="{ 'active': active==='google' }">Google</button>
+            <button @click="active='numpy'" :class="{ 'active': active==='numpy' }">NumPy</button>
+            <button @click="active='rest'" :class="{ 'active': active==='rest' }">reST</button>
+          </div>
+
+          <div x-show="active==='google'" x-transition>
+<pre><code class="language-python">def calculate_churn_score(
+    features: dict[str, float | int],
+    threshold: float = 0.5,
+) -> dict[str, float | bool]:
+    """Calcula o score de churn de um cliente e a decisao binaria.
+
+    Aplica o modelo MLP treinado sobre as features normalizadas e
+    retorna a probabilidade junto com a flag de churn (True quando
+    a probabilidade ultrapassa o threshold).
+
+    Args:
+        features: Dicionario com as features normalizadas do cliente.
+            Chaves obrigatorias: 'tenure', 'monthly_charges',
+            'total_charges', 'contract_type_encoded'.
+        threshold: Limite de decisao em [0.0, 1.0]. Probabilidades
+            acima do threshold marcam o cliente como churn.
+
+    Returns:
+        Dicionario com as chaves:
+            'probability' (float): probabilidade de churn em [0, 1].
+            'is_churn' (bool): True se probability &gt; threshold.
+
+    Raises:
+        KeyError: Se features nao contiver todas as chaves obrigatorias.
+        ValueError: Se threshold estiver fora de [0.0, 1.0].
+
+    Example:
+        &gt;&gt;&gt; calculate_churn_score(
+        ...     {"tenure": 0.1, "monthly_charges": 0.8,
+        ...      "total_charges": 0.05, "contract_type_encoded": 0},
+        ...     threshold=0.5,
+        ... )
+        {'probability': 0.78, 'is_churn': True}
+    """</code></pre>
+          </div>
+
+          <div x-show="active==='numpy'" x-transition>
+<pre><code class="language-python">def calculate_churn_score(
+    features: dict[str, float | int],
+    threshold: float = 0.5,
+) -> dict[str, float | bool]:
+    """Calcula o score de churn de um cliente e a decisao binaria.
+
+    Aplica o modelo MLP treinado sobre as features normalizadas e
+    retorna a probabilidade junto com a flag de churn.
+
+    Parameters
+    ----------
+    features : dict of {str: float or int}
+        Features normalizadas do cliente. Chaves obrigatorias:
+        ``tenure``, ``monthly_charges``, ``total_charges``,
+        ``contract_type_encoded``.
+    threshold : float, default=0.5
+        Limite de decisao em [0.0, 1.0]. Probabilidades acima
+        marcam o cliente como churn.
+
+    Returns
+    -------
+    dict
+        Dicionario com:
+
+        - ``probability`` (float): probabilidade de churn em [0, 1].
+        - ``is_churn`` (bool): True se ``probability &gt; threshold``.
+
+    Raises
+    ------
+    KeyError
+        Se ``features`` nao contiver todas as chaves obrigatorias.
+    ValueError
+        Se ``threshold`` estiver fora de [0.0, 1.0].
+
+    Notes
+    -----
+    O modelo MLP usa sigmoide na camada de saida, garantindo
+    probabilidades em [0, 1]. O threshold padrao 0.5 maximiza
+    F1 no conjunto de validacao do Telco Customer Churn.
+
+    Examples
+    --------
+    &gt;&gt;&gt; calculate_churn_score(
+    ...     {"tenure": 0.1, "monthly_charges": 0.8,
+    ...      "total_charges": 0.05, "contract_type_encoded": 0},
+    ...     threshold=0.5,
+    ... )
+    {'probability': 0.78, 'is_churn': True}
+    """</code></pre>
+          </div>
+
+          <div x-show="active==='rest'" x-transition>
+<pre><code class="language-python">def calculate_churn_score(
+    features: dict[str, float | int],
+    threshold: float = 0.5,
+) -> dict[str, float | bool]:
+    """Calcula o score de churn de um cliente e a decisao binaria.
+
+    Aplica o modelo MLP treinado sobre as features normalizadas e
+    retorna a probabilidade junto com a flag de churn.
+
+    :param features: Features normalizadas do cliente. Chaves obrigatorias:
+        ``tenure``, ``monthly_charges``, ``total_charges``,
+        ``contract_type_encoded``.
+    :type features: dict[str, float | int]
+    :param threshold: Limite de decisao em [0.0, 1.0].
+        Probabilidades acima marcam o cliente como churn.
+    :type threshold: float
+    :return: Dicionario com ``probability`` (float em [0, 1]) e
+        ``is_churn`` (bool).
+    :rtype: dict[str, float | bool]
+    :raises KeyError: Se ``features`` nao contiver todas as chaves obrigatorias.
+    :raises ValueError: Se ``threshold`` estiver fora de [0.0, 1.0].
+    """</code></pre>
+          </div>
+
+          <div class="doc-meta-grid">
+            <div class="doc-meta-card">
+              <div class="section-label">Quem usa</div>
+              <p x-text="meta[active].usa"></p>
+            </div>
+            <div class="doc-meta-card doc-meta-pros">
+              <div class="section-label">Pontos fortes</div>
+              <p x-text="meta[active].pros"></p>
+            </div>
+            <div class="doc-meta-card doc-meta-cons">
+              <div class="section-label">Pontos fracos</div>
+              <p x-text="meta[active].cons"></p>
+            </div>
+          </div>
+        </div>
+        <!-- /INTERATIVO -->
+
+        <!-- ═══════════ 4.6 ═══════════ -->
+        <h2 id="sec-4-6">4.6 Type hints modernos: do PEP 484 ao 695</h2>
+
+        <p>Type hints chegaram ao Python em 2014 com a <a href="https://peps.python.org/pep-0484/" target="_blank" rel="noopener">PEP 484</a> e evoluíram dramaticamente. Para projetos novos em 2026, <strong>use a sintaxe mais moderna que sua versão de Python permitir</strong>.</p>
+
+        <h3>4.6.1 Tabela cronológica das PEPs relevantes</h3>
+
+        <table>
+          <thead>
+            <tr><th>PEP</th><th>Ano</th><th>Python</th><th>O que trouxe</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>484</td><td>2014</td><td>3.5</td><td>Type hints (<code>from typing import List, Dict, Optional, Union</code>)</td></tr>
+            <tr><td>526</td><td>2016</td><td>3.6</td><td>Annotations em variáveis (<code>x: int = 5</code>)</td></tr>
+            <tr><td>585</td><td>2019</td><td>3.9</td><td>Generics nativos (<code>list[str]</code> no lugar de <code>List[str]</code>)</td></tr>
+            <tr><td>604</td><td>2019</td><td>3.10</td><td>Union com pipe (<code>int | None</code> no lugar de <code>Optional[int]</code>)</td></tr>
+            <tr><td>612</td><td>2019</td><td>3.10</td><td><code>ParamSpec</code> (preserva assinatura em decoradores)</td></tr>
+            <tr><td>646</td><td>2020</td><td>3.11</td><td><code>TypeVarTuple</code> (generics variádicos, base para shapes)</td></tr>
+            <tr><td>695</td><td>2022</td><td>3.12</td><td>Sintaxe de type parameter: <code>class C[T]</code>, <code>def f[T](x: T)</code>, <code>type Vec = list[float]</code></td></tr>
+          </tbody>
+        </table>
+
+        <p>A PEP 484 deixou claro um princípio que vale citar:</p>
+
+        <blockquote>
+          <p>"No type checking happens at runtime. Instead, the proposal assumes the existence of a separate off-line type checker."</p>
+        </blockquote>
+
+        <p>Ou seja, type hints <strong>são para o type checker, não para o interpretador</strong>. Em runtime, <code>int | str</code> continua aceitando qualquer coisa — é o mypy/pyright que verifica.</p>
+
+        <p>A PEP 604, que trouxe <code>int | None</code>, foi inspirada em outras linguagens:</p>
+
+        <blockquote>
+          <p>"Inspired by Scala and Pike, this proposal adds operator <code>type.__or__()</code>."</p>
+        </blockquote>
+
+        <h3>4.6.2 A mesma função em três versões de Python</h3>
+
+<pre><code class="language-python"># Python 3.7  (legado, NAO use em projetos novos)
+from typing import Dict, List, Optional, Union, Tuple
+
+def predict(
+    features: Dict[str, Union[int, float]],
+    threshold: Optional[float] = None,
+) -> Tuple[float, bool]:
+    ...</code></pre>
+
+<pre><code class="language-python"># Python 3.10  (PEP 585 + 604: generics nativos + union com pipe)
+def predict(
+    features: dict[str, int | float],
+    threshold: float | None = None,
+) -> tuple[float, bool]:
+    ...</code></pre>
+
+<pre><code class="language-python"># Python 3.12+  (PEP 695: type aliases nativos)
+type Features = dict[str, int | float]
+type ChurnResult = tuple[float, bool]
+
+def predict(
+    features: Features,
+    threshold: float | None = None,
+) -> ChurnResult:
+    ...</code></pre>
+
+        <p>Para o Tech Challenge, <strong>mire em Python 3.12+</strong> e use sintaxe PEP 585/604/695. É menos código, mais legível e elimina o <code>from typing import ...</code> repetitivo.</p>
+
+        <h3>4.6.3 jaxtyping: shapes de tensores no tipo</h3>
+
+        <p><code>Tensor</code> em PyTorch não diz nada sobre shape, dtype ou dispositivo. A biblioteca <a href="https://github.com/patrick-kidger/jaxtyping" target="_blank" rel="noopener"><code>jaxtyping</code></a> (v0.3.9) resolve isso. Apesar do nome, suporta JAX, NumPy, PyTorch, MLX e TensorFlow:</p>
+
+<pre><code class="language-python">from jaxtyping import Float, Int
+import torch
+
+def matrix_multiply(
+    x: Float[torch.Tensor, "batch dim1 dim2"],
+    y: Float[torch.Tensor, "batch dim2 dim3"],
+) -> Float[torch.Tensor, "batch dim1 dim3"]:
+    ...</code></pre>
+
+        <p>A assinatura agora <strong>documenta o shape esperado</strong> de cada tensor. As dimensões com mesmo nome (<code>batch</code>, <code>dim2</code>) precisam bater entre os tensores.</p>
+
+        <h3>4.6.4 beartype: type checking em runtime</h3>
+
+        <p><a href="https://github.com/beartype/beartype" target="_blank" rel="noopener"><code>beartype</code></a> (v0.22.9) faz type checking O(1) em runtime — não é um type checker estático, é um decorador. Funciona em parceria canônica com <code>jaxtyping</code>:</p>
+
+<pre><code class="language-python">from beartype import beartype
+from jaxtyping import Float, jaxtyped
+import torch
+
+@jaxtyped(typechecker=beartype)
+def my_func(x: Float[torch.Tensor, "batch dim"]) -> Float[torch.Tensor, "batch"]:
+    return x.mean(dim=1)</code></pre>
+
+        <p>Se você passar um tensor com shape errado, levanta <code>BeartypeCallHintViolation</code> na chamada. Isso transforma bugs silenciosos de shape em erros explícitos — uma economia enorme em pipelines de ML.</p>
+
+        <h3>4.6.5 Ferramentas de checagem</h3>
+
+        <table>
+          <thead>
+            <tr><th>Ferramenta</th><th>Foco</th><th>Quando usar</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>mypy</code></td><td>Padrão Python, maduro, devagar</td><td>Projetos antigos, ecossistema bem testado</td></tr>
+            <tr><td><code>pyright</code></td><td>Microsoft, rápido, melhor com generics modernos</td><td>Projetos novos, integração nativa com VS Code (Pylance)</td></tr>
+            <tr><td><code>ruff</code></td><td>Linter geral, regras de docstring e annotations</td><td><strong>Sempre.</strong> Substitui flake8/isort/pydocstyle com 100× velocidade</td></tr>
+          </tbody>
+        </table>
+
+        <p>Regras do <code>ruff</code> relevantes para este capítulo:</p>
+
+        <ul>
+          <li><strong>D-series</strong> — pydocstyle (<code>D100</code> módulo sem docstring, <code>D101</code> classe sem docstring, etc.)</li>
+          <li><strong>ANN-series</strong> — flake8-annotations (<code>ANN001</code> parâmetro sem type hint, <code>ANN201</code> retorno sem type hint)</li>
+          <li><strong>DOC-series (preview)</strong> — verificações estruturais de docstring (parâmetros faltando, etc.)</li>
+        </ul>
+
+        <!-- ═══════════ 4.7 ═══════════ -->
+        <h2 id="sec-4-7">4.7 Auto-geração de documentação</h2>
+
+        <p>Documentar bem o código é metade do trabalho. A outra metade é <strong>expor</strong> essa documentação. Quatro ferramentas dominam o cenário em 2026:</p>
+
+        <table>
+          <thead>
+            <tr><th>Ferramenta</th><th>Versão</th><th>Forte em</th><th>Output</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Sphinx</strong></td><td>9.1.0</td><td>Padrão histórico, autodoc + napoleon</td><td>HTML / PDF / ePub</td></tr>
+            <tr><td><strong>MkDocs Material</strong></td><td>9.7.6</td><td>Markdown puro, YAML config (em manutenção)</td><td>HTML estático</td></tr>
+            <tr><td><strong>mkdocstrings-python</strong></td><td>2.0.3</td><td>Injeta docs em Markdown via <code>:::</code></td><td>Plugin MkDocs</td></tr>
+            <tr><td><strong>pdoc</strong></td><td>16.0</td><td>Zero config, suporta os 3 estilos</td><td>HTML estático</td></tr>
+          </tbody>
+        </table>
+
+        <p><a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx 9.1.0</a> (dezembro de 2025) é o padrão histórico. Com a extensão <code>sphinx.ext.napoleon</code>, lê docstrings Google e NumPy nativamente. A v9.0 trouxe reescrita substancial do <code>autodoc</code> e suporte inicial a PEP 695.</p>
+
+        <p><a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">MkDocs Material 9.7.6</a> (março de 2026) entrou em modo manutenção em novembro de 2025 — o time foca agora no <strong>Zensical</strong>, próxima geração da ferramenta. Para projetos novos pequenos/médios, MkDocs Material ainda é excelente; para greenfield de longo prazo, vale acompanhar o Zensical.</p>
+
+        <p><code>mkdocstrings-python</code> 2.0.3 usa o parser <strong>Griffe</strong> e permite injetar docstrings inline no Markdown:</p>
+
+<pre><code class="language-markdown">## API: predict
+
+::: src.api.predict.calculate_churn_score
+    options:
+      show_source: true</code></pre>
+
+        <p><a href="https://pdoc.dev/" target="_blank" rel="noopener"><code>pdoc</code> 16.0</a> é a opção <em>zero config</em>: aponta para o módulo, gera HTML, suporta os 3 estilos, ainda tem live-reloading. Excelente para projetos pequenos.</p>
+
+        <!-- ═══════════ 4.8 ═══════════ -->
+        <h2 id="sec-4-8">4.8 Documentação com IA</h2>
+
+        <p>Esta seção mereceria um capítulo inteiro. Vamos condensá-la nos pontos críticos.</p>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px"></i> Estatística importante</div>
+          <p>Em 2025, <strong>64% dos desenvolvedores usaram IA para escrever documentação</strong> (24,8% majoritariamente, 27,3% parcialmente), segundo o <em>State of AI-assisted Software Development</em>. Estudos relatam <strong>redução de 70 a 85%</strong> no tempo gasto com docstrings.</p>
+        </div>
+
+        <p>Isso não significa "docstring vira commodity". Significa que a habilidade central mudou: de <strong>escrever</strong> docstring para <strong>dirigir e revisar</strong> docstring gerada por IA.</p>
+
+        <h3>4.8.1 As ferramentas em 2026</h3>
+
+        <table>
+          <thead>
+            <tr><th>Ferramenta</th><th>Modelo padrão / opções</th><th>Características</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Claude Code</strong></td><td>Claude Sonnet 4.6 (padrão); suporte a Bedrock, Vertex AI, Azure</td><td>Lê codebase inteiro; <code>CLAUDE.md</code>; hooks; subagentes</td></tr>
+            <tr><td><strong>GitHub Copilot</strong></td><td>GPT-5.1, GPT-5.1-Codex-Max, Claude Opus 4.5, Haiku 4.5, Gemini 3 Pro</td><td>Inline <code>"""</code> gera docstring; <em>Auto</em> mode escolhe modelo</td></tr>
+            <tr><td><strong>Cursor 2.0</strong></td><td>Vários (out/2025)</td><td>Chat / Cmd+K / Agent mode; <code>cursor rules</code>; <code>@docs</code></td></tr>
+            <tr><td><strong>aider</strong> (~0.42.x)</td><td>Claude 3.7 Sonnet, DeepSeek R1, OpenAI o1/o3-mini, locais via Ollama</td><td>42k stars, 5,7M installs; commits git automáticos</td></tr>
+            <tr><td><strong>Mintlify</strong></td><td>Pivot para "Intelligent Knowledge Platform"</td><td>self-updating docs, llms.txt, MCP; Writer descontinuado em 2024</td></tr>
+            <tr><td><strong>Continue.dev / Windsurf</strong></td><td>Qualquer LLM (Continue) / Codeium renomeado para Windsurf</td><td>Open-source / produto comercial</td></tr>
+          </tbody>
+        </table>
+
+        <h3>4.8.2 O workflow correto</h3>
+
+        <p>A IA nunca deve ser a última palavra na docstring. Ela propõe, você revisa:</p>
+
+        <div class="mermaid-wrap">
+<div class="mermaid">
+flowchart LR
+    C["Código escrito"]
+    IA["IA gera docstring"]
+    R{"Você revisa<br/>linha por linha"}
+    A["Ajusta o texto"]
+    K["Commit"]
+
+    C --> IA --> R
+    R -- "OK" --> K
+    R -- "algo errado" --> A --> K
+
+    classDef src fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560
+    classDef proc fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6
+    classDef check fill:#FEF3C7,stroke:#D97706,color:#92400E
+    classDef out fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52
+    class C src
+    class IA,A proc
+    class R check
+    class K out
+</div>
+        </div>
+
+        <p style="font-size: 0.92rem; color: var(--color-text-secondary); margin-top: 0.5rem;">Na etapa de revisão, quatro perguntas antes de aceitar qualquer sugestão:</p>
+        <ul>
+          <li>O <strong>comportamento</strong> descrito é o que o código realmente faz?</li>
+          <li>Os <strong>tipos</strong> batem com a assinatura e com o que retorna?</li>
+          <li>As <strong>exceções</strong> listadas são levantadas mesmo, nas condições descritas?</li>
+          <li>Os <strong>exemplos</strong> rodam sem erro (teste com <code>doctest</code>)?</li>
+        </ul>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Regra de ouro</div>
+          <p>Nunca aceitar docstring de IA sem <strong>executar o doctest</strong> ou verificar manualmente que cada afirmação corresponde ao código. IA inventa comportamentos plausíveis com confiança absoluta.</p>
+        </div>
+
+        <h3>4.8.3 O que delegar (e o que NÃO delegar)</h3>
+
+        <p><strong>Delegue:</strong></p>
+        <ul>
+          <li>Docstrings padrão para funções <strong>bem nomeadas</strong> com tipos claros.</li>
+          <li>Conversão entre estilos (ex.: Google → NumPy em massa).</li>
+          <li>Exemplos para funções simples e determinísticas.</li>
+          <li>Parametrização óbvia, descrição mecânica de tipos.</li>
+          <li>Seções <code>See Also</code> e <code>References</code> quando você indicar as fontes.</li>
+          <li>READMEs estruturais.</li>
+          <li>Tradução de docstrings entre idiomas.</li>
+        </ul>
+
+        <p><strong>NÃO delegue:</strong></p>
+        <ul>
+          <li><strong>Justificativa de decisões de design</strong> ("escolhemos BFS porque…").</li>
+          <li><strong>Comentários sobre o porquê</strong> de constantes ou thresholds.</li>
+          <li><strong>Edge cases</strong> não cobertos pelo nome ou tipo.</li>
+          <li><strong>Comportamentos dependentes de contexto externo</strong> (config, ambiente, ADRs).</li>
+          <li><strong>Invariantes de negócio</strong> ("o cliente tem que estar ativo há ≥ 30 dias").</li>
+        </ul>
+
+        <h3>4.8.4 Riscos reais</h3>
+
+        <ol>
+          <li><strong>Alucinação</strong>: IA descreve comportamento que o código <strong>não tem</strong>. "Lança <code>ValueError</code> se input vazio" — mas a função na verdade retorna <code>None</code>.</li>
+          <li><strong>Tipos errados ou omitidos</strong>: a IA "ajusta" o tipo para o que parece razoável, mas não bate com o código.</li>
+          <li><strong>Paráfrase do óbvio</strong>: "A função <code>add_one</code> adiciona um." Não traz informação.</li>
+          <li><strong>Exemplos que não executam</strong>: doctests com nomes de variáveis errados, dimensões trocadas, output incorreto.</li>
+        </ol>
+
+        <h3>4.8.5 Prompts bons vs ruins</h3>
+
+        <p>A qualidade da docstring que você recebe é proporcional à qualidade do prompt que entrega.</p>
+
+        <div class="prompt-compare">
+          <article class="prompt-card prompt-bad">
+            <div class="prompt-head">
+              <span class="prompt-tag prompt-tag-bad"><i data-lucide="x-circle" style="width:14px;height:14px"></i> Ruim</span>
+              <span class="prompt-label">3 palavras · sem contexto</span>
+            </div>
+            <p class="prompt-text">"documente esta função"</p>
+            <div class="prompt-outcome">
+              <strong>Resultado:</strong> a IA inventa tudo o que faltar. Você ganha lixo educado.
+            </div>
+          </article>
+
+          <article class="prompt-card prompt-good">
+            <div class="prompt-head">
+              <span class="prompt-tag prompt-tag-good"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Bom</span>
+              <span class="prompt-label">escopo + contexto + restrição</span>
+            </div>
+            <p class="prompt-text">"Gere docstring <strong>NumPy style em português</strong> para esta função. Foque nos <strong>efeitos colaterais</strong> e nas <strong>exceções</strong>. Use exemplo realista do domínio de churn prediction. <strong>Não invente</strong> comportamentos não presentes no código. Não documente parâmetros auto-evidentes pelo nome e tipo."</p>
+            <div class="prompt-outcome">
+              <strong>Resultado:</strong> docstring fiel ao código, no estilo do projeto, com exemplo útil.
+            </div>
+          </article>
+
+          <article class="prompt-card prompt-good">
+            <div class="prompt-head">
+              <span class="prompt-tag prompt-tag-good"><i data-lucide="check-circle" style="width:14px;height:14px"></i> Bom</span>
+              <span class="prompt-label">tarefa mecânica com limite</span>
+            </div>
+            <p class="prompt-text">"Converta esta docstring <strong>reST para NumPy style</strong>. <strong>Preserve o conteúdo sem adicionar nem remover informações</strong>. Mantenha o português."</p>
+            <div class="prompt-outcome">
+              <strong>Resultado:</strong> conversão 1:1, sem alucinação — o modelo sabe que é tradução, não criação.
+            </div>
+          </article>
+        </div>
+
+        <div class="prompt-principles">
+          <div class="prompt-principles-label">3 princípios para qualquer prompt de documentação</div>
+          <div class="prompt-principles-grid">
+            <div class="prompt-principle">
+              <i data-lucide="crosshair" style="width:18px;height:18px"></i>
+              <div>
+                <strong>Restringir o escopo</strong>
+                <p>Diga o estilo (Google / NumPy / reST), o idioma e o que focar. "Documente" é vago; "Gere docstring NumPy em pt-BR focando exceções" é acionável.</p>
+              </div>
+            </div>
+            <div class="prompt-principle">
+              <i data-lucide="shield-x" style="width:18px;height:18px"></i>
+              <div>
+                <strong>Proibir invenção</strong>
+                <p>"Não invente comportamento ausente" e "se não for possível determinar, escreva TODO" cortam a alucinação mais comum.</p>
+              </div>
+            </div>
+            <div class="prompt-principle">
+              <i data-lucide="map-pin" style="width:18px;height:18px"></i>
+              <div>
+                <strong>Dar contexto de domínio</strong>
+                <p>Informe o domínio (churn, telecom, pagamentos). Exemplos ganham nomes de variáveis realistas em vez de <code>foo</code>/<code>bar</code>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3>4.8.6 CLAUDE.md / cursor rules: padronizando estilo no projeto</h3>
+
+        <p>A maneira mais eficaz de obter docstrings consistentes em um projeto é <strong>escrever a regra uma vez</strong> e deixar a ferramenta de IA aplicá-la sempre. No Claude Code, isso é o <code>CLAUDE.md</code>. No Cursor, são <code>cursor rules</code>. No Continue, são <code>rules</code>. O conceito é o mesmo.</p>
+
+        <p>Exemplo de <code>CLAUDE.md</code> para o Tech Challenge (veja seção 4.9 abaixo).</p>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Modelo híbrido recomendado</div>
+          <p>O modelo ideal em 2026 é <strong>híbrido</strong>: a IA gera a estrutura (parâmetros, tipos, exceções, exemplo básico), o humano fornece o <strong>contexto de negócio</strong> (justificativa, edge cases, invariantes, decisões). Quem documenta tudo na mão perde tempo; quem aceita o output cego perde qualidade.</p>
+        </div>
+
+        <!-- ═══════════ 4.9 ═══════════ -->
+        <h2 id="sec-4-9">4.9 Aplicação ao Tech Challenge</h2>
+
+        <p>Vamos aterrissar tudo no Tech Challenge de churn com PyTorch + MLflow + FastAPI.</p>
+
+        <h3>4.9.1 Estilo recomendado: NumPy</h3>
+
+        <p>Decisão: <strong>NumPy style</strong>, alinhado a sklearn, numpy, pandas e PyTorch. Quem ler seu código já está acostumado.</p>
+
+        <h3>4.9.2 Type hints PEP 585/604 (e 695 quando possível)</h3>
+
+<pre><code class="language-python"># src/models/mlp.py
+from __future__ import annotations
+
+import torch
+from torch import nn
+from jaxtyping import Float
+
+
+class ChurnMLP(nn.Module):
+    """Rede MLP para classificacao binaria de churn.
+
+    Parameters
+    ----------
+    input_dim : int
+        Numero de features de entrada apos pre-processamento.
+    hidden_dims : tuple of int, default=(128, 64)
+        Tamanhos das camadas escondidas.
+    dropout : float, default=0.3
+        Taxa de dropout aplicada apos cada camada escondida.
+
+    Notes
+    -----
+    A camada de saida tem 1 neuronio com sigmoide, retornando
+    a probabilidade de churn em [0, 1].
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dims: tuple[int, ...] = (128, 64),
+        dropout: float = 0.3,
+    ) -> None:
+        super().__init__()
+        layers: list[nn.Module] = []
+        prev = input_dim
+        for h in hidden_dims:
+            layers += [nn.Linear(prev, h), nn.ReLU(), nn.Dropout(dropout)]
+            prev = h
+        layers.append(nn.Linear(prev, 1))
+        self.net = nn.Sequential(*layers)
+
+    def forward(
+        self, x: Float[torch.Tensor, "batch features"]
+    ) -> Float[torch.Tensor, "batch 1"]:
+        """Calcula logits de churn para um batch de clientes.
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (batch, features)
+            Features normalizadas.
+
+        Returns
+        -------
+        torch.Tensor of shape (batch, 1)
+            Logits (sem sigmoide). Use ``torch.sigmoid`` para probabilidade.
+        """
+        return self.net(x)</code></pre>
+
+        <p>Note três coisas:</p>
+        <ul>
+          <li><code>from __future__ import annotations</code> adia avaliação de anotações — útil em projetos que rodam em Python 3.10+.</li>
+          <li><code>jaxtyping</code> documenta os shapes no próprio tipo.</li>
+          <li>A docstring da classe explica <strong>o que é</strong>; a do <code>forward</code> explica <strong>shapes e a convenção logits vs probabilidade</strong>.</li>
+        </ul>
+
+        <h3>4.9.3 CLAUDE.md exemplo para o repositório</h3>
+
+        <p>Coloque na raiz do repo do Tech Challenge:</p>
+
+<pre><code class="language-markdown"># Convencoes do projeto Tech Challenge — Churn
+
+## Stack
+Python 3.12, PyTorch, MLflow, FastAPI, scikit-learn, pandas.
+
+## Estilo de codigo
+- Formatador: ruff format (linha 100)
+- Linter: ruff (regras E, F, I, B, D, ANN, DOC selecionadas)
+- Type checker: pyright em modo strict para src/
+
+## Docstrings
+- Estilo: **NumPy** (numpydoc).
+- Idioma: portugues do Brasil, sem acentos em comentarios curtos
+  (mantemos acentos em docstrings).
+- Toda funcao publica e classe publica TEM docstring.
+- Funcoes privadas (prefixo `_`) so precisam de docstring se a
+  intencao nao for obvia pelo nome.
+- Exemplos em docstrings DEVEM ser executaveis (doctests).
+
+## Type hints
+- Sempre PEP 585 (`list[str]`) e PEP 604 (`int | None`).
+- Tensores PyTorch usam `jaxtyping.Float` / `Int` com nomes de dimensao.
+- Funcoes publicas TEM type hint em todos os parametros e no retorno.
+
+## Comentarios
+- Tags: TODO(autor, YYYY-MM-DD), FIXME, HACK, XXX, NOTE.
+- Comentarios explicam PORQUE, nunca O QUE.
+
+## Quando documentar com IA
+- Ok delegar: docstrings de funcoes bem nomeadas, conversao de estilo,
+  exemplos simples, See Also, References.
+- NAO delegar: justificativa de design, edge cases, invariantes de negocio,
+  comentarios sobre escolha de threshold/hiperparametro.
+- SEMPRE revisar linha por linha antes de commitar.</code></pre>
+
+        <p>Esse arquivo é lido pelo Claude Code automaticamente em qualquer sessão dentro do repositório, e o efeito é dramático: docstrings geradas já saem no estilo correto.</p>
+
+        <h3>4.9.4 Configuração <code>ruff</code> no <code>pyproject.toml</code></h3>
+
+<pre><code class="language-yaml">[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # bugbear
+    "D",      # pydocstyle
+    "ANN",    # flake8-annotations
+    "UP",     # pyupgrade (forca PEP 585/604)
+]
+ignore = [
+    "D100",   # Missing docstring in public module (opcional)
+    "D104",   # Missing docstring in public package
+    "ANN101", # Missing type annotation for self
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN"]   # testes nao precisam de docstring/annotation rigorosos</code></pre>
+
+        <p>Com isso, <code>ruff check src/</code> no CI vira o <strong>gate</strong> de qualidade: PR sem docstring NumPy ou sem type hint não passa.</p>
+
+        <h3>4.9.5 Onde priorizar</h3>
+
+        <p>Se você tem tempo limitado, documente <strong>primeiro</strong> os módulos que outros vão consumir:</p>
+
+        <ol>
+          <li><code>src/models/mlp.py</code> — arquitetura da rede (contrato de shapes).</li>
+          <li><code>src/data/preprocessing.py</code> — transformadores customizados (contrato de pipeline).</li>
+          <li><code>src/api/predict.py</code> — endpoint FastAPI (contrato externo, vai virar OpenAPI).</li>
+        </ol>
+
+        <p>Para o endpoint, lembre que o FastAPI usa as docstrings e os modelos Pydantic para gerar o <code>/docs</code>. Documentar bem aqui economiza um capítulo inteiro de doc externa.</p>
+
+        <!-- ═══════════ 4.10 ═══════════ -->
+        <h2 id="sec-4-10">4.10 Checklist de saída</h2>
+
+        <p>Antes de considerar um módulo "documentado":</p>
+
+        <ul>
+          <li>Toda função pública tem docstring NumPy com <code>Parameters</code>, <code>Returns</code> e (se aplicável) <code>Raises</code>.</li>
+          <li>Toda função pública tem type hint em <strong>todos</strong> os parâmetros e no retorno.</li>
+          <li>Tensores usam <code>jaxtyping</code> quando o shape importa.</li>
+          <li>Comentários inline explicam <strong>por quê</strong>, não <strong>o quê</strong>.</li>
+          <li><code>TODO</code>/<code>FIXME</code> têm autor e data.</li>
+          <li>Exemplos em docstrings executam (<code>pytest --doctest-modules</code>).</li>
+          <li><code>ruff check src/</code> passa sem warnings.</li>
+          <li><code>pyright src/</code> passa em modo strict.</li>
+          <li>Se você usou IA, revisou linha por linha e o doctest roda.</li>
+        </ul>
+
+        <!-- ═══════════ 4.11 ═══════════ -->
+        <h2 id="sec-4-11">4.11 Síntese</h2>
+
+        <p>Documentação de código não é caligrafia — é <strong>engenharia de comunicação</strong>. A hierarquia é clara: nomes expressivos → type hints → docstrings → comentários, e nessa ordem. O estilo NumPy é o padrão de fato do mundo ML. Type hints modernos (PEP 585/604/695) com <code>jaxtyping</code> para shapes transformam bugs silenciosos em erros explícitos. A geração com IA é uma alavanca de produtividade real — mas só funciona com <strong>CLAUDE.md/rules</strong> que codificam padrões, <strong>prompts restritivos</strong> que proíbem invenção, e <strong>revisão humana linha por linha</strong>.</p>
+
+        <p>No próximo capítulo, vamos sair do código individual e olhar para o processo de trabalho: como <strong>MLflow</strong> se transforma em documento científico vivo do projeto e como o <strong>método STAR</strong> estrutura narrativas técnicas de 5 minutos a 50 páginas.</p>
+
+        <!-- ═══════════ Nav ═══════════ -->
+        <nav class="chapter-nav">
+          <a href="03-readme-mermaid.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">← README exemplar + Mermaid</span>
+            </span>
+          </a>
+          <a href="05-mlflow-star.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo</span>
+              <span class="nav-btn-title">Documentando o processo: MLflow + método STAR →</span>
+            </span>
+          </a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('chapterApp', () => ({
+        sidebarCollapsed: localStorage.getItem('tb_sidebar_collapsed') === 'true',
+        activeSection: '',
+        currentChapter: '04',
+        init() {
+          TB_markVisited();
+          TB_initReadingProgress();
+          TB_addCopyButtons();
+          TB_initSectionObserver(id => this.activeSection = id);
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return TB_isVisited(id); },
+      }));
+
+      Alpine.data('docstringComparator', () => ({
+        active: 'numpy',
+        meta: {
+          google: {
+            usa: 'Google, TensorFlow, JAX, Keras.',
+            pros: 'Enxuto, fácil de ler, popular em codebases corporativas.',
+            cons: 'Menos rico em seções para texto científico (sem References nativo).',
+          },
+          numpy: {
+            usa: 'numpy, scipy, pandas, scikit-learn, matplotlib, statsmodels, xarray.',
+            pros: 'Legível em texto puro, seções ricas (Notes, References, See Also), padrão do ecossistema científico Python.',
+            cons: 'Ligeiramente mais verboso que Google.',
+          },
+          rest: {
+            usa: 'Python core (CPython), Django historicamente.',
+            pros: 'Render impecável no Sphinx puro, sintaxe nativa do reStructuredText.',
+            cons: 'Verboso, mistura tipo e descrição em campos separados, menos legível em texto puro.',
+          },
+        },
+      }));
+    });
+
+    window.addEventListener('load', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

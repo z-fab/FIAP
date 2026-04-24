@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>README + Mermaid — Documentação em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+      primaryColor: '#EDE9FE', primaryTextColor: '#5B21B6', primaryBorderColor: '#7C3AED',
+      lineColor: '#CEC9BF', secondaryColor: '#F0EDE6', tertiaryColor: '#FDFBF7',
+      edgeLabelBackground: '#FDFBF7', fontFamily: "'DM Sans', sans-serif", fontSize: '14px',
+      nodeBorder: '#E2DDD4', clusterBkg: '#F5F2EC', clusterBorder: '#E2DDD4', titleColor: '#1C1917',
+    }});
+  </script>
+</head>
+<body x-data="chapterApp" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon">←</span>
+          <span class="sb-home-lbl">Documentação em ML</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-importancia-documentacao.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="02-model-cards.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="03-readme-mermaid.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="04-docstrings-type-hints.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="05-mlflow-star.html" class="ch-link" :class="{ 'active': currentChapter==='05', 'visited': isVisited('05') }">
+          <span class="ch-num" x-text="isVisited('05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="06-checklist-tech-challenge.html" class="ch-link" :class="{ 'active': currentChapter==='06', 'visited': isVisited('06') }">
+          <span class="ch-num" x-text="isVisited('06') ? '✓' : '06'"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#sec-3-1" class="sec-link" :class="{ 'active': activeSection==='sec-3-1' }">3.1 Por que o README importa</a>
+        <a href="#sec-3-2" class="sec-link" :class="{ 'active': activeSection==='sec-3-2' }">3.2 Anatomia padrão</a>
+        <a href="#sec-3-3" class="sec-link" :class="{ 'active': activeSection==='sec-3-3' }">3.3 READMEs famosos</a>
+        <a href="#sec-3-4" class="sec-link" :class="{ 'active': activeSection==='sec-3-4' }">3.4 Badges</a>
+        <a href="#sec-3-5" class="sec-link" :class="{ 'active': activeSection==='sec-3-5' }">3.5 Mermaid</a>
+        <a href="#sec-3-6" class="sec-link" :class="{ 'active': activeSection==='sec-3-6' }">3.6 Aplicação ao Tech Challenge</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Documentação em ML</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">Capítulo 3 — README + Mermaid</span>
+      </header>
+
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 3</div>
+        <h1>README + Mermaid: a porta de entrada no <em>GitHub</em></h1>
+
+        <blockquote class="chapter-epigraph">
+          "Você tem 30 segundos. É o tempo médio que um recrutador, um colega de trabalho ou um avaliador da FIAP gasta no seu README antes de decidir se vale a pena clonar o repositório. Faça-os contar."
+        </blockquote>
+
+        <!-- ═══════════════ 3.1 ═══════════════ -->
+        <h2 id="sec-3-1">3.1 Por que o README é a peça mais importante do projeto</h2>
+
+        <p>Imagine duas situações que acontecem todos os dias no GitHub:</p>
+
+        <p><strong>Cenário A.</strong> Uma engenheira de ML de uma fintech procura referências de pipelines de churn em PyTorch. Ela encontra seu repositório, abre o README, vê um título genérico, três linhas explicando "projeto de TCC", nenhum diagrama, nenhuma instrução de instalação. Fecha a aba.</p>
+
+        <p><strong>Cenário B.</strong> A mesma engenheira encontra outro repositório. Logo no topo, badges verdes mostram que o build está passando, a cobertura de testes está em 87%, o modelo tem licença MIT. Abaixo, um diagrama Mermaid mostra o pipeline completo: dados → EDA → treinamento → MLflow → FastAPI. Em seguida, um bloco <code>bash</code> com cinco comandos que sobem o serviço localmente. Ela clona, roda, testa em dez minutos, e marca o repositório com uma estrela.</p>
+
+        <p>A diferença entre esses dois cenários não é a qualidade do código. É a qualidade do README.</p>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="info" style="width:14px;height:14px;"></i> Definição</div>
+          <p><strong>Definição operacional.</strong> Um README funciona bem quando outra pessoa consegue instalar, executar e entender o que seu projeto faz <strong>sem precisar te chamar</strong>. Esse é o teste prático. Se um colega precisa abrir uma issue ou mandar mensagem perguntando "como rodo?", provavelmente falta alguma coisa no README.</p>
+        </div>
+
+        <p>Para o Tech Challenge da Pós-Tech, o README cumpre três papéis simultâneos:</p>
+
+        <ol>
+          <li><strong>Cartão de visitas profissional.</strong> Recrutadores leem READMEs antes de leerem currículos.</li>
+          <li><strong>Documentação técnica de avaliação.</strong> Os professores precisam reproduzir seu trabalho.</li>
+          <li><strong>Memória externa do projeto.</strong> Você mesmo, daqui a três meses, vai esquecer onde colocou o script de pré-processamento.</li>
+        </ol>
+
+        <p>Este capítulo te dá o esqueleto canônico, mostra como projetos famosos resolveram (e em alguns casos, deixaram de resolver) esse problema, e ensina a usar Mermaid para transformar fluxogramas em diagramas versionáveis nativos do GitHub.</p>
+
+        <hr>
+
+        <!-- ═══════════════ 3.2 ═══════════════ -->
+        <h2 id="sec-3-2">3.2 Anatomia padrão de um README moderno</h2>
+
+        <p>A maioria dos READMEs de projetos de ML combina um subconjunto dessas <strong>13 seções</strong>. A ordem importa: quem chega no GitHub lê de cima para baixo e desiste rápido — coloque o que segura o leitor primeiro.</p>
+
+        <h3>As 13 seções, na ordem</h3>
+        <p>A ordem e a presença de cada seção variam por projeto. A tabela indica o quão frequente cada uma costuma aparecer em READMEs do ecossistema Python/ML:</p>
+
+        <table>
+          <thead>
+            <tr><th>#</th><th>Seção</th><th style="text-align:center;">Costuma aparecer</th><th>Por que ajuda</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Título + logo</td><td style="text-align:center;">Quase sempre</td><td>Identidade visual imediata</td></tr>
+            <tr><td>2</td><td>Tagline curta</td><td style="text-align:center;">Quase sempre</td><td>Em uma frase: o que é?</td></tr>
+            <tr><td>3</td><td>Badges</td><td style="text-align:center;">Comum</td><td>Sinais de qualidade verificáveis</td></tr>
+            <tr><td>4</td><td>Screenshot/GIF demo</td><td style="text-align:center;">Depende</td><td>Vale mil linhas de descrição</td></tr>
+            <tr><td>5</td><td>Instalação</td><td style="text-align:center;">Quase sempre</td><td>Sem isso, ninguém roda</td></tr>
+            <tr><td>6</td><td>Quickstart (5–15 linhas)</td><td style="text-align:center;">Quase sempre</td><td>"Hello world" funcional</td></tr>
+            <tr><td>7</td><td>Features</td><td style="text-align:center;">Comum</td><td>Por que escolher esse projeto?</td></tr>
+            <tr><td>8</td><td>Exemplos</td><td style="text-align:center;">Comum</td><td>Casos de uso reais</td></tr>
+            <tr><td>9</td><td>Documentação (link)</td><td style="text-align:center;">Projetos grandes</td><td>Para quem quer aprofundar</td></tr>
+            <tr><td>10</td><td>Estrutura do repo</td><td style="text-align:center;">Comum</td><td>Mapa mental do código</td></tr>
+            <tr><td>11</td><td>Contribuição</td><td style="text-align:center;">Open source</td><td>Como participar</td></tr>
+            <tr><td>12</td><td>Citação (BibTeX)</td><td style="text-align:center;">Projetos acadêmicos</td><td>Crédito reproduzível</td></tr>
+            <tr><td>13</td><td>Licença</td><td style="text-align:center;">Quase sempre</td><td>Sem licença, o projeto não pode ser reutilizado com segurança</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Convenções modernas (2024–2025)</h3>
+
+        <p>A escrita de READMEs evoluiu. As práticas atuais são:</p>
+
+        <ul>
+          <li><strong>Mermaid nativo no GitHub</strong> (suportado desde fevereiro de 2022) — diagramas versionáveis em texto.</li>
+          <li><strong>GitHub Alerts</strong> com a sintaxe <code>[!NOTE]</code>, <code>[!WARNING]</code>, <code>[!TIP]</code>, <code>[!IMPORTANT]</code>, <code>[!CAUTION]</code> — boxes nativos sem precisar de HTML.</li>
+          <li><strong>Tabelas de benchmark/performance</strong> — números falam mais que adjetivos.</li>
+          <li><strong>Links âncora internos</strong> (<code>[Instalação](#instalação)</code>) para navegação rápida.</li>
+          <li><strong>Badges via <a href="https://shields.io/badges" target="_blank" rel="noopener">shields.io</a></strong> com estilo <code>flat-square</code> (mais limpo que <code>for-the-badge</code>).</li>
+        </ul>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Dica</div>
+          <p>Use os GitHub Alerts em vez de criar boxes em HTML. Eles renderizam de forma consistente em qualquer cliente do GitHub (web, mobile, integrações), respeitam dark mode e são acessíveis para leitores de tela.</p>
+        </div>
+
+        <h3>Exemplo da sintaxe de GitHub Alerts</h3>
+
+<pre><code class="language-markdown">&gt; [!NOTE]
+&gt; Útil para informações que o leitor deveria saber, mesmo sem ser crítico.
+
+&gt; [!TIP]
+&gt; Conselhos opcionais que melhoram a experiência.
+
+&gt; [!IMPORTANT]
+&gt; Informação essencial para entender o projeto.
+
+&gt; [!WARNING]
+&gt; Conteúdo crítico que demanda atenção imediata.
+
+&gt; [!CAUTION]
+&gt; Consequências negativas potenciais de uma ação.</code></pre>
+
+        <hr>
+
+        <!-- ═══════════════ 3.3 ═══════════════ -->
+        <h2 id="sec-3-3">3.3 Análise comentada de READMEs famosos</h2>
+
+        <p>A melhor forma de aprender a escrever um README é ler os que funcionam (e os que não funcionam). Selecionamos quatro projetos de referência do ecossistema Python/ML, mais um bônus, e dissecamos cada um.</p>
+
+        <h3>3.3.1 scikit-learn — minimalista RST</h3>
+
+        <p><strong>URL:</strong> <a href="https://github.com/scikit-learn/scikit-learn/blob/main/README.rst" target="_blank" rel="noopener">https://github.com/scikit-learn/scikit-learn/blob/main/README.rst</a></p>
+
+        <p><strong>Formato:</strong> reStructuredText (<code>.rst</code>), não Markdown. Tradição da comunidade Python científica (a docs do CPython também usa RST).</p>
+
+        <p><strong>Tamanho:</strong> ~450 linhas.</p>
+
+        <p><strong>Trecho literal:</strong></p>
+
+        <blockquote>
+          <p><em>"scikit-learn is a Python module for machine learning built on top of SciPy and is distributed under the 3-Clause BSD license."</em></p>
+          <p><em>"The project was started in 2007 by David Cournapeau as a Google Summer of Code project."</em></p>
+        </blockquote>
+
+        <p><strong>Estrutura:</strong></p>
+
+        <ol>
+          <li>Título e tagline em uma linha</li>
+          <li>Bloco massivo de badges (GitHub Actions, Codecov, CircleCI, Nightly wheels, Ruff, Python Version, PyPI, <strong>DOI</strong>, Benchmark)</li>
+          <li>Seção "Important links" centralizando navegação</li>
+          <li>Instalação via <code>pip</code> e <code>conda</code></li>
+          <li>Dependências e versões mínimas</li>
+          <li>Changelog</li>
+          <li>Desenvolvimento e contribuição</li>
+          <li>Comunicação e suporte</li>
+          <li>Citação acadêmica</li>
+        </ol>
+
+        <p><strong>Pontos fortes:</strong></p>
+
+        <table>
+          <thead><tr><th>Ponto</th><th>Por que importa</th></tr></thead>
+          <tbody>
+            <tr><td>Badge <strong>DOI</strong></td><td>Sinaliza projeto citável academicamente — essencial para reprodutibilidade</td></tr>
+            <tr><td>Seção "Important links"</td><td>Reduz tempo do leitor para achar o que importa</td></tr>
+            <tr><td>Tabela de versões mínimas</td><td>Evita milhares de issues de "não funciona aqui"</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Fraquezas:</strong></p>
+
+        <ul>
+          <li><strong>Zero quickstart com código.</strong> Quem nunca usou scikit-learn precisa sair do README e ir para a docs externa para ver <code>from sklearn.linear_model import LogisticRegression</code>.</li>
+          <li><strong>Sem Mermaid, sem screenshots, sem GIFs.</strong> É funcional, mas frio.</li>
+        </ul>
+
+        <hr>
+
+        <h3>3.3.2 PyTorch — 2.800 linhas e uma tabela de instalação heroica</h3>
+
+        <p><strong>URL:</strong> <a href="https://github.com/pytorch/pytorch/blob/main/README.md" target="_blank" rel="noopener">https://github.com/pytorch/pytorch/blob/main/README.md</a></p>
+
+        <p><strong>Formato:</strong> Markdown.</p>
+
+        <p><strong>Tamanho:</strong> <strong>~2.800 linhas</strong> — provavelmente o maior README de projeto Python que você verá.</p>
+
+        <p><strong>Trechos literais:</strong></p>
+
+        <blockquote>
+          <p><em>"PyTorch is a Python package that provides two high-level features: Tensor computation (like NumPy) with strong GPU acceleration"</em></p>
+          <p><em>"we use a technique called reverse-mode auto-differentiation, which allows you to change the way your network behaves arbitrarily with zero lag or overhead"</em></p>
+        </blockquote>
+
+        <p><strong>Estrutura:</strong></p>
+
+        <ol>
+          <li>Logo + GIF dinâmico mostrando autograd</li>
+          <li>Justificativa filosófica (por que PyTorch existe)</li>
+          <li>Componentes (<code>torch</code>, <code>torch.nn</code>, <code>torch.autograd</code>, <code>torch.utils</code>, etc.)</li>
+          <li><strong>Tabela HTML gigante</strong> de instalação cobrindo Linux × macOS × Windows × CUDA versions × pip/conda</li>
+          <li>Construção from source</li>
+          <li>Docker</li>
+          <li>Contribuição</li>
+        </ol>
+
+        <p><strong>Pontos fortes:</strong></p>
+
+        <table>
+          <thead><tr><th>Ponto</th><th>Por que importa</th></tr></thead>
+          <tbody>
+            <tr><td>Tabela de instalação por plataforma</td><td>PyTorch suporta dezenas de combinações de CUDA — a tabela elimina dúvidas</td></tr>
+            <tr><td>Justifica decisões de design</td><td>Explica POR QUE escolheu reverse-mode autodiff. Educa o leitor.</td></tr>
+            <tr><td>GIF mostrando autograd</td><td>Mostra o "wow" do produto em 5 segundos</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Fraquezas:</strong></p>
+
+        <ul>
+          <li><strong>Nenhum quickstart de treino.</strong> Para 2.800 linhas, é estranho não ter um exemplo <code>model = nn.Linear(10, 1); ...; loss.backward()</code>.</li>
+          <li>Tamanho intimida. Quem chega pela primeira vez não sabe por onde começar.</li>
+        </ul>
+
+        <hr>
+
+        <h3>3.3.3 FastAPI — referência de marketing técnico</h3>
+
+        <p><strong>URL:</strong> <a href="https://github.com/fastapi/fastapi/blob/master/README.md" target="_blank" rel="noopener">https://github.com/fastapi/fastapi/blob/master/README.md</a></p>
+
+        <p><strong>Tamanho:</strong> ~850 linhas.</p>
+
+        <p>O README do FastAPI é uma boa referência para ver como um projeto Python combina documentação técnica com comunicação de produto (testimonials, screenshots, quickstart copiável).</p>
+
+        <p><strong>Trecho literal — tagline:</strong></p>
+
+        <blockquote>
+          <p><em>"FastAPI framework, high performance, easy to learn, fast to code, ready for production"</em></p>
+        </blockquote>
+
+        <p><strong>Trecho literal — testimonial:</strong></p>
+
+        <blockquote>
+          <p><em>"I'm using FastAPI a ton these days. […] I'm actually planning to use it for all of my team's ML services at Microsoft"</em> — Kabir Khan, Microsoft</p>
+        </blockquote>
+
+        <p><strong>Estrutura:</strong></p>
+
+        <ol>
+          <li>Logo, tagline em uma linha</li>
+          <li>Badges (CI, coverage, PyPI, Python versions)</li>
+          <li><strong>Bloco de testimonials</strong> com aspas reais de engenheiros de Microsoft, Uber, Netflix</li>
+          <li>Logo grid de <strong>sponsors</strong> (mostra capital social do projeto)</li>
+          <li><strong>Quickstart funcional</strong> logo após instalação — você cola e roda</li>
+          <li>Lista de features com <strong>emojis nos bullets</strong> (⚡, 🚀, 🐛, ✏️) — escaneável</li>
+          <li>Três <strong>screenshots do Swagger UI</strong> auto-gerado</li>
+          <li>Dois <strong>screenshots do ReDoc</strong></li>
+          <li>Screenshot do VS Code mostrando autocomplete — vende tipagem visualmente</li>
+          <li>Thumbnail de vídeo no YouTube (link para palestra)</li>
+        </ol>
+
+        <p><strong>Pontos fortes:</strong></p>
+
+        <table>
+          <thead><tr><th>Ponto</th><th>Por que funciona</th></tr></thead>
+          <tbody>
+            <tr><td>Testimonials de empresas conhecidas</td><td>Prova social acelera adoção</td></tr>
+            <tr><td>Quickstart copiável</td><td>"Funciona em 30 segundos" — promessa cumprida</td></tr>
+            <tr><td>Screenshots do Swagger</td><td>Mostra um diferencial que texto não vende</td></tr>
+            <tr><td>Screenshot do VS Code</td><td>Vende a experiência de desenvolvimento, não só o runtime</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Fraquezas:</strong></p>
+
+        <ul>
+          <li><strong>Sem Mermaid.</strong> O fluxo request → validation → handler → response poderia ser um diagrama incrível.</li>
+          <li>Tamanho às vezes excessivo — alguns testimonials redundantes.</li>
+        </ul>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Dica</div>
+          <p>Uma leitura do FastAPI: o README pode ser mais do que documentação técnica — também comunica o produto. Mostrar o que funciona (screenshots, quickstart copiável) costuma ter mais impacto do que só descrever.</p>
+        </div>
+
+        <hr>
+
+        <h3>3.3.4 MLflow — "AI Engineering Platform"</h3>
+
+        <p><strong>URL:</strong> <a href="https://github.com/mlflow/mlflow/blob/master/README.md" target="_blank" rel="noopener">https://github.com/mlflow/mlflow/blob/master/README.md</a></p>
+
+        <p><strong>Tamanho:</strong> ~1.200 linhas.</p>
+
+        <p><strong>Trechos literais:</strong></p>
+
+        <blockquote>
+          <p><em>"MLflow is the largest open source AI engineering platform for agents, LLMs, and ML models"</em></p>
+          <p><em>"with over 60 million monthly downloads, thousands of organizations rely on MLflow each day to ship AI to production with confidence"</em></p>
+        </blockquote>
+
+        <p><strong>Posicionamento atualizado:</strong> repare que o MLflow não se vende mais como ferramenta de <strong>MLOps</strong> apenas. Agora é "AI Engineering Platform". Esse repositionamento é deliberado para abraçar a onda de LLMs e agents.</p>
+
+        <p><strong>Estrutura:</strong></p>
+
+        <ol>
+          <li>Logo + tagline atualizada</li>
+          <li>Badges + número de downloads (60M/mês — prova social numérica)</li>
+          <li><strong>Quatro screenshots</strong> lado a lado: Observability, Evaluation, Prompts &amp; Optimization, AI Gateway</li>
+          <li>Tabelas de logos de integrações (Hugging Face, OpenAI, Anthropic, etc.)</li>
+          <li>Quickstart por componente (Tracking, Models, Registry)</li>
+          <li><strong>Star History</strong> via <a href="https://star-history.com" target="_blank" rel="noopener">star-history.com</a> — gráfico de crescimento</li>
+        </ol>
+
+        <p><strong>Pontos fortes:</strong></p>
+
+        <table>
+          <thead><tr><th>Ponto</th><th>Por que importa</th></tr></thead>
+          <tbody>
+            <tr><td>Número absoluto (60M downloads/mês)</td><td>Mais convincente que adjetivos</td></tr>
+            <tr><td>Screenshots de cada produto</td><td>Mostra que a plataforma é multi-componente</td></tr>
+            <tr><td>Star History</td><td>Mostra trajetória — projeto vivo, não estagnado</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Fraquezas:</strong></p>
+
+        <ul>
+          <li>Em alguns lugares mistura linguagem de produto com técnica — pode confundir desenvolvedor pragmático.</li>
+          <li>Sem diagrama de arquitetura no README (Mermaid resolveria).</li>
+        </ul>
+
+        <hr>
+
+        <h3>3.3.5 Bônus — HuggingFace Transformers</h3>
+
+        <p><strong>URL:</strong> <a href="https://github.com/huggingface/transformers/blob/main/README.md" target="_blank" rel="noopener">https://github.com/huggingface/transformers/blob/main/README.md</a></p>
+
+        <p><strong>Tamanho:</strong> ~450–500 linhas (uso pesado de <strong>seções colapsáveis</strong> mantém limpo).</p>
+
+        <p><strong>Trecho literal:</strong></p>
+
+        <blockquote>
+          <p><em>"Transformers acts as the model-definition framework for state-of-the-art machine learning with text, computer vision, audio, video, and multimodal models"</em></p>
+        </blockquote>
+
+        <p><strong>Diferenciais técnicos do README:</strong></p>
+
+        <ul>
+          <li>Logo com <strong>suporte dark/light mode</strong> (via <code>&lt;picture&gt;</code> HTML com <code>prefers-color-scheme</code>)</li>
+          <li>Sete badges</li>
+          <li><strong><code>&lt;details&gt;</code> colapsáveis</strong> — esconde listas longas (idiomas suportados, lista de modelos) sem poluir a leitura</li>
+          <li>Sem Mermaid</li>
+        </ul>
+
+        <p><strong>Snippet do truque dark/light:</strong></p>
+
+<pre><code class="language-markdown">&lt;picture&gt;
+  &lt;source media="(prefers-color-scheme: dark)" srcset="logo-dark.svg"&gt;
+  &lt;source media="(prefers-color-scheme: light)" srcset="logo-light.svg"&gt;
+  &lt;img alt="Logo" src="logo-light.svg"&gt;
+&lt;/picture&gt;</code></pre>
+
+        <p><strong>Snippet de seção colapsável:</strong></p>
+
+<pre><code class="language-markdown">&lt;details&gt;
+&lt;summary&gt;Lista completa de modelos suportados (clique para expandir)&lt;/summary&gt;
+
+- BERT
+- GPT-2
+- LLaMA
+- ...
+&lt;/details&gt;</code></pre>
+
+        <h3>Resumo comparativo</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Projeto</th>
+              <th style="text-align:center;">Linhas</th>
+              <th style="text-align:center;">Quickstart</th>
+              <th style="text-align:center;">Screenshots</th>
+              <th style="text-align:center;">Mermaid</th>
+              <th style="text-align:center;">Sponsors</th>
+              <th style="text-align:center;">DOI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>scikit-learn</td><td style="text-align:center;">~450</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;"><strong>Sim</strong></td></tr>
+            <tr><td>PyTorch</td><td style="text-align:center;">~2.800</td><td style="text-align:center;">Não</td><td style="text-align:center;">GIF</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td></tr>
+            <tr><td>FastAPI</td><td style="text-align:center;">~850</td><td style="text-align:center;"><strong>Sim</strong></td><td style="text-align:center;"><strong>5</strong></td><td style="text-align:center;">Não</td><td style="text-align:center;"><strong>Sim</strong></td><td style="text-align:center;">Não</td></tr>
+            <tr><td>MLflow</td><td style="text-align:center;">~1.200</td><td style="text-align:center;">Sim</td><td style="text-align:center;"><strong>4</strong></td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td></tr>
+            <tr><td>Transformers</td><td style="text-align:center;">~500</td><td style="text-align:center;">Sim</td><td style="text-align:center;">Logo dark/light</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td><td style="text-align:center;">Não</td></tr>
+          </tbody>
+        </table>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="info" style="width:14px;height:14px;"></i> Insight</div>
+          <p><strong>Insight:</strong> nenhum dos cinco READMEs analisados usa Mermaid. O Mermaid é mais comum em <strong>docs internos</strong>, ADRs (Architecture Decision Records) e wikis de empresa do que em READMEs públicos de projetos famosos. Isso significa que <strong>incluir um Mermaid no seu Tech Challenge te diferencia imediatamente</strong> — você está aplicando uma prática moderna que projetos consolidados ainda não absorveram em seus READMEs principais.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 3.4 ═══════════════ -->
+        <h2 id="sec-3-4">3.4 Badges — sinais visuais de qualidade</h2>
+
+        <p>Badges são micro-imagens SVG que comunicam estado verificável: build passando, cobertura de testes, versão atual, licença, downloads. O <a href="https://shields.io/badges" target="_blank" rel="noopener">shields.io</a> é o serviço mais adotado pela comunidade.</p>
+
+        <h3>Categorias disponíveis no shields.io</h3>
+
+        <table>
+          <thead><tr><th>Categoria</th><th>Exemplos para ML</th></tr></thead>
+          <tbody>
+            <tr><td>Build</td><td>GitHub Actions, CircleCI</td></tr>
+            <tr><td>Code Coverage</td><td>Codecov, Coveralls</td></tr>
+            <tr><td>Version</td><td>PyPI version</td></tr>
+            <tr><td>Downloads</td><td>PyPI downloads/month</td></tr>
+            <tr><td>License</td><td>MIT, Apache-2.0, BSD-3</td></tr>
+            <tr><td>Platform</td><td>Python version</td></tr>
+            <tr><td>Social</td><td>GitHub stars, followers</td></tr>
+            <tr><td>Funding</td><td>Sponsors</td></tr>
+            <tr><td>Test Results</td><td>Pytest</td></tr>
+            <tr><td>Rating</td><td>DOI (acadêmico), Hugging Face</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Estilos disponíveis</h3>
+
+        <table>
+          <thead><tr><th>Estilo</th><th>Quando usar</th></tr></thead>
+          <tbody>
+            <tr><td><code>flat</code></td><td>Padrão, neutro</td></tr>
+            <tr><td><code>flat-square</code></td><td>Muito usado — visual mais limpo e moderno</td></tr>
+            <tr><td><code>plastic</code></td><td>Legacy, parece dos anos 2010</td></tr>
+            <tr><td><code>for-the-badge</code></td><td>Chamativo, ocupa muito espaço — evite</td></tr>
+            <tr><td><code>social</code></td><td>Estilo do GitHub (estrelas, followers)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Sintaxe Markdown</h3>
+
+<pre><code class="language-markdown">![Python](https://img.shields.io/pypi/pyversions/torch?style=flat-square)
+![License](https://img.shields.io/github/license/user/repo?style=flat-square)
+![Build](https://img.shields.io/github/actions/workflow/status/user/repo/ci.yml?style=flat-square)
+![Coverage](https://img.shields.io/codecov/c/github/user/repo?style=flat-square)</code></pre>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Dica</div>
+          <p>Para projetos de Tech Challenge, recomendamos: <strong>Python version</strong>, <strong>License</strong>, <strong>Build status</strong> (se você configurou CI), e opcionalmente <strong>PyTorch version</strong> e <strong>MLflow version</strong>. Quatro a seis badges é o ponto certo. Mais que isso vira poluição.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 3.5 ═══════════════ -->
+        <h2 id="sec-3-5">3.5 Mermaid — diagramas que vivem dentro do Markdown</h2>
+
+        <h3>3.5.1 O que é Mermaid</h3>
+
+        <p>Mermaid é uma biblioteca JavaScript que renderiza diagramas a partir de descrições em texto inspiradas em Markdown. Você escreve algo assim:</p>
+
+<pre><code class="language-markdown">```mermaid
+flowchart TD
+    A[Início] --&gt; B[Fim]
+```</code></pre>
+
+        <p>E o GitHub renderiza um diagrama de verdade na hora de exibir o arquivo.</p>
+
+        <h3>3.5.2 O anúncio que mudou o jogo (fev/2022)</h3>
+
+        <p>Em 14 de fevereiro de 2022, o GitHub publicou o post oficial em <a href="https://github.blog/2022-02-14-include-diagrams-markdown-files-mermaid/" target="_blank" rel="noopener">https://github.blog/2022-02-14-include-diagrams-markdown-files-mermaid/</a> com a frase de marketing:</p>
+
+        <blockquote>
+          <p><em>"A picture tells a thousand words. Now you can quickly create and edit diagrams in markdown using words with Mermaid support"</em></p>
+        </blockquote>
+
+        <p>A partir desse dia, qualquer arquivo <code>.md</code> no GitHub renderiza blocos <code>mermaid</code> automaticamente, sem plugins, sem extensões, sem configuração.</p>
+
+        <p><strong>Detalhes técnicos do suporte do GitHub:</strong></p>
+
+        <ul>
+          <li>Renderização via <strong>iframe</strong> apontando para o subdomínio Viewscreen (isolamento de segurança).</li>
+          <li>Funciona <strong>progressivamente</strong> — o Markdown continua compatível mesmo sem JavaScript habilitado.</li>
+          <li>Isolamento de conteúdo evita XSS via diagramas maliciosos.</li>
+        </ul>
+
+        <h3>3.5.3 Tipos de diagrama (Mermaid v11.14.0)</h3>
+
+        <p>A versão atual do Mermaid (v11.14.0, abril/2026) suporta uma lista impressionante de tipos:</p>
+
+        <p><strong>Clássicos (estáveis):</strong></p>
+
+        <table>
+          <thead><tr><th>Tipo</th><th>Uso típico</th></tr></thead>
+          <tbody>
+            <tr><td>Flowchart</td><td>Pipelines, fluxo de processo</td></tr>
+            <tr><td>Sequence Diagram</td><td>Interação entre serviços/atores</td></tr>
+            <tr><td>Class Diagram</td><td>Modelagem OO</td></tr>
+            <tr><td>State Diagram</td><td>Máquinas de estado</td></tr>
+            <tr><td>ER Diagram</td><td>Modelagem de dados</td></tr>
+            <tr><td>User Journey</td><td>UX, jornada do usuário</td></tr>
+            <tr><td>Gantt</td><td>Cronogramas</td></tr>
+            <tr><td>Pie Chart</td><td>Distribuições simples</td></tr>
+            <tr><td>Quadrant Chart</td><td>Matriz 2x2 (impacto x esforço)</td></tr>
+            <tr><td>Requirement Diagram</td><td>Rastreabilidade de requisitos</td></tr>
+            <tr><td>GitGraph</td><td>Branches do Git</td></tr>
+            <tr><td>C4 Diagram</td><td>Arquitetura (modelo C4)</td></tr>
+            <tr><td>Mindmap</td><td>Brainstorm</td></tr>
+            <tr><td>Timeline</td><td>Linha do tempo histórica</td></tr>
+            <tr><td>ZenUML</td><td>UML simplificado</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Novos (2024–2025):</strong></p>
+
+        <table>
+          <thead><tr><th>Tipo</th><th>Uso típico</th></tr></thead>
+          <tbody>
+            <tr><td>Sankey</td><td>Fluxo proporcional (energia, dados)</td></tr>
+            <tr><td>XY Chart</td><td>Gráficos cartesianos básicos</td></tr>
+            <tr><td>Block Diagram</td><td>Blocos arquiteturais</td></tr>
+            <tr><td>Packet</td><td>Estrutura de pacotes de rede</td></tr>
+            <tr><td>Kanban</td><td>Quadros de tarefas</td></tr>
+            <tr><td>Architecture</td><td>Arquitetura de sistemas</td></tr>
+            <tr><td>Radar</td><td>Comparação multi-dimensional</td></tr>
+            <tr><td>Treemap</td><td>Hierarquia proporcional</td></tr>
+            <tr><td>Venn</td><td>Interseção de conjuntos</td></tr>
+            <tr><td>Ishikawa</td><td>Diagrama de causa-efeito</td></tr>
+            <tr><td>TreeView</td><td>Árvores expandíveis</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3.5.4 Sintaxe verificada — Flowchart</h3>
+
+        <p>O Flowchart é o tipo que você mais vai usar. Dominar ele resolve 80% dos casos.</p>
+
+<pre><code class="language-markdown">```mermaid
+flowchart TD
+    A[Start] --&gt; B{Decision}
+    B --&gt;|Yes| C[Process]
+    B --&gt;|No| D[End]
+    C --&gt; D
+```</code></pre>
+
+        <p><strong>Direções suportadas:</strong></p>
+
+        <table>
+          <thead><tr><th>Sigla</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><code>TD</code> ou <code>TB</code></td><td>Top-Down / Top-Bottom</td></tr>
+            <tr><td><code>BT</code></td><td>Bottom-Top</td></tr>
+            <tr><td><code>LR</code></td><td>Left-Right</td></tr>
+            <tr><td><code>RL</code></td><td>Right-Left</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Formas de nó:</strong></p>
+
+        <table>
+          <thead><tr><th>Sintaxe</th><th>Forma</th></tr></thead>
+          <tbody>
+            <tr><td><code>A[texto]</code></td><td>Retângulo</td></tr>
+            <tr><td><code>A(texto)</code></td><td>Arredondado</td></tr>
+            <tr><td><code>A([texto])</code></td><td>Estádio</td></tr>
+            <tr><td><code>A((texto))</code></td><td>Círculo</td></tr>
+            <tr><td><code>A{texto}</code></td><td>Losango (decisão)</td></tr>
+            <tr><td><code>A[(texto)]</code></td><td>Cilindro (banco de dados)</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Tipos de seta:</strong></p>
+
+        <table>
+          <thead><tr><th>Sintaxe</th><th>Resultado</th></tr></thead>
+          <tbody>
+            <tr><td><code>A --&gt; B</code></td><td>Seta sólida</td></tr>
+            <tr><td><code>A --- B</code></td><td>Linha sólida sem seta</td></tr>
+            <tr><td><code>A -.-&gt; B</code></td><td>Seta tracejada</td></tr>
+            <tr><td><code>A ==&gt; B</code></td><td>Seta grossa</td></tr>
+            <tr><td><code>A --&gt;|label| B</code></td><td>Seta com texto</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3.5.5 Sintaxe verificada — sequenceDiagram</h3>
+
+        <p>Ideal para mostrar interação entre componentes. No Tech Challenge, perfeito para descrever o fluxo de uma chamada à API.</p>
+
+<pre><code class="language-markdown">```mermaid
+sequenceDiagram
+    participant A
+    participant B
+    A-&gt;&gt;B: Mensagem
+    B--&gt;&gt;A: Resposta
+```</code></pre>
+
+        <p><strong>Tipos de participante:</strong></p>
+
+        <p><code>participant</code>, <code>actor</code>, <code>boundary</code>, <code>control</code>, <code>entity</code>, <code>database</code>, <code>collections</code>, <code>queue</code>.</p>
+
+        <p><strong>Blocos lógicos:</strong></p>
+
+        <p><code>loop</code>, <code>alt</code>/<code>else</code>, <code>par</code>/<code>and</code>, <code>critical</code>/<code>option</code>, <code>break</code>, <code>rect</code>.</p>
+
+        <h3>3.5.6 Sintaxe verificada — erDiagram</h3>
+
+        <p>Útil para modelagem de dados — por exemplo, descrever o schema da feature store ou a tabela de previsões persistidas.</p>
+
+<pre><code class="language-markdown">```mermaid
+erDiagram
+    PROPERTY ||--|{ ROOM : contains
+    ROOM {
+        int id PK
+        string nome
+    }
+```</code></pre>
+
+        <p><strong>Cardinalidades:</strong></p>
+
+        <table>
+          <thead><tr><th>Símbolo</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><code>|o</code></td><td>Zero ou um</td></tr>
+            <tr><td><code>||</code></td><td>Exatamente um</td></tr>
+            <tr><td><code>}o</code></td><td>Zero ou mais</td></tr>
+            <tr><td><code>}|</code></td><td>Um ou mais</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3.5.7 Novidades importantes da v11</h3>
+
+        <p>A v11 (2024–2025) trouxe:</p>
+
+        <ul>
+          <li><strong>Packet diagram</strong> — para descrever estrutura de pacotes de rede.</li>
+          <li><strong>Layout engine ELK</strong> — algoritmo avançado de posicionamento, melhor que o padrão Dagre para diagramas grandes.</li>
+          <li><strong>Estilo "hand drawn"</strong> — visual de rascunho, ótimo para apresentações informais.</li>
+          <li><strong>Setas multidirecionais</strong> em sequence diagrams.</li>
+          <li><strong>Neo look styling</strong> — drop shadows, temas redux modernos.</li>
+          <li>Correção de IDs SVG duplicados (resolve bugs históricos com múltiplos diagramas na mesma página).</li>
+          <li>Configurações <code>mergeEdges</code> e <code>nodePlacementStrategy</code> para controle fino de layout.</li>
+        </ul>
+
+        <h3>3.5.8 Mermaid Live Editor</h3>
+
+        <p>Antes de colocar um diagrama complexo no README, <strong>prototipe</strong>. O editor oficial está em:</p>
+
+        <p><strong><a href="https://mermaid.live/" target="_blank" rel="noopener">https://mermaid.live/</a></strong></p>
+
+        <p>Você cola código, vê renderização em tempo real, exporta SVG/PNG, gera link compartilhável. Use exaustivamente durante o Tech Challenge.</p>
+
+        <h3>3.5.9 Mermaid vs imagem — comparativo</h3>
+
+        <table>
+          <thead><tr><th>Critério</th><th>Mermaid</th><th>PNG/JPG</th></tr></thead>
+          <tbody>
+            <tr><td>Versionamento</td><td>Diff legível no Git linha por linha</td><td>Diff binário, ilegível</td></tr>
+            <tr><td>Edição</td><td>Qualquer editor de texto</td><td>Precisa de Figma/draw.io/etc.</td></tr>
+            <tr><td>Dark mode</td><td>Automático no GitHub</td><td>Manual (precisa de duas imagens)</td></tr>
+            <tr><td>Acessibilidade</td><td>Texto lido por screen readers</td><td>Depende de <code>alt</code></td></tr>
+            <tr><td>Tamanho</td><td>~500 bytes</td><td>50–500 KB</td></tr>
+            <tr><td>Manutenção</td><td>Editar texto, abrir PR</td><td>Reabrir ferramenta, exportar, commitar</td></tr>
+            <tr><td>Embed em IDE</td><td>Sim (VS Code com extensão)</td><td>Sim</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3.5.10 Limitações reais do Mermaid</h3>
+
+        <p>Não é solução universal. Os limites:</p>
+
+        <ul>
+          <li><strong>Mais de ~50 nós</strong> vira ilegível, mesmo com ELK.</li>
+          <li><strong>Layout limitado</strong> — você não tem controle pixel-perfect.</li>
+          <li><strong>Não renderiza em e-mail/PDF nativos</strong> — precisa exportar como SVG primeiro.</li>
+          <li><strong>Sem animação</strong> — para fluxos animados, GIF ou vídeo.</li>
+          <li><strong>Fórmulas matemáticas dentro de nós</strong> não são suportadas (só rótulos texto).</li>
+        </ul>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px;"></i> Atenção</div>
+          <p>Se seu diagrama tem mais de 50 nós, ele provavelmente está mostrando coisas demais. Quebre em vários diagramas menores, cada um focado em um nível de abstração diferente. Um diagrama bom responde <strong>uma</strong> pergunta.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 3.6 ═══════════════ -->
+        <h2 id="sec-3-6">3.6 Aplicação ao Tech Challenge — churn com PyTorch + MLflow + FastAPI</h2>
+
+        <p>Vamos materializar tudo no contexto do seu projeto. As seções abaixo são copiáveis quase sem modificação.</p>
+
+        <h3>3.6.1 Estrutura de diretórios sugerida</h3>
+
+<pre><code class="language-bash">churn-prediction/
+├── README.md
+├── pyproject.toml
+├── Makefile                   # make train, make serve, make test
+├── .github/workflows/ci.yml
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── external/
+├── notebooks/
+│   ├── 01-eda.ipynb
+│   ├── 02-feature-engineering.ipynb
+│   └── 03-model-experiments.ipynb
+├── src/
+│   ├── data/
+│   │   ├── dataset.py
+│   │   └── preprocessing.py
+│   ├── models/
+│   │   ├── mlp.py
+│   │   └── trainer.py
+│   ├── tracking/
+│   │   └── logger.py
+│   └── api/
+│       ├── main.py
+│       ├── schemas.py
+│       └── predict.py
+├── tests/
+│   ├── test_dataset.py
+│   ├── test_model.py
+│   └── test_api.py
+├── models/                    # gitignored
+├── docs/
+│   └── architecture.md
+└── mlruns/                    # gitignored</code></pre>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Dica</div>
+          <p>O <code>Makefile</code> com alvos <code>train</code>, <code>serve</code>, <code>test</code> reduz o quickstart para uma linha por comando. Avaliadores adoram. Coloque o conteúdo do Makefile referenciado no README.</p>
+        </div>
+
+        <h3>3.6.2 Diagrama Mermaid do pipeline (pronto para colar)</h3>
+
+        <p>Um diagrama que descreve o pipeline ponta a ponta, de alto nível:</p>
+
+        <div class="mermaid-wrap">
+<div class="mermaid">
+flowchart TD
+    D[Dados<br/>telecom_churn.csv]
+    E[EDA &amp; Pré-processamento<br/>limpeza · feature engineering]
+    T[Treinamento<br/>ChurnMLP · Adam · F1 + AUC-ROC]
+    M[Tracking<br/>MLflow · artifacts · registry]
+    S[Serving<br/>FastAPI · POST /predict]
+
+    D --> E
+    E --> T
+    T --> M
+    M --> S
+
+    classDef src fill:#F0EDE6,stroke:#CEC9BF,color:#6B6560
+    classDef proc fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6
+    classDef out fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52
+    class D src
+    class E,T,M proc
+    class S out
+</div>
+        </div>
+
+        <p><strong>O que esse diagrama comunica:</strong></p>
+
+        <ul>
+          <li>O leitor entende em <strong>três segundos</strong> o pipeline completo.</li>
+          <li>Os subgraphs separam <strong>responsabilidade</strong> (dados, treino, tracking, serving).</li>
+          <li>A direção LR (Left-Right) é boa para fluxos lineares; TD seria melhor para árvore de decisões.</li>
+        </ul>
+
+        <h3>3.6.3 Diagrama sequenceDiagram para a API</h3>
+
+        <p>Mostra como uma requisição flui pelo sistema:</p>
+
+        <div class="mermaid-wrap">
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Cliente
+    participant API as FastAPI
+    participant Val as Pydantic
+    participant Modelo as MLP PyTorch
+    Cliente->>+API: POST /predict {features}
+    API->>+Val: Validar payload
+    Val-->>-API: Payload válido
+    API->>+Modelo: model.predict(features)
+    Modelo-->>-API: churn_prob: 0.87
+    API-->>-Cliente: {churn: true, probability: 0.87}
+</div>
+        </div>
+
+        <p><strong>Detalhes:</strong></p>
+
+        <ul>
+          <li><code>autonumber</code> numera os passos automaticamente.</li>
+          <li>O sufixo <code>+</code> em <code>-&gt;&gt;+API</code> ativa a "lifeline" (a barra vertical do participante).</li>
+          <li>O sufixo <code>-</code> em <code>--&gt;&gt;-Cliente</code> desativa.</li>
+          <li><code>as FastAPI</code> é alias — facilita renomear no código sem perder leitura.</li>
+        </ul>
+
+        <h3>3.6.4 Tabela comparativa de resultados (template)</h3>
+
+        <p>Em projetos de ML, costuma ajudar <strong>mostrar os números antes de falar deles</strong>. Uma tabela comum é assim:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Modelo</th>
+              <th style="text-align:center;">Accuracy</th>
+              <th style="text-align:center;">Precision</th>
+              <th style="text-align:center;">Recall</th>
+              <th style="text-align:center;">F1</th>
+              <th style="text-align:center;">AUC-ROC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Logistic Regression (baseline)</td>
+              <td style="text-align:center;">0,782</td>
+              <td style="text-align:center;">0,731</td>
+              <td style="text-align:center;">0,698</td>
+              <td style="text-align:center;">0,714</td>
+              <td style="text-align:center;">0,813</td>
+            </tr>
+            <tr>
+              <td>Random Forest</td>
+              <td style="text-align:center;">0,821</td>
+              <td style="text-align:center;">0,779</td>
+              <td style="text-align:center;">0,744</td>
+              <td style="text-align:center;">0,761</td>
+              <td style="text-align:center;">0,867</td>
+            </tr>
+            <tr style="background: var(--color-primary-light);">
+              <td><strong>MLP PyTorch</strong></td>
+              <td style="text-align:center;"><strong>0,851</strong></td>
+              <td style="text-align:center;"><strong>0,818</strong></td>
+              <td style="text-align:center;"><strong>0,803</strong></td>
+              <td style="text-align:center;"><strong>0,810</strong></td>
+              <td style="text-align:center;"><strong>0,912</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px;"></i> Dica</div>
+          <p>Inclua sempre um <strong>baseline</strong> na tabela. Sem baseline, ninguém sabe se 0,851 de accuracy é bom ou ruim — é o baseline que torna o resto interpretável.</p>
+        </div>
+
+        <p>No próximo capítulo descemos um nível: documentação <strong>dentro do código</strong> — docstrings, type hints e uso de IA como aliada.</p>
+
+        <!-- ═══════════════ NAV ═══════════════ -->
+
+        <nav class="chapter-nav">
+          <a href="02-model-cards.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">← Model Cards</span>
+            </span>
+          </a>
+          <a href="04-docstrings-type-hints.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo</span>
+              <span class="nav-btn-title">Documentação de código →</span>
+            </span>
+          </a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('chapterApp', () => ({
+        sidebarCollapsed: localStorage.getItem('tb_sidebar_collapsed') === 'true',
+        activeSection: '', currentChapter: '03',
+        init() { TB_markVisited(); TB_initReadingProgress(); TB_addCopyButtons(); TB_initSectionObserver(id => this.activeSection = id); },
+        toggleSidebar() { this.sidebarCollapsed = !this.sidebarCollapsed; localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed); },
+        isVisited(id) { return TB_isVisited(id); },
+      }));
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>

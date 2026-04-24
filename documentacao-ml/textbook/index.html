@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentação em ML: do Model Card ao Tech Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body x-data="indexApp()" x-init="init()">
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <div class="sb-brand">
+          <div class="sb-icon">DOC</div>
+          <span class="sb-title">Documentação em ML</span>
+        </div>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="capitulos/01-importancia-documentacao.html" class="ch-link" :class="{ 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="capitulos/02-model-cards.html" class="ch-link" :class="{ 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="capitulos/03-readme-mermaid.html" class="ch-link" :class="{ 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="capitulos/04-docstrings-type-hints.html" class="ch-link" :class="{ 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="capitulos/05-mlflow-star.html" class="ch-link" :class="{ 'visited': isVisited('05') }">
+          <span class="ch-num" x-text="isVisited('05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="capitulos/06-checklist-tech-challenge.html" class="ch-link" :class="{ 'visited': isVisited('06') }">
+          <span class="ch-num" x-text="isVisited('06') ? '✓' : '06'"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <section class="hero">
+        <div class="overline-tag"><span class="overline-dot"></span>Pós-Tech FIAP · ML Engineering</div>
+        <h1>Documentação em <em>ML</em>: do Model Card ao Tech Challenge</h1>
+        <p>Transforme modelos em sistemas auditáveis, reproduzíveis e avaliáveis. Um guia prático para a disciplina de Documentação e entrega do Tech Challenge — com exemplos reais, templates copiáveis e referências canônicas.</p>
+        <div class="meta">
+          <span class="meta-item">6 capítulos</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">~2h30 de leitura</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">Intermediário</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">Vale 10% da nota do TC</span>
+        </div>
+      </section>
+
+      <section class="prog-section">
+        <div class="prog-track"><div class="prog-fill" :style="`width: ${progressPct}%`"></div></div>
+        <span class="prog-lbl" x-text="`${visitedCount} de 6 capítulos lidos`"></span>
+      </section>
+
+      <section class="cards-section">
+        <div class="section-heading">
+          <div class="section-label">Sumário</div>
+          <h2 class="section-title">Percurso do <em>textbook</em></h2>
+          <p class="section-desc">Cada capítulo entrega um artefato concreto do Tech Challenge. Comece pelo capítulo 1 se você nunca documentou um modelo; pule para o 6 se já fez e quer um checklist final.</p>
+        </div>
+        <div class="cards-grid">
+
+          <a href="capitulos/01-importancia-documentacao.html" class="card" :class="{ 'visited': isVisited('01') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 01 · ~20 min</div>
+            <div class="card-title">Por que documentação é tão importante quanto o modelo</div>
+            <div class="card-obj">Entenda o custo invisível de não documentar — Zillow, COMPAS, Amazon Hiring — e se posicione entre os 17,4% de modelos que declaram limitações.</div>
+            <div class="card-foot">
+              <span class="card-time">8 seções · Timeline + Quiz</span>
+              <span class="card-badge" x-text="isVisited('01') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/02-model-cards.html" class="card" :class="{ 'visited': isVisited('02') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 02 · ~28 min</div>
+            <div class="card-title">Model Cards: documentando modelos com responsabilidade</div>
+            <div class="card-obj">Domine as 9 seções canônicas de Mitchell et al. (2019), analise cards reais de BERT/Whisper/GPT-2 e entenda a evolução até os System Cards de 232 páginas.</div>
+            <div class="card-foot">
+              <span class="card-time">9 seções · Explorador + Comparador</span>
+              <span class="card-badge" x-text="isVisited('02') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/03-readme-mermaid.html" class="card" :class="{ 'visited': isVisited('03') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 03 · ~25 min</div>
+            <div class="card-title">README exemplar + Mermaid: a porta de entrada no GitHub</div>
+            <div class="card-obj">Escreva um README que o avaliador consiga rodar em 10 minutos. Aprenda 13 seções canônicas, analise FastAPI/PyTorch/MLflow e domine diagramas Mermaid.</div>
+            <div class="card-foot">
+              <span class="card-time">9 seções · 2 diagramas Mermaid</span>
+              <span class="card-badge" x-text="isVisited('03') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/04-docstrings-type-hints.html" class="card" :class="{ 'visited': isVisited('04') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 04 · ~28 min</div>
+            <div class="card-title">Documentação de código: docstrings, type hints e IA</div>
+            <div class="card-obj">Compare os três estilos canônicos de docstring, use type hints PEP 695 e jaxtyping para tensores, e use IA como aliada sem cair nas armadilhas de 2026.</div>
+            <div class="card-foot">
+              <span class="card-time">11 seções · Comparador de estilos</span>
+              <span class="card-badge" x-text="isVisited('04') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/05-mlflow-star.html" class="card" :class="{ 'visited': isVisited('05') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 05 · ~25 min</div>
+            <div class="card-title">Documentando o processo: MLflow + método STAR</div>
+            <div class="card-obj">Use MLflow como documento científico — naming, tags ricas, aliases, Model Registry — e estruture o vídeo de 5 minutos do TC com o método STAR.</div>
+            <div class="card-foot">
+              <span class="card-time">22 seções · Flashcards de recap</span>
+              <span class="card-badge" x-text="isVisited('05') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+          <a href="capitulos/06-checklist-tech-challenge.html" class="card" :class="{ 'visited': isVisited('06') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 06 · ~25 min</div>
+            <div class="card-title">Checklist prático: aplicando tudo no Tech Challenge</div>
+            <div class="card-obj">Reúna tudo em um checklist interativo persistente — 25 itens em 5 frentes (repo, README, Model Card, MLflow, vídeo STAR) para não deixar pontos na mesa.</div>
+            <div class="card-foot">
+              <span class="card-time">10 seções · Checklist persistente</span>
+              <span class="card-badge" x-text="isVisited('06') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+
+        </div>
+      </section>
+
+      <section class="footer-section">
+        <div class="footer-inner">
+          <div class="footer-col">
+            <div class="section-label">Sobre este material</div>
+            <p>Textbook interativo para a disciplina de <strong>Documentação em ML</strong> da Pós-Tech FIAP. Baseado em papers canônicos (Mitchell et al., Sculley et al., Gebru et al., Liang et al.) e em Model Cards reais de BERT, Whisper, GPT-2, Claude Opus, Gemini e Llama.</p>
+          </div>
+          <div class="footer-col">
+            <div class="section-label">Stack coberta</div>
+            <ul class="footer-list">
+              <li>PyTorch · MLflow · FastAPI</li>
+              <li>Model Cards · Datasheets · System Cards</li>
+              <li>Mermaid · Sphinx · MkDocs · pdoc</li>
+              <li>Type hints PEP 484/585/604/695 · jaxtyping</li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <div class="section-label">Progresso local</div>
+            <p>Seu progresso fica salvo no <code>localStorage</code> deste navegador. Para resetar, limpe os dados do site.</p>
+            <button class="btn-secondary" @click="resetProgress()">
+              <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i>
+              Resetar progresso
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/main.js"></script>
+  <script>
+    lucide.createIcons();
+
+    function indexApp() {
+      const CHAPTER_IDS = ['01', '02', '03', '04', '05', '06'];
+      const CHAPTER_PATHS = {
+        '01': '01-importancia-documentacao.html',
+        '02': '02-model-cards.html',
+        '03': '03-readme-mermaid.html',
+        '04': '04-docstrings-type-hints.html',
+        '05': '05-mlflow-star.html',
+        '06': '06-checklist-tech-challenge.html',
+      };
+      return {
+        sidebarCollapsed: false,
+        visitedChapters: [],
+        init() {
+          this.sidebarCollapsed = localStorage.getItem('tb_sidebar_collapsed') === 'true';
+          this.visitedChapters = CHAPTER_IDS.filter(id => localStorage.getItem('visited_' + CHAPTER_PATHS[id]) === 'true');
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return this.visitedChapters.includes(id); },
+        get visitedCount() { return this.visitedChapters.length; },
+        get progressPct() { return Math.round((this.visitedCount / 6) * 100); },
+        resetProgress() {
+          if (!confirm('Limpar seu progresso de leitura e resetar todos os interativos persistentes?')) return;
+          CHAPTER_IDS.forEach(id => localStorage.removeItem('visited_' + CHAPTER_PATHS[id]));
+          localStorage.removeItem('tc-checklist-state');
+          this.visitedChapters = [];
+        },
+      };
+    }
+  </script>
+</body>
+</html>

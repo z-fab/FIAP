@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist Tech Challenge — Documentação em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+      primaryColor: '#EDE9FE', primaryTextColor: '#5B21B6', primaryBorderColor: '#7C3AED',
+      lineColor: '#CEC9BF', secondaryColor: '#F0EDE6', tertiaryColor: '#FDFBF7',
+      edgeLabelBackground: '#FDFBF7', fontFamily: "'DM Sans', sans-serif", fontSize: '14px',
+      nodeBorder: '#E2DDD4', clusterBkg: '#F5F2EC', clusterBorder: '#E2DDD4', titleColor: '#1C1917',
+    }});
+  </script>
+  <style>
+    /* Checklist do Tech Challenge */
+    .tc-progress { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+    .tc-progress-track { flex: 1; height: 6px; background: var(--color-border); border-radius: 99px; overflow: hidden; }
+    .tc-progress-fill { height: 100%; background: var(--color-primary); border-radius: 99px; transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+    .tc-progress-lbl { font-size: 0.82rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tc-section { margin-bottom: 1.5rem; }
+    .tc-section-head { display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-border); margin-bottom: 0.625rem; }
+    .tc-section-head h5 { font-family: var(--font-sans); font-size: 0.95rem; font-weight: 500; color: var(--color-text); margin: 0; flex: 1; }
+    .tc-section-count { font-size: 0.72rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+    .tc-list { list-style: none; padding: 0; margin: 0; }
+    .tc-item { display: flex; align-items: flex-start; gap: 0.625rem; padding: 0.5rem 0.6rem; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
+    .tc-item:hover { background: var(--color-surface-2); }
+    .tc-item.checked .tc-label { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-success-border); }
+    .tc-checkbox { width: 18px; height: 18px; border: 2px solid var(--color-border-strong); border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--color-surface); color: var(--color-success); transition: all 0.15s; margin-top: 0.05rem; }
+    .tc-checkbox.checked { background: var(--color-success); border-color: var(--color-success); color: white; }
+    .tc-label { font-size: 0.88rem; line-height: 1.5; color: var(--color-text); }
+    .tc-footer { margin-top: 1.25rem; text-align: right; }
+
+    /* ===== 6.3 Erros comuns em cards ===== */
+    .err-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .err-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .err-card-head {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .err-card-num {
+      font-family: var(--font-serif);
+      font-size: 1.85rem; font-weight: 400;
+      color: var(--color-danger);
+      line-height: 1; letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+    .err-card-title {
+      font-family: var(--font-sans);
+      font-size: 1rem; font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.3; letter-spacing: -0.005em;
+      flex: 1;
+    }
+    .err-card-body {
+      display: flex; flex-direction: column;
+      gap: 0.75rem;
+    }
+    .err-section p {
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: var(--color-text);
+      margin: 0;
+    }
+    .err-label {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.62rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+    }
+    .err-sym .err-label { color: var(--color-danger); }
+    .err-why .err-label { color: var(--color-warning); }
+    .err-fix .err-label { color: var(--color-success); }
+
+    @media (max-width: 820px) {
+      .err-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body x-data="chapterApp" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon">←</span>
+          <span class="sb-home-lbl">Documentação em ML</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-importancia-documentacao.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="02-model-cards.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="03-readme-mermaid.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="04-docstrings-type-hints.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="05-mlflow-star.html" class="ch-link" :class="{ 'active': currentChapter==='05', 'visited': isVisited('05') }">
+          <span class="ch-num" x-text="isVisited('05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="06-checklist-tech-challenge.html" class="ch-link" :class="{ 'active': currentChapter==='06', 'visited': isVisited('06') }">
+          <span class="ch-num" x-text="currentChapter==='06' ? '06' : (isVisited('06') ? '✓' : '06')"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#introducao" class="sec-link" :class="{ 'active': activeSection==='introducao' }">6.1 Introdução</a>
+        <a href="#criterios" class="sec-link" :class="{ 'active': activeSection==='criterios' }">6.2 Critérios de avaliação</a>
+        <a href="#erros-comuns" class="sec-link" :class="{ 'active': activeSection==='erros-comuns' }">6.3 Os 6 erros comuns</a>
+        <a href="#estrutura-docs" class="sec-link" :class="{ 'active': activeSection==='estrutura-docs' }">6.4 Estrutura de docs/</a>
+        <a href="#coerencia" class="sec-link" :class="{ 'active': activeSection==='coerencia' }">6.5 Coerência entre artefatos</a>
+        <a href="#checklist" class="sec-link" :class="{ 'active': activeSection==='checklist' }">6.6 Checklist interativa</a>
+        <a href="#mensagem-final" class="sec-link" :class="{ 'active': activeSection==='mensagem-final' }">6.7 Mensagem final</a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Documentação em ML</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">Capítulo 6 — Checklist Tech Challenge</span>
+      </header>
+
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 6</div>
+        <h1>Checklist prático: aplicando tudo no <em>Tech Challenge</em></h1>
+
+        <blockquote class="chapter-epigraph">
+          "Documentação não é o que você faz depois do projeto. É o que transforma o projeto em algo que pode ser avaliado, mantido e ampliado."
+          <cite>— adaptado de Donald Knuth</cite>
+        </blockquote>
+
+        <!-- ═══════════ 6.1 ═══════════ -->
+        <h2 id="introducao">6.1 Introdução: o capítulo de fechamento</h2>
+
+        <p>Chegamos ao último capítulo. Nos cinco anteriores, percorremos um caminho que começou no <strong>porquê</strong> documentar projetos de Machine Learning (<a href="01-importancia-documentacao.html">Capítulo 1</a>), passou pela construção de <strong>Model Cards modernos</strong> (<a href="02-model-cards.html">Capítulo 2</a>), pela arquitetura de um <strong>README que vende o projeto</strong> (<a href="03-readme-mermaid.html">Capítulo 3</a>), pelas convenções de <strong>documentação de código com IA</strong> (<a href="04-docstrings-type-hints.html">Capítulo 4</a>) e pelo uso disciplinado do <strong>MLflow como diário do experimento</strong> (<a href="05-mlflow-star.html">Capítulo 5</a>).</p>
+
+        <p>Agora é hora de aterrissar. Você está prestes a entregar (ou já está entregando) o <strong>Tech Challenge da Fase 1</strong>: um sistema de previsão de churn construído com PyTorch, rastreado com MLflow e servido por uma API FastAPI. Desses 100 pontos da nota, <strong>10 são de Documentação</strong> — o suficiente para diferenciar uma entrega aprovada de uma entrega excelente.</p>
+
+        <p>Este capítulo é deliberadamente operacional. Não há novos conceitos: há <strong>checklists, templates e armadilhas</strong> identificadas em correções reais. Ao final, você terá em mãos:</p>
+
+        <ul>
+          <li>A estrutura completa da pasta <code>docs/</code> que vamos sugerir;</li>
+          <li>Um esqueleto de <strong>Model Card</strong> pronto para preencher com os números do seu MLP;</li>
+          <li>Um esqueleto de <strong>README</strong> com diagrama, badges e seções obrigatórias;</li>
+          <li>Um <strong>plano de monitoramento</strong> com métricas, thresholds, frequência e playbook;</li>
+          <li>Um mapa de <strong>coerência entre artefatos</strong> (vídeo, README, Model Card, MLflow, ADRs);</li>
+          <li>E uma checklist interativa (com persistência no navegador) para acompanhar seu progresso.</li>
+        </ul>
+
+        <p>Tempo estimado de leitura: <strong>~15 minutos</strong>. Tempo de aplicação no projeto: <strong>algumas horas espalhadas pela última semana antes da entrega</strong>.</p>
+
+        <!-- ═══════════ 6.2 ═══════════ -->
+        <h2 id="criterios">6.2 Critérios de avaliação: o que vale os 10%</h2>
+
+        <p>A rubrica oficial do Tech Challenge desdobra esses 10% em três grandes blocos. Cada bloco tem peso aproximadamente igual, mas qualquer um deles <strong>zerado</strong> já compromete a faixa máxima da nota.</p>
+
+        <table>
+          <thead>
+            <tr><th>Critério</th><th>Peso aproximado</th><th>O que o avaliador procura</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Model Card completa</strong></td>
+              <td>~3.5 pts</td>
+              <td>Modelo descrito tecnicamente, uso pretendido e fora-de-escopo, métricas com contexto, limitações honestas, considerações éticas e LGPD</td>
+            </tr>
+            <tr>
+              <td><strong>README claro</strong></td>
+              <td>~3.5 pts</td>
+              <td>Quem nunca viu o projeto consegue rodar, entender e avaliar em 5 minutos. Diagrama, instruções, links, resultados</td>
+            </tr>
+            <tr>
+              <td><strong>Plano de monitoramento</strong></td>
+              <td>~3.0 pts</td>
+              <td>Métricas concretas, thresholds numéricos, frequência definida, playbook de resposta</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Atenção: o avaliador é humano com tempo escasso</div>
+          <p>A correção de cada projeto leva entre 20 e 40 minutos. Documentação ruim <strong>não é compensada</strong> por código brilhante: o avaliador simplesmente não vai descobrir o brilho. Pense na sua doc como uma <strong>interface para o avaliador</strong>.</p>
+        </div>
+
+        <p>Esses três artefatos não vivem isolados. Como veremos na seção 6.8, eles devem <strong>se referenciar mutuamente</strong> e ser coerentes com o vídeo de apresentação e com o histórico de commits.</p>
+
+        <!-- ═══════════ 6.3 ═══════════ -->
+        <h2 id="erros-comuns">6.3 Os 6 erros comuns (visão de quem corrige)</h2>
+
+        <p>A lista a seguir é o consolidado de padrões observados em entregas anteriores e em projetos open-source mal documentados. Cada card mostra o <strong>sintoma</strong>, <strong>por que acontece</strong> e <strong>como evitar</strong>.</p>
+
+        <div class="err-grid">
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">01</span>
+              <div class="err-card-title">README que é só <code>requirements.txt</code> disfarçado</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>O README lista bibliotecas, tem um <code>pip install</code> e termina aí. Não explica <strong>o problema de negócio</strong>, não mostra a <strong>arquitetura</strong>, não descreve a <strong>API</strong>.</p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>O autor terminou o código exausto e tratou o README como arquivo administrativo, não como produto.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>O primeiro parágrafo deve responder, em ordem: <strong>o que faz</strong>, <strong>para quem</strong>, <strong>com qual stack</strong>, <strong>com qual resultado</strong>. Veja o <a href="https://github.com/fastapi/fastapi/blob/master/README.md" target="_blank" rel="noopener">README do FastAPI</a> — faz isso em três linhas.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">02</span>
+              <div class="err-card-title">Model Card genérica (não preenchida)</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>O aluno copia o template de <a href="https://arxiv.org/abs/1810.03993" target="_blank" rel="noopener">Mitchell et al. (2019)</a> e deixa campos vazios ou com lugares-comuns ("o modelo prevê churn").</p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>Preencher Model Card exige <strong>sintetizar</strong> decisões de modelagem, e isso dá trabalho.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>Responda <strong>com números concretos</strong>: AUC = 0,82 medido em 4.382 clientes do Q4/2025, threshold 0,31 escolhido para minimizar custo esperado (FP=R$15 vs FN=R$120). Não precisa de 200 páginas — precisa ser <strong>específico</strong>.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">03</span>
+              <div class="err-card-title">Ausência de justificativa técnica</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>"Usei MLP com 3 camadas e dropout 0,3", mas sem explicar <strong>por que MLP</strong> (e não XGBoost), <strong>por que 3 camadas</strong>, <strong>por que 0,3</strong>.</p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>O autor confunde <strong>descrever</strong> com <strong>justificar</strong>. Sem o "porquê", o avaliador presume que foi chute.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>Documente decisões em <strong>ADRs</strong> (seção 6.4). Toda decisão não-trivial vira um arquivo curto em <code>docs/decisions/</code> — ex.: <code>001-uso-de-pytorch.md</code> explica por que escolheu PyTorch sobre scikit-learn.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">04</span>
+              <div class="err-card-title">Métricas sem contexto de negócio</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>"AUC-ROC = 0,82, F1 = 0,71." Pronto. O avaliador pergunta: <strong>e daí?</strong></p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>O ML Engineer fica tão imerso em métricas técnicas que esquece que churn é um problema de <strong>dinheiro</strong>.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>Sempre traduza: "com threshold 0,31 capturamos 78% dos cancelamentos, ao custo de abordar 12% que ficariam. Considerando ticket médio R$220 e LTV de 18 meses, isso representa <strong>R$ X salvos</strong> por trimestre".</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">05</span>
+              <div class="err-card-title">Vídeo sem estrutura STAR</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>O aluno abre o VS Code, fica 4 minutos mostrando código e termina sem apresentar resultado.</p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>Falta de roteiro. STAR (Situation, Task, Action, Result) cabe perfeitamente em 5 minutos.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>Distribua: <strong>S</strong> 45s (empresa, dataset, problema) · <strong>T</strong> 30s (papel, objetivo) · <strong>A</strong> 2m45s (decisões, ADRs, demo MLflow+API) · <strong>R</strong> 60s (métricas, impacto em R$, próximos passos).</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="err-card">
+            <div class="err-card-head">
+              <span class="err-card-num">06</span>
+              <div class="err-card-title">Plano de monitoramento trivial</div>
+            </div>
+            <div class="err-card-body">
+              <div class="err-section err-sym">
+                <div class="err-label"><i data-lucide="activity" style="width:13px;height:13px"></i> Sintoma</div>
+                <p>"Vamos monitorar o modelo periodicamente para garantir performance." Uma frase. Zero números.</p>
+              </div>
+              <div class="err-section err-why">
+                <div class="err-label"><i data-lucide="help-circle" style="width:13px;height:13px"></i> Por que acontece</div>
+                <p>Monitoramento é tratado como obrigação burocrática, não como <strong>engenharia preventiva</strong>.</p>
+              </div>
+              <div class="err-section err-fix">
+                <div class="err-label"><i data-lucide="check-circle" style="width:13px;height:13px"></i> Como evitar</div>
+                <p>Liste <strong>PSI por feature</strong>, <strong>AUC em rotulados</strong>, <strong>thresholds numéricos</strong> (PSI &gt; 0,2 · queda AUC &gt; 0,03) e um <strong>playbook de resposta</strong> com passos concretos quando disparar.</p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- ═══════════ 6.4 ═══════════ -->
+        <h2 id="estrutura-docs">6.4 Estrutura sugerida para <code>docs/</code></h2>
+
+        <pre><code class="language-bash">docs/
+├── architecture.md           # diagrama Mermaid + descrição do pipeline
+├── model-card.md             # Model Card completo do MLP
+├── monitoring-plan.md        # plano de monitoramento
+├── decisions/                # ADRs (Architecture Decision Records)
+│   ├── 001-uso-de-pytorch.md
+│   ├── 002-threshold-cost-sensitive.md
+│   └── 003-class-weight-balanced.md
+├── results.md                # tabela exportada do MLflow
+└── mlflow-screenshots/
+    ├── experiments-overview.png
+    └── best-run-metrics.png</code></pre>
+
+        <h3>O que é um ADR?</h3>
+
+        <p><strong>Architecture Decision Record</strong> é um documento curto (1 página) que registra uma <strong>decisão arquitetural significativa</strong>, seu <strong>contexto</strong> e suas <strong>consequências</strong>. O formato foi popularizado por Michael Nygard em 2011 (<a href="https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions">cognitect.com/blog/2011/11/15/documenting-architecture-decisions</a>) e adotado massivamente em projetos open-source.</p>
+
+        <p>A estrutura mínima é:</p>
+
+        <pre><code class="language-markdown"># ADR 002: Threshold cost-sensitive para churn
+
+## Status
+Aceita — 2026-04-15
+
+## Contexto
+O dataset de churn é desbalanceado (12% positivos). O threshold padrão
+de 0.5 maximiza acurácia mas ignora o custo assimétrico do problema:
+- Falso Negativo (cliente cancela e não foi abordado): R$ 120 (LTV perdido)
+- Falso Positivo (cliente fiel recebe campanha desnecessária): R$ 15 (custo da oferta)
+
+## Decisão
+Adotamos threshold = 0.31, escolhido por minimização do custo esperado
+em validação:
+    custo(t) = 120 * FN(t) + 15 * FP(t)
+
+## Consequências
++ Recall sobe de 0.54 para 0.78
++ Precision cai de 0.71 para 0.62
++ Custo esperado por 1.000 clientes cai de R$ 4.380 para R$ 2.910
+- Mais campanhas disparadas → necessário monitorar capacidade do time de retenção
+
+## Alternativas consideradas
+- Manter threshold 0.5 (rejeitada: ignora custos)
+- F-beta com beta=2 (rejeitada: não captura custos absolutos)
+- Custo-sensitive learning na loss (deferida para v2)
+
+## Referências
+- MLflow run: a3f2b1c4 (mlflow.search_runs com tag.experiment="threshold-tuning")
+- Commit: 7d3e9a8</code></pre>
+
+        <p>Por que ADRs importam? Porque seu Model Card vai ter <strong>uma única linha</strong> dizendo "threshold = 0.31, escolhido por análise de custo (ver <code>docs/decisions/002-threshold-cost-sensitive.md</code>)". Quem quiser entender, lê o ADR. Quem só quer o número, vê no Model Card. Esse é o princípio de <strong>documentação em camadas</strong>.</p>
+
+        <!-- ═══════════ 6.8 ═══════════ -->
+        <h2 id="coerencia">6.5 Coerência entre artefatos</h2>
+
+        <p>Aqui está o <strong>mapa mental</strong> que costura tudo. Se o avaliador clicar em qualquer ponto, deve conseguir navegar para os outros:</p>
+
+        <div class="mermaid-wrap">
+          <div class="mermaid">
+flowchart TD
+    V[Vídeo STAR 5min] -->|cita| R[README.md]
+    R -->|link direto| MC[docs/model-card.md]
+    R -->|link direto| MP[docs/monitoring-plan.md]
+    R -->|link direto| ADR[docs/decisions/]
+    MC -->|cita run_id| ML[MLflow Tracking UI]
+    MC -->|cita| ADR
+    ML -->|tag git_sha| C[Commits no GitHub]
+    ADR -->|cita run_id| ML
+    ADR -->|cita| C
+    MP -->|baseline| MC
+    C -->|mensagens referenciam| ADR
+          </div>
+        </div>
+
+        <p><strong>Como aplicar isso na prática:</strong></p>
+
+        <ul>
+          <li>No <strong>vídeo</strong>, ao falar do threshold, diga: "essa decisão está documentada no ADR 002, link no README".</li>
+          <li>No <strong>README</strong>, a seção de resultados <strong>linka</strong> o Model Card.</li>
+          <li>No <strong>Model Card</strong>, cada métrica reportada cita o <code>run_id</code> do MLflow.</li>
+          <li>No <strong>MLflow</strong>, cada run tem tag <code>git_sha</code> (configurável via <code>mlflow.set_tag("git_sha", subprocess.check_output(["git", "rev-parse", "HEAD"]).strip())</code> — ver Capítulo 5).</li>
+          <li>Cada <strong>commit</strong> que implementa decisão arquitetural referencia o ADR no corpo da mensagem (<code>refs docs/decisions/002</code>).</li>
+        </ul>
+
+        <p>Esse encadeamento é o que diferencia um projeto <strong>profissional</strong> de um projeto <strong>estudantil</strong>: tudo é rastreável.</p>
+
+        <!-- ═══════════ 6.9 CHECKLIST INTERATIVO ═══════════ -->
+        <h2 id="checklist">6.6 Sua checklist interativa</h2>
+
+        <p>Use a checklist abaixo para acompanhar o seu progresso. <strong>Marque os itens conforme avança</strong> — o estado fica salvo no seu navegador e persiste entre sessões.</p>
+
+        <div class="interactive" x-data="techChecklist()" x-init="init()">
+          <div class="interactive-label"><i data-lucide="check-square" style="width:14px;height:14px"></i> Checklist persistente</div>
+          <h4>Checklist do Tech Challenge</h4>
+          <p>Marque cada item conforme avança. Seu progresso fica salvo neste navegador.</p>
+
+          <div class="tc-progress">
+            <div class="tc-progress-track"><div class="tc-progress-fill" :style="`width: ${pct}%`"></div></div>
+            <div class="tc-progress-lbl"><span x-text="checkedCount"></span> de <span x-text="items.length"></span> · <span x-text="pct + '%'"></span></div>
+          </div>
+
+          <template x-for="secao in secoes" :key="secao.id">
+            <div class="tc-section">
+              <div class="tc-section-head">
+                <i :data-lucide="secao.icon" style="width:16px;height:16px"></i>
+                <h5 x-text="secao.titulo"></h5>
+                <span class="tc-section-count" x-text="`${items.filter(i => i.secao === secao.id && i.checked).length}/${items.filter(i => i.secao === secao.id).length}`"></span>
+              </div>
+              <ul class="tc-list">
+                <template x-for="item in items.filter(i => i.secao === secao.id)" :key="item.id">
+                  <li class="tc-item" :class="{ 'checked': item.checked }" @click="toggle(item.id)">
+                    <span class="tc-checkbox" :class="{ 'checked': item.checked }">
+                      <template x-if="item.checked"><i data-lucide="check" style="width:12px;height:12px"></i></template>
+                    </span>
+                    <span class="tc-label" x-text="item.label"></span>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </template>
+
+          <div class="tc-footer">
+            <button class="btn-reset" @click="resetar()"><i data-lucide="rotate-ccw" style="width:12px;height:12px"></i> Resetar checklist</button>
+          </div>
+        </div>
+
+        <!-- ═══════════ 6.10 ═══════════ -->
+        <h2 id="mensagem-final">6.7 Mensagem final: documentação como multiplicador</h2>
+
+        <p>Existe uma percepção comum no início da jornada de ML Engineer: <strong>documentação é a parte chata</strong>. Você terminou de fazer o modelo funcionar — agora ainda precisa <strong>escrever sobre ele</strong>?</p>
+
+        <p>A resposta honesta, depois de seis capítulos, é: sim. E é um privilégio fazê-lo.</p>
+
+        <p>Pense no funil:</p>
+
+        <ul>
+          <li>Você escreveu <strong>milhares de linhas</strong> de código que ninguém vai ler;</li>
+          <li>Você rodou <strong>centenas de experimentos</strong> que ninguém vai reproduzir;</li>
+          <li>Você tomou <strong>dezenas de decisões técnicas</strong> que ninguém vai entender.</li>
+        </ul>
+
+        <p>Documentação é o que <strong>transforma esse trabalho privado em ativo público</strong>. É o que permite que:</p>
+
+        <ul>
+          <li>O avaliador entenda em 30 minutos algo que você levou semanas para construir;</li>
+          <li>O time que recebe o modelo em produção saiba <strong>como</strong> monitorá-lo e <strong>quando</strong> reciclá-lo;</li>
+          <li>O próximo ML Engineer da empresa não jogue tudo fora porque "ninguém entende esse código";</li>
+          <li><strong>Você mesmo</strong>, daqui a 6 meses, consiga retomar o projeto sem reconstruir o contexto.</li>
+        </ul>
+
+        <p>O estudo de Liang et al. (Stanford, 2024) mostrou que projetos com documentação melhorada tiveram <strong>+29% de downloads</strong> após o ajuste, sem nenhuma mudança no código. Documentação <strong>escala</strong> o impacto do que você construiu.</p>
+
+        <p>O ditado da indústria é direto:</p>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="sparkles" style="width:14px;height:14px"></i> Mantra</div>
+          <p><strong>"Bom modelo + boa documentação &gt; excelente modelo + má documentação."</strong></p>
+        </div>
+
+        <p>Isso vale para o Tech Challenge — onde 10% da nota é doc — e vale para o resto da sua carreira, onde 100% da sua <strong>percepção como engenheiro</strong> depende de quão bem os outros conseguem <strong>enxergar e usar</strong> o que você fez.</p>
+
+        <p>Boa entrega. E lembre-se: o checklist acima fica salvo no seu navegador. Volte aqui na véspera da entrega e marque os últimos itens com a tranquilidade de quem sabe que <strong>documentou de verdade</strong>.</p>
+
+        <!-- ═══════════ NAV INFERIOR ═══════════ -->
+        <nav class="chapter-nav">
+          <a href="05-mlflow-star.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">← Documentando o processo: MLflow + método STAR</span>
+            </span>
+          </a>
+          <a href="../index.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Fim do textbook</span>
+              <span class="nav-btn-title">Voltar ao índice →</span>
+            </span>
+          </a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('chapterApp', () => ({
+        sidebarCollapsed: localStorage.getItem('tb_sidebar_collapsed') === 'true',
+        activeSection: '',
+        currentChapter: '06',
+        init() {
+          TB_markVisited();
+          TB_initReadingProgress();
+          TB_addCopyButtons();
+          TB_initSectionObserver(id => this.activeSection = id);
+          this.$nextTick(() => lucide.createIcons());
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return TB_isVisited(id); },
+      }));
+
+      Alpine.data('techChecklist', () => ({
+        secoes: [
+          { id: 'repo',      titulo: 'Repositório GitHub', icon: 'git-branch' },
+          { id: 'readme',    titulo: 'README',             icon: 'file-text' },
+          { id: 'modelcard', titulo: 'Model Card',         icon: 'layers' },
+          { id: 'mlflow',    titulo: 'MLflow',             icon: 'database' },
+          { id: 'video',     titulo: 'Vídeo STAR (5 min)', icon: 'video' },
+        ],
+        items: [
+          // Seção repo (6 itens)
+          { id: 'r1', secao: 'repo', label: 'Estrutura organizada: src/, data/, models/, tests/, notebooks/, docs/', checked: false },
+          { id: 'r2', secao: 'repo', label: 'pyproject.toml como single source of truth', checked: false },
+          { id: 'r3', secao: 'repo', label: '.gitignore adequado para ML (mlruns/, *.pkl, data/raw/)', checked: false },
+          { id: 'r4', secao: 'repo', label: 'Histórico de commits limpo (não 1 commit gigante)', checked: false },
+          { id: 'r5', secao: 'repo', label: 'Makefile com comandos lint, test, train, serve', checked: false },
+          { id: 'r6', secao: 'repo', label: 'pre-commit configurado e rodando', checked: false },
+          // Seção readme (6 itens)
+          { id: 'rd1', secao: 'readme', label: 'Badges (Python, PyTorch, MLflow, FastAPI, License)', checked: false },
+          { id: 'rd2', secao: 'readme', label: 'Diagrama Mermaid do pipeline end-to-end', checked: false },
+          { id: 'rd3', secao: 'readme', label: 'Tabela de resultados comparativos com baseline', checked: false },
+          { id: 'rd4', secao: 'readme', label: 'Quickstart funcional (clone → instala → treina → serve)', checked: false },
+          { id: 'rd5', secao: 'readme', label: 'Estrutura do projeto descrita em árvore', checked: false },
+          { id: 'rd6', secao: 'readme', label: 'Links explícitos para Model Card e Plano de Monitoramento', checked: false },
+          // Seção modelcard (8 itens)
+          { id: 'm1', secao: 'modelcard', label: 'Detalhes do modelo (arquitetura, framework, autores, run_id)', checked: false },
+          { id: 'm2', secao: 'modelcard', label: 'Uso pretendido + fora-de-escopo', checked: false },
+          { id: 'm3', secao: 'modelcard', label: 'Dataset (período, tamanho, distribuição, estratégia de split)', checked: false },
+          { id: 'm4', secao: 'modelcard', label: 'Métricas com IC 95% e threshold justificado', checked: false },
+          { id: 'm5', secao: 'modelcard', label: 'Feature Importance (SHAP top-10)', checked: false },
+          { id: 'm6', secao: 'modelcard', label: 'Performance desagregada por subgrupo (fairness)', checked: false },
+          { id: 'm7', secao: 'modelcard', label: 'Calibração (Brier, ECE)', checked: false },
+          { id: 'm8', secao: 'modelcard', label: 'Limitações conhecidas + considerações éticas/LGPD', checked: false },
+          // Seção mlflow (8 itens)
+          { id: 'ml1', secao: 'mlflow', label: 'Experiments organizados por fase (baseline, mlp, tuning)', checked: false },
+          { id: 'ml2', secao: 'mlflow', label: 'Tags ricas (model_type, dataset_version, git_sha, author)', checked: false },
+          { id: 'ml3', secao: 'mlflow', label: 'mlflow.note.content preenchido com descrição rica', checked: false },
+          { id: 'ml4', secao: 'mlflow', label: 'Params hierárquicos (model., train., data.)', checked: false },
+          { id: 'ml5', secao: 'mlflow', label: 'Artifacts organizados (model/, preprocessor/, diagnostics/)', checked: false },
+          { id: 'ml6', secao: 'mlflow', label: 'Model Registry com aliases (champion/challenger)', checked: false },
+          { id: 'ml7', secao: 'mlflow', label: 'mlruns/ no .gitignore; tabela exportada para docs/results.md', checked: false },
+          { id: 'ml8', secao: 'mlflow', label: 'Screenshots em docs/mlflow-screenshots/', checked: false },
+          // Seção video (4 itens)
+          { id: 'v1', secao: 'video', label: 'S (45s) — empresa, dataset, problema de negócio', checked: false },
+          { id: 'v2', secao: 'video', label: 'T (30s) — papel, objetivo concreto', checked: false },
+          { id: 'v3', secao: 'video', label: 'A (2m45s) — decisões técnicas, demo MLflow + API', checked: false },
+          { id: 'v4', secao: 'video', label: 'R (60s) — métricas, impacto em R$, lições aprendidas', checked: false },
+        ],
+        init() {
+          const saved = localStorage.getItem('tc-checklist-state');
+          if (saved) {
+            try {
+              const state = JSON.parse(saved);
+              this.items.forEach(i => { if (state[i.id] !== undefined) i.checked = !!state[i.id]; });
+            } catch (e) {}
+          }
+          this.$nextTick(() => lucide.createIcons());
+        },
+        toggle(id) {
+          const it = this.items.find(i => i.id === id);
+          if (it) {
+            it.checked = !it.checked;
+            this.save();
+            this.$nextTick(() => lucide.createIcons());
+          }
+        },
+        save() {
+          const state = {};
+          this.items.forEach(i => state[i.id] = i.checked);
+          localStorage.setItem('tc-checklist-state', JSON.stringify(state));
+        },
+        resetar() {
+          if (!confirm('Resetar todos os itens?')) return;
+          this.items.forEach(i => i.checked = false);
+          localStorage.removeItem('tc-checklist-state');
+          this.$nextTick(() => lucide.createIcons());
+        },
+        get checkedCount() { return this.items.filter(i => i.checked).length; },
+        get pct() { return Math.round((this.checkedCount / this.items.length) * 100); },
+      }));
+    });
+    window.addEventListener('load', () => { lucide.createIcons(); });
+  </script>
+</body>
+</html>

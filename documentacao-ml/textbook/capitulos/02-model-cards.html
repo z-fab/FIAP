@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Model Cards — Documentação em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* === Interativo 1: Explorador das 9 seções === */
+    .mc-explorer { display: grid; grid-template-columns: 1fr 2fr; gap: 1.25rem; margin-top: 1rem; align-items: start; }
+    .mc-explorer-grid { display: flex; flex-direction: column; gap: 0.4rem; }
+    .mc-card {
+      background: var(--color-surface-2);
+      border: 1.5px solid var(--color-border);
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      transition: transform 0.15s var(--ease-out), border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      display: flex; align-items: center; gap: 0.75rem;
+      text-align: left;
+      width: 100%;
+      min-height: 48px;
+    }
+    .mc-card:hover { border-color: var(--color-primary-border); background: var(--color-surface); }
+    .mc-card.active {
+      border-color: var(--color-primary);
+      background: var(--color-primary-light);
+      box-shadow: 0 0 0 2px var(--color-primary-border);
+    }
+    .mc-card-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-primary-dark);
+      flex-shrink: 0;
+    }
+    .mc-card.active .mc-card-icon { background: white; border-color: var(--color-primary-border); color: var(--color-primary); }
+    .mc-card-num {
+      font-family: var(--font-serif);
+      font-size: 1.15rem; font-weight: 400;
+      color: var(--color-primary);
+      line-height: 1; letter-spacing: -0.01em;
+      min-width: 1.6rem;
+      flex-shrink: 0;
+    }
+    .mc-card.active .mc-card-num { color: var(--color-primary-dark); }
+    .mc-card-name {
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--color-text);
+      line-height: 1.3; letter-spacing: -0.005em;
+      flex: 1;
+    }
+    .mc-panel {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 1.1rem 1.15rem;
+      transition: opacity 0.2s var(--ease-out);
+      min-height: 320px;
+    }
+    .mc-panel-empty {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-muted); font-size: 0.88rem; text-align: center;
+      height: 100%; min-height: 300px; padding: 2rem 1rem;
+    }
+    .mc-panel h5 { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; color: var(--color-text); margin: 0 0 0.35rem; }
+    .mc-panel .mc-panel-num { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--color-primary); font-weight: 600; }
+    .mc-panel .mc-panel-desc { font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin: 0.65rem 0 1rem; }
+    .mc-panel .mc-subhead { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-text-muted); font-weight: 600; margin-bottom: 0.4rem; }
+    .mc-panel ul.mc-qs { padding-left: 1.1rem; margin: 0 0 1rem; }
+    .mc-panel ul.mc-qs li { font-size: 0.85rem; color: var(--color-text); line-height: 1.55; margin-bottom: 0.2rem; }
+    .mc-example {
+      background: var(--color-box-example-bg);
+      border-left: 3px solid var(--color-box-example-border);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    .mc-example-quote { font-style: italic; color: var(--color-text); line-height: 1.55; margin-bottom: 0.4rem; }
+    .mc-example-source { font-size: 0.76rem; color: var(--color-text-secondary); }
+    .mc-example-source a { color: var(--color-primary-dark); }
+    @media (max-width: 820px) {
+      .mc-explorer { grid-template-columns: 1fr; }
+    }
+
+    /* === Interativo 2: Comparador bom vs ruim === */
+    .mc-toggle {
+      display: inline-flex;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 1.25rem;
+    }
+    .mc-toggle button {
+      background: transparent;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .mc-toggle button.on {
+      background: var(--color-surface);
+      color: var(--color-primary);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .mc-card-view {
+      transition: opacity 0.25s var(--ease-out);
+      display: flex; flex-direction: column; gap: 0.85rem;
+    }
+    .mc-sec {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1rem;
+      background: var(--color-surface-2);
+    }
+    .mc-sec.bad  { background: var(--color-danger-light);  border-left-color: var(--color-danger-border); }
+    .mc-sec.good { background: var(--color-success-light); border-left-color: var(--color-success-border); }
+    .mc-sec h6 {
+      font-family: var(--font-sans);
+      font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 0.45rem;
+      color: var(--color-text);
+    }
+    .mc-sec .mc-sec-body { font-size: 0.85rem; line-height: 1.6; color: var(--color-text); }
+    .mc-sec .mc-sec-body ul { padding-left: 1.1rem; margin: 0.3rem 0 0; }
+    .mc-sec .mc-sec-body li { margin-bottom: 0.2rem; line-height: 1.55; }
+    .mc-sec .placeholder { font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-danger); background: rgba(255,255,255,0.5); padding: 0.05rem 0.35rem; border-radius: 3px; }
+    .mc-diffs {
+      margin-top: 1.5rem;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+    }
+    .mc-diffs h5 {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-family: var(--font-sans);
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--color-primary); font-weight: 700; margin-bottom: 0.65rem;
+      line-height: 1.35;
+    }
+    .mc-diffs h5 svg, .mc-diffs h5 i { flex-shrink: 0; }
+    .mc-diffs ol { padding-left: 1.25rem; margin: 0; }
+    .mc-diffs li { font-size: 0.86rem; color: var(--color-text); line-height: 1.55; margin-bottom: 0.25rem; }
+    .mc-diffs li::marker { color: var(--color-primary); font-weight: 600; }
+  </style>
+</head>
+<body x-data="chapterApp">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <!-- ══════════════════════ Sidebar ══════════════════════ -->
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home">
+          <span class="sb-home-icon">←</span>
+          <span class="sb-home-lbl">Documentação em ML</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher sidebar" aria-label="Recolher sidebar">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-importancia-documentacao.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="02-model-cards.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="03-readme-mermaid.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="04-docstrings-type-hints.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="05-mlflow-star.html" class="ch-link" :class="{ 'active': currentChapter==='05', 'visited': isVisited('05') }">
+          <span class="ch-num" x-text="isVisited('05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="06-checklist-tech-challenge.html" class="ch-link" :class="{ 'active': currentChapter==='06', 'visited': isVisited('06') }">
+          <span class="ch-num" x-text="isVisited('06') ? '✓' : '06'"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#secao-2-1" class="sec-link" :class="{ 'active': activeSection==='secao-2-1' }">2.1 Por que Model Cards existem</a>
+        <a href="#secao-2-2" class="sec-link" :class="{ 'active': activeSection==='secao-2-2' }">2.2 As 9 seções canônicas</a>
+        <a href="#secao-2-3" class="sec-link" :class="{ 'active': activeSection==='secao-2-3' }">2.3 Exemplos reais para estudar</a>
+        <a href="#secao-2-5" class="sec-link" :class="{ 'active': activeSection==='secao-2-5' }">2.4 Adaptando ao MLP tabular</a>
+        <a href="#secao-2-6" class="sec-link" :class="{ 'active': activeSection==='secao-2-6' }">2.5 Model → System Cards</a>
+        <a href="#secao-2-8" class="sec-link" :class="{ 'active': activeSection==='secao-2-8' }">2.6 Esqueleto do TC</a>
+      </nav>
+    </aside>
+
+    <!-- ══════════════════════ Main ══════════════════════ -->
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Documentação em ML</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">Capítulo 2 — Model Cards</span>
+      </header>
+
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 02</div>
+        <h1>Model Cards: documentando modelos com <em>responsabilidade</em></h1>
+
+        <blockquote class="chapter-epigraph">
+          "Se um capacitor vem com datasheet de voltagem, temperatura e modos de falha, por que um modelo de ML chegaria em produção sem?"
+        </blockquote>
+
+        <p>O Model Card é a "bula" do modelo: descreve para que foi feito, em que dados foi treinado, onde funciona bem e — principalmente — onde não deve ser usado. É o artefato que transforma um arquivo <code>.pth</code> anônimo em um sistema auditável.</p>
+
+        <hr>
+
+        <!-- ═══════════════ 2.1 ═══════════════ -->
+        <h2 id="secao-2-1">2.1 Por que Model Cards existem</h2>
+
+        <p>Imagine que você lança um classificador de risco de crédito e, seis meses depois, descobre que ele rejeita sistematicamente clientes acima de 60 anos em uma região específica do país. Pior: o time de produto não sabia que o modelo havia sido treinado apenas com dados de clientes urbanos da região Sudeste. Esse vazio entre <strong>o que o modelo é</strong> e <strong>o que as pessoas pensam que ele é</strong> é exatamente o problema que <strong>Model Cards</strong> vieram resolver.</p>
+
+        <p>O conceito foi formalizado em janeiro de 2019, no paper <em>"Model Cards for Model Reporting"</em>, apresentado na FAT* '19 (Conference on Fairness, Accountability, and Transparency) em Atlanta. Os autores — entre eles Margaret Mitchell, Timnit Gebru e Inioluwa Deborah Raji — escreveram, no abstract:</p>
+
+        <blockquote>
+          <p><em>"Trained machine learning models are increasingly used to perform high-impact tasks in areas such as law enforcement, medicine, education, and employment. In order to clarify the intended use cases of machine learning models and minimize their usage in contexts for which they are not well suited, we recommend that released models be accompanied by documentation detailing their performance characteristics. In this paper, we propose a framework that we call model cards, to encourage such transparent model reporting."</em></p>
+          <p>— Mitchell et al., 2019 (<a href="https://arxiv.org/abs/1810.03993" target="_blank" rel="noopener">arXiv:1810.03993</a>)</p>
+        </blockquote>
+
+        <p>Note as duas palavras-chave: <strong>clarify</strong> e <strong>minimize</strong>. Um Model Card não é um manual técnico exaustivo nem um relatório de auditoria. É um documento curto e estruturado que faz duas coisas:</p>
+
+        <ol>
+          <li><strong>Esclarece</strong> os contextos para os quais o modelo foi projetado e validado.</li>
+          <li><strong>Minimiza</strong> o uso indevido em contextos onde ele não foi testado.</li>
+        </ol>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px"></i> Definição</div>
+          <p><strong>Model Card.</strong> Documento curto (1-5 páginas, na proposta original) que acompanha um modelo de ML treinado e descreve seu contexto de desenvolvimento, dados de treinamento e avaliação, métricas desagregadas por subgrupos relevantes, considerações éticas e limitações conhecidas. É a "bula" do modelo.</p>
+        </div>
+
+        <p>A inspiração do nome é deliberada: assim como <strong>datasheets de componentes eletrônicos</strong> descrevem voltagem, temperatura de operação, tolerâncias e modos de falha de um capacitor, Model Cards descrevem condições de operação de um modelo. Você não usaria um capacitor de 5V em um circuito de 24V sem ler o datasheet — por que usaria um modelo de detecção facial treinado em CelebA para identificar suspeitos em câmeras de segurança?</p>
+
+        <h3>O problema antes dos Model Cards</h3>
+
+        <p>Antes de 2019, a documentação de modelos era essencialmente:</p>
+        <ul>
+          <li>Um arquivo <code>README.md</code> com o comando de treino.</li>
+          <li>Métricas agregadas (acurácia média, F1) em uma tabela do paper.</li>
+          <li>Talvez uma seção "Limitations" no final, com uma frase genérica.</li>
+        </ul>
+
+        <p>Modelos eram avaliados como entidades monolíticas: <em>"o classificador tem 92% de acurácia"</em>. Mas 92% em quê? Em qual subgrupo? Com qual threshold? Com qual incerteza? Para qual aplicação? Sem essas respostas, o modelo virava uma caixa-preta — não no sentido técnico de interpretabilidade, mas no sentido <strong>organizacional</strong>: ninguém sabia explicar o que o modelo fazia bem ou mal.</p>
+
+        <p>O Model Card resolve isso impondo uma estrutura mínima e forçando o autor a desagregar resultados.</p>
+
+        <hr>
+
+        <!-- ═══════════════ 2.2 ═══════════════ -->
+        <h2 id="secao-2-2">2.2 As 9 seções canônicas</h2>
+
+        <p>O framework original define <strong>9 seções</strong>. Não é um checklist burocrático: cada seção responde a uma pergunta específica que stakeholders (eng. de produto, jurídico, compliance, usuários finais) precisarão responder em algum momento. Clique em cada card abaixo para ver a descrição, perguntas-guia e um exemplo real de Model Cards publicados (BERT, Whisper, GPT-2, Smiling Face Detection, Perspective API).</p>
+
+        <!-- ═══════ INTERATIVO 1: Explorador das 9 seções ═══════ -->
+        <div class="interactive" x-data="explorador9">
+          <div class="interactive-label"><i data-lucide="compass" style="width:14px;height:14px"></i> Interativo · Anatomia do Model Card</div>
+          <h4>Explore as 9 seções canônicas</h4>
+          <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 0.5rem;">Clique em qualquer seção para ver sua descrição, perguntas-guia e um exemplo real extraído de um Model Card publicado.</p>
+
+          <div class="mc-explorer">
+            <div class="mc-explorer-grid">
+              <template x-for="s in secoes" :key="s.id">
+                <button class="mc-card" :class="{ active: secaoAtiva && secaoAtiva.id === s.id }" @click="selecionar(s)">
+                  <div class="mc-card-icon"><i :data-lucide="s.icone" style="width:15px;height:15px"></i></div>
+                  <span class="mc-card-num" x-text="String(s.numero).padStart(2,'0')"></span>
+                  <span class="mc-card-name" x-text="s.nome"></span>
+                </button>
+              </template>
+            </div>
+
+            <div class="mc-panel">
+              <template x-if="!secaoAtiva">
+                <div class="mc-panel-empty">
+                  <div>
+                    <i data-lucide="mouse-pointer-click" style="width:24px;height:24px;color:var(--color-text-muted);margin-bottom:0.5rem"></i>
+                    <div>Clique em uma seção para explorar</div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="secaoAtiva">
+                <div :key="secaoAtiva.id" x-transition.opacity.duration.200ms>
+                  <div class="mc-panel-num" x-text="'Seção ' + secaoAtiva.numero + ' / 9'"></div>
+                  <h5 x-text="secaoAtiva.nome"></h5>
+                  <p class="mc-panel-desc" x-text="secaoAtiva.descricao"></p>
+
+                  <div class="mc-subhead">Perguntas-guia</div>
+                  <ul class="mc-qs">
+                    <template x-for="q in secaoAtiva.perguntasGuia" :key="q">
+                      <li x-text="q"></li>
+                    </template>
+                  </ul>
+
+                  <div class="mc-subhead">Exemplo real</div>
+                  <div class="mc-example">
+                    <div class="mc-example-quote" x-text="'“' + secaoAtiva.exemploTexto + '”'"></div>
+                    <div class="mc-example-source">
+                      Fonte: <a :href="secaoAtiva.exemploUrl" target="_blank" rel="noopener" x-text="secaoAtiva.exemploFonte"></a>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <!-- ═══════ FIM INTERATIVO 1 ═══════ -->
+
+        <hr>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica para o Tech Challenge</div>
+          <p>Na seção <strong>Metrics</strong>, não reporte uma métrica única. Mostre <strong>AUC-ROC</strong>, <strong>AUC-PR</strong> (mais honesto quando as classes são desbalanceadas), <strong>F1 no threshold operacional</strong> e em pelo menos dois thresholds alternativos (ex.: 0,3 para priorizar sensibilidade; 0,7 para priorizar precisão). Sempre com intervalo de confiança de 95% calculado via bootstrap.</p>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Atenção</div>
+          <p>A seção <em>Caveats and Recommendations</em> não é um espaço para "se proteger juridicamente". É um espaço para ser <strong>honesto</strong>. Um card que diz <em>"o modelo não foi avaliado em clientes com tenure &lt; 6 meses"</em> é mais útil — e mais defensável — que um que diz <em>"o modelo é apenas uma ferramenta de apoio à decisão"</em>.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 2.3 ═══════════════ -->
+        <h2 id="secao-2-3">2.3 Exemplos reais para estudar</h2>
+
+        <p>Antes de escrever o seu próprio Model Card, abra dois ou três destes e leia como os times resolveram cada seção. Os dois primeiros são <strong>modelos tabulares</strong> (o tipo do Tech Challenge); os demais são LLMs/visão que servem como referência de profundidade.</p>
+
+        <h3><a href="https://huggingface.co/AnilKumarK2004/bank-customer-churn-prediction-gbclassifier" target="_blank" rel="noopener">Bank Customer Churn · GradientBoostingClassifier</a></h3>
+        <p>O caso mais próximo do seu Tech Challenge: churn bancário com modelo tabular, publicado no HuggingFace Hub. Traz <strong>Deployment Tiers</strong> com três thresholds operacionais explícitos (0,25 triagem ampla · 0,50 balanceado · 0,75 ação direta), análise de fairness por gênero (<em>"Female customers show 25% churn vs. males at 16% — fairness review recommended"</em>), Feature Importance documentada e comparação com quatro baselines. Use como template direto.</p>
+
+        <h3><a href="https://huggingface.co/keras-io/imbalanced_classification" target="_blank" rel="noopener">Keras Fraud Detection · MLP desbalanceado</a></h3>
+        <p>Caso clássico de classe extremamente desbalanceada (<em>"fraudulent transactions represent only 0.18% of the dataset"</em>). O card prioriza <strong>Recall</strong> e reporta a matriz de confusão completa (TP/FN/FP/TN separadamente), permitindo ao leitor calcular qualquer métrica derivada. É o que você deveria fazer no churn: não só F1.</p>
+
+        <h3><a href="https://github.com/openai/gpt-2/blob/master/model_card.md" target="_blank" rel="noopener">GPT-2 · OpenAI (2019)</a></h3>
+        <p>Um dos primeiros Model Cards formais de LLM. A seção <em>Out-of-Scope</em> é memorável: já em 2019, antes do hype, a OpenAI documentou que <em>"modelos de linguagem como GPT-2 não distinguem fatos de ficção"</em>. É a seção mais subutilizada em cards reais e onde mora a maior proteção contra uso indevido.</p>
+
+        <h3><a href="https://huggingface.co/google-bert/bert-base-uncased" target="_blank" rel="noopener">BERT base uncased · Google / HuggingFace</a></h3>
+        <p>Mais de 60 milhões de downloads por mês. Documenta o dataset (BookCorpus + Wikipedia) e admite explicitamente: <em>"Even if the training data used for this model could be characterized as fairly neutral, this model can have biased predictions."</em> Esse é o tipo de honestidade que separa um card responsável de um marketing material.</p>
+
+        <h3><a href="https://github.com/openai/whisper/blob/main/model-card.md" target="_blank" rel="noopener">Whisper · OpenAI</a></h3>
+        <p>Card detalhado, 6 arquiteturas (39M até 1,55B parâmetros), 98 idiomas. Documenta limitações concretas — alucinações, viés de sotaque, geração repetitiva — e antecipa uso em vigilância como risco ético. Serve de resposta pronta quando alguém pergunta <em>"posso usar Whisper para transcrever depoimentos jurídicos?"</em>.</p>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica</div>
+          <p>Copie a ideia de <strong>Deployment Tiers</strong> do card do Bank Churn para o seu Tech Challenge. Em vez de fixar o default <code>0.5</code>, exponha três thresholds com casos de uso diferentes — sua API pode até aceitar isso como parâmetro: <code>POST /predict?tier=triagem</code>.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 2.5 ═══════════════ -->
+        <h2 id="secao-2-5">2.4 Adaptando o Model Card ao seu MLP tabular</h2>
+
+        <p>Aqui está o ponto que vai diferenciar a sua entrega no Tech Challenge: <strong>um Model Card genérico aplicado a um MLP tabular fica vazio</strong>. Você precisa <strong>enfatizar</strong> as seções relevantes para tabular e <strong>reduzir</strong> as irrelevantes.</p>
+
+        <h3>Seções que você DEVE enfatizar</h3>
+        <table>
+          <thead>
+            <tr><th>Seção</th><th>O que é</th><th>Por que importa no churn</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Importância das features</strong></td>
+              <td>Qual feature mais influenciou as previsões (via SHAP ou análise de pesos).</td>
+              <td>Substitui o conceito de "atenção" de LLMs e mostra o que o modelo realmente aprendeu.</td>
+            </tr>
+            <tr>
+              <td><strong>Sensibilidade ao threshold</strong></td>
+              <td>Como F1, Precision e Recall mudam em diferentes cortes (ex.: 0,3 · 0,5 · 0,7).</td>
+              <td>Churn é binário com custos assimétricos — uma só métrica em um só corte esconde o comportamento real do modelo.</td>
+            </tr>
+            <tr>
+              <td><strong>Calibração das probabilidades</strong></td>
+              <td>Se o modelo diz "80% de chance de churn", isso realmente bate com 80% de churn na prática? Quando não bate, o modelo está "descalibrado".</td>
+              <td>Se a área de negócio vai agir com base na probabilidade (ex.: desconto para quem tem &gt;70% de risco), ela precisa ser confiável.</td>
+            </tr>
+            <tr>
+              <td><strong>Fairness por subgrupo</strong></td>
+              <td>Métricas desagregadas por idade, gênero, região — o modelo erra mais em algum grupo?</td>
+              <td>Dois clientes com o mesmo perfil técnico não deveriam receber tratamentos diferentes por causa de demografia.</td>
+            </tr>
+            <tr>
+              <td><strong>Drift das features</strong></td>
+              <td>Medida de quanto a distribuição dos dados em produção mudou em relação ao treino.</td>
+              <td>Se mudar muito, o modelo perde validade e precisa ser retreinado antes de tomar decisões ruins em silêncio.</td>
+            </tr>
+            <tr>
+              <td><strong>Custo assimétrico</strong></td>
+              <td>Matriz de custo do negócio: quanto vale um falso negativo (cliente perdido) versus um falso positivo (retenção desnecessária)?</td>
+              <td>É o que traduz a escolha de threshold em R$ e permite defender a decisão junto a stakeholders.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Seções que você pode REDUZIR ou OMITIR</h3>
+        <p>São seções típicas de cards de LLM ou visão que não fazem sentido para um classificador tabular:</p>
+        <table>
+          <thead>
+            <tr><th>Seção</th><th>Por que não se aplica</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Toxicity / conteúdo ofensivo</td><td>Não há geração de texto.</td></tr>
+            <tr><td>Resistência a jailbreak</td><td>Não há instruções a burlar — só features numéricas de entrada.</td></tr>
+            <tr><td>Alucinação</td><td>O modelo não gera; só classifica.</td></tr>
+            <tr><td>Seguir instruções</td><td>O input não é texto livre.</td></tr>
+            <tr><td>Suporte multilíngue</td><td>Features são numéricas e categóricas.</td></tr>
+            <tr><td>Tamanho de contexto</td><td>O input é um vetor de features de tamanho fixo.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Atenção</div>
+          <p><strong>Atenção: NÃO copie um template de Model Card de LLM e deixe seções vazias.</strong> Um card com 8 seções vazias e 2 preenchidas comunica desleixo. Melhor entregar 6 seções <strong>profundas e específicas para tabular</strong> do que 14 seções superficiais.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════════════ 2.6 ═══════════════ -->
+        <h2 id="secao-2-6">2.5 De Model Cards a System Cards: a evolução 2019 → 2026</h2>
+
+        <p>O paper original de Mitchell et al. (2019) definiu Model Cards como documentos de <strong>1 a 5 páginas</strong>. Em 2026, o <strong>System Card do Claude Opus 4.7</strong>, publicado em 16 de abril de 2026, tem <strong>232 páginas</strong> (<a href="https://www.anthropic.com/claude-opus-4-7-system-card" target="_blank" rel="noopener">anthropic.com/claude-opus-4-7-system-card</a>). O que mudou?</p>
+
+        <h3>O que mudou (e por quê)</h3>
+        <p>Modelos de fronteira deixaram de ser apenas <em>classificadores</em> para se tornarem <strong>agentes capazes de executar ações no mundo</strong> — escrever código, navegar na web, operar computadores, ajudar em pesquisa biológica. Cada nova capacidade trouxe novos riscos, e cada novo risco trouxe novas seções no card. Para se ter uma ideia da escala: o <a href="https://www.anthropic.com/claude-opus-4-7-system-card" target="_blank" rel="noopener">System Card do Claude Opus 4.7</a> tem 232 páginas.</p>
+
+        <h3>Dimensões que surgiram a partir de 2023</h3>
+        <p>A tabela abaixo lista as seções novas que aparecem em System Cards modernos (Anthropic, OpenAI, Google DeepMind, Meta) e que <strong>não existiam</strong> no Model Card original de 2019. Cada linha traz o que significa e por que virou obrigatória.</p>
+        <table>
+          <thead>
+            <tr><th>Dimensão</th><th>O que é</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Red teaming</strong></td>
+              <td>Equipes adversariais (internas e externas) tentando provocar o modelo a fazer algo perigoso antes do lançamento. O card do GPT-5 reporta "5.000+ horas, 400+ especialistas".</td>
+            </tr>
+            <tr>
+              <td><strong>Risco CBRN</strong><br>(químico, biológico, radiológico, nuclear)</td>
+              <td>Avalia se o modelo pode dar uplift significativo a alguém querendo construir uma arma. Traz thresholds formais: ASL-3/4 (Anthropic), High/Critical (OpenAI), CCL (Google).</td>
+            </tr>
+            <tr>
+              <td><strong>Avaliações agênticas</strong></td>
+              <td>Testes de modelos agindo como agentes: escrever código, executar ferramentas, operar um computador. Benchmarks como ART e multi-agent orchestration entram aqui.</td>
+            </tr>
+            <tr>
+              <td><strong>RSP / Preparedness</strong></td>
+              <td>Responsible Scaling Policy / Preparedness Framework: políticas formais que definem <em>sob que condições</em> o modelo pode ser lançado. Transformam "o modelo é seguro?" em "o modelo atende às regras X, Y, Z?".</td>
+            </tr>
+            <tr>
+              <td><strong>Elicitação de capacidades</strong></td>
+              <td>Esforço estruturado para extrair o máximo do modelo durante a avaliação — uplift trials com especialistas, prompts especializados — para não subestimar o risco real.</td>
+            </tr>
+            <tr>
+              <td><strong>Sandbagging / consciência de avaliação</strong></td>
+              <td>Investigação se o modelo <em>percebe</em> que está sendo testado e, percebendo, se esconde capacidades ("sandbagging") para passar na avaliação. Relevante para modelos com raciocínio em cadeia.</td>
+            </tr>
+            <tr>
+              <td><strong>Monitoramento de deception</strong></td>
+              <td>Medição de com que frequência o modelo mente ou engana no próprio raciocínio (chain-of-thought monitoring). Reportado como taxa por modelo.</td>
+            </tr>
+            <tr>
+              <td><strong>Bem-estar do modelo</strong></td>
+              <td>Consideração inicial, mas já formal, sobre estados internos do modelo — ex.: "incapacidade de encerrar conversas" listada como preocupação no card do Claude Opus.</td>
+            </tr>
+            <tr>
+              <td><strong>Resistência a jailbreak</strong></td>
+              <td>Medidas de como o modelo resiste a tentativas de contornar restrições, em single-turn e multi-turn (StrongReject, HarmBench, etc.).</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><strong>Tendências macro:</strong></p>
+        <ul>
+          <li>Cards de <strong>232 páginas</strong> vs 1-2 páginas originais.</li>
+          <li>Cards <strong>específicos por feature</strong> (ChatGPT Agent, Deep Research) e não só por modelo.</li>
+          <li><strong>Cadência de addenda</strong>: GPT-5.1, GPT-5.2, GPT-5.3-Codex, etc.</li>
+        </ul>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica</div>
+          <p><strong>Para o Tech Challenge:</strong> você obviamente não vai escrever 232 páginas. Mas a <strong>estrutura mental</strong> dos System Cards modernos é útil — pense no seu MLP de churn como parte de um <strong>sistema</strong> (modelo + threshold + lógica de negócio + monitoramento + plano de retreino). O Model Card documenta o <em>modelo</em>; um <em>System Card</em> documentaria o sistema todo. Para uma entrega excelente, faça pelo menos <strong>um esboço</strong> dessa visão sistêmica.</p>
+        </div>
+
+        <hr>
+
+        <!-- ═══════ INTERATIVO 2: Comparador Bom vs Ruim ═══════ -->
+        <div class="interactive" x-data="comparadorMC">
+          <div class="interactive-label"><i data-lucide="git-compare" style="width:14px;height:14px"></i> Interativo · Comparador Bom vs Ruim</div>
+          <h4>Model Card · Churn MLP v1.0.0 — duas versões do mesmo documento</h4>
+          <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 0.75rem;">O mesmo modelo, a mesma versão — mas com documentação preguiçosa ou completa. Alterne entre as versões e veja o contraste.</p>
+
+          <div class="mc-toggle" role="tablist">
+            <button :class="{ on: mostrarVersao === 'preguicosa' }" @click="setVersao('preguicosa')" role="tab">Versão preguiçosa</button>
+            <button :class="{ on: mostrarVersao === 'completa' }" @click="setVersao('completa')" role="tab">Versão completa</button>
+          </div>
+
+          <!-- Versão preguiçosa -->
+          <div class="mc-card-view" x-show="mostrarVersao === 'preguicosa'" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <div class="mc-sec bad">
+              <h6>1. Model Details</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>Versão: <span class="placeholder">[insert version]</span></li>
+                  <li>Data de treino: <span class="placeholder">TODO: fill</span></li>
+                  <li>Arquitetura: MLP</li>
+                  <li>Licença: <span class="placeholder">?</span></li>
+                  <li>Contato: <span class="placeholder">TODO</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec bad">
+              <h6>2. Intended Use</h6>
+              <div class="mc-sec-body">Prever churn de clientes.</div>
+            </div>
+            <div class="mc-sec bad">
+              <h6>3. Training Data</h6>
+              <div class="mc-sec-body">Dataset de churn <span class="placeholder">[dataset name]</span>.</div>
+            </div>
+            <div class="mc-sec bad">
+              <h6>4. Metrics</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>F1: 0.78</li>
+                  <li>AUC: <span class="placeholder">TBD</span></li>
+                  <li>Threshold: default</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec bad">
+              <h6>5. Fairness</h6>
+              <div class="mc-sec-body"><span class="placeholder">Not evaluated.</span></div>
+            </div>
+            <div class="mc-sec bad">
+              <h6>6. Caveats</h6>
+              <div class="mc-sec-body">O modelo é apenas uma ferramenta de apoio à decisão.</div>
+            </div>
+          </div>
+
+          <!-- Versão completa -->
+          <div class="mc-card-view" x-show="mostrarVersao === 'completa'" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+            <div class="mc-sec good">
+              <h6>1. Model Details</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>Versão: <strong>1.0.0</strong> (semver; next patch em caso de retreino sem mudança de schema)</li>
+                  <li>Data de treino: <strong>2026-03-15</strong></li>
+                  <li>Arquitetura: MLP PyTorch 2.2 — camadas [N → 64 → 32 → 1], ativação ReLU, dropout 0.3</li>
+                  <li>Licença: MIT</li>
+                  <li>Contato: <code>grupo-XY@fiap.br</code></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec good">
+              <h6>2. Intended Use</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li><strong>Primário:</strong> estimar probabilidade de churn em horizonte de 30 dias para clientes ativos com tenure ≥ 3 meses.</li>
+                  <li><strong>Usuário-alvo:</strong> time de retenção / CRM.</li>
+                  <li><strong>Out-of-scope:</strong> clientes B2B; períodos de promoção atípica (Black Friday); uso para decisões de crédito ou cobrança; aplicação automática de penalidades sem revisão humana.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec good">
+              <h6>3. Training Data</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>Telco Customer Churn (Kaggle), 7.043 registros, período 2022-Q1 a 2023-Q4.</li>
+                  <li>Split <strong>temporal</strong>: treino = meses 1-9 · val = 10 · teste = 11-12.</li>
+                  <li>Distribuição: 26,5% positivos / 73,5% negativos (sem oversampling — usamos <code>class_weight</code>).</li>
+                  <li>Pré-processamento: imputação de mediana (numéricos), one-hot para cardinalidade ≤ 10, target encoding para alta cardinalidade.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec good">
+              <h6>4. Metrics</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li><strong>F1 = 0,81</strong> (IC95% 0,79-0,83 via bootstrap <em>n</em>=1000) @ threshold operacional 0,5.</li>
+                  <li>AUC-ROC = 0,87 · <strong>AUC-PR = 0,72</strong> (priorizado pelo desbalanceamento).</li>
+                  <li>Calibração: Brier = 0,14 · ECE = 0,03 · reliability diagram em anexo.</li>
+                  <li>Sensibilidade ao threshold: F1/Precision/Recall reportados também em 0,3 (triagem) e 0,7 (ação direta).</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec good">
+              <h6>5. Fairness</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>Acurácia por gênero: 0,86 (M) vs 0,84 (F) — gap 2 pp.</li>
+                  <li>Acurácia por faixa etária: 0,88 (&gt;50) vs 0,79 (&lt;25) — gap 9 pp ⇒ <strong>fairness review recomendado</strong>.</li>
+                  <li>Demographic parity e equal opportunity calculados; recall em minoria dentro de 0,03 do grupo majoritário.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mc-sec good">
+              <h6>6. Caveats</h6>
+              <div class="mc-sec-body">
+                <ul>
+                  <li>Modelo <strong>não foi avaliado</strong> em períodos de promoção atípica (ex: Black Friday).</li>
+                  <li>Retreinar a cada 3 meses <em>ou</em> quando PSI &gt; 0,25 em qualquer feature top-5.</li>
+                  <li>Probabilidades podem descalibrar após mudança de mix de produtos — revisar Brier/ECE no monitor mensal.</li>
+                  <li>Threshold operacional deve ser revisitado se a matriz de custos (FN vs FP) do negócio mudar.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="mc-diffs">
+            <h5><i data-lucide="check-circle-2" style="width:14px;height:14px"></i><span>6 diferenças críticas que separam um card raso de um card profissional</span></h5>
+            <ol>
+              <li>Métricas reportadas com IC95% via bootstrap (n=1000)</li>
+              <li>Fairness desagregada por gênero e faixa etária</li>
+              <li>Threshold operacional justificado pelo custo de FN</li>
+              <li>Out-of-scope cases explicitados (B2B, promoção atípica)</li>
+              <li>Calibração documentada (Brier, ECE)</li>
+              <li>Data de treino e split temporal explícitos</li>
+            </ol>
+          </div>
+        </div>
+        <!-- ═══════ FIM INTERATIVO 2 ═══════ -->
+
+        <hr>
+
+        <!-- ═══════════════ 2.8 ═══════════════ -->
+        <h2 id="secao-2-8">2.6 Aplicação ao Tech Challenge: esqueleto do Model Card do MLP de churn</h2>
+
+        <p>Você vai detalhar este card no <strong>Capítulo 6</strong>. Aqui é apenas o <strong>esqueleto</strong>, com perguntas-guia específicas para o seu cenário.</p>
+
+<pre><code class="language-markdown">---
+language: pt
+license: mit
+library_name: pytorch
+tags: [tabular-classification, churn, mlp, postech, fiap]
+metrics: [f1, roc_auc, average_precision, brier_score]
+---
+
+# Model Card — Churn MLP (Pós-Tech FIAP)
+
+## 1. Model Details
+- Versão: 1.0.0
+- Data de treino: AAAA-MM-DD
+- Arquitetura: MLP PyTorch (camadas: [N → 64 → 32 → 1], ativ. ReLU, dropout 0.3)
+- Treinado por: &lt;seu nome / grupo&gt;
+- Licença: MIT
+- Contato: &lt;email&gt;
+- Citação BibTeX (opcional)
+
+## 2. Intended Use
+- Primário: estimar probabilidade de churn em horizonte de 30 dias para clientes ativos
+  com tenure ≥ 3 meses.
+- Usuário: time de retenção / CRM.
+- Out-of-Scope:
+  - Decisões de crédito ou cobrança.
+  - Clientes com tenure &lt; 3 meses.
+  - Aplicação automática de penalidades sem revisão humana.
+
+## 3. Factors
+- Demográficos: faixa etária, gênero (quando disponível).
+- Contratuais: tipo de contrato, método de pagamento.
+- Temporais: mês da safra, sazonalidade.
+
+## 4. Metrics
+- AUC-ROC, AUC-PR (priorizar PR pelo desbalanceamento).
+- F1 nos thresholds [0.3, 0.5, 0.7] com IC95% via bootstrap (n=1000).
+- Brier Score e ECE para calibração.
+- Reliability diagram em anexo.
+
+## 5. Evaluation Data
+- Dataset, split temporal (treino: meses 1-9; val: 10; teste: 11-12).
+- Pré-processamento: imputação de mediana para numéricos, one-hot para categóricos
+  com cardinalidade ≤ 10, target encoding para alta cardinalidade.
+
+## 6. Training Data
+- Mesmo dataset, mesma transformação. Documentar oversampling/undersampling se aplicado.
+- Distribuição de classes: positiva ≈ X%, negativa ≈ Y%.
+
+## 7. Quantitative Analyses
+- Métricas desagregadas por: faixa etária (5 bins), gênero, região, tipo de contrato.
+- Reportar gap entre o melhor e o pior subgrupo.
+
+## 8. Ethical Considerations
+- Não usar gênero como feature direta se houver alternativa.
+- Mitigação de fairness: reweighting por subgrupo testado.
+- Riscos: ações de retenção mal direcionadas podem gerar percepção de discriminação.
+
+## 9. Caveats and Recommendations
+- Modelo não foi avaliado em períodos de promoção atípica (ex: Black Friday).
+- Re-treino recomendado a cada 3 meses ou quando PSI &gt; 0.25 em qualquer feature top-5.
+- Threshold operacional deve ser revisitado se a matriz de custos do negócio mudar.
+</code></pre>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica</div>
+          <p><strong>Dica de produtividade.</strong> Comece o card <strong>antes</strong> de treinar o modelo. As seções 1, 2, 3, 5, 6 podem ser escritas com base no design do experimento — só as seções 4, 7, 8, 9 dependem dos resultados. Escrever cedo evita o anti-padrão "Model Card escrito 3 horas antes da entrega".</p>
+        </div>
+
+        <!-- ═══════════════ Navegação ═══════════════ -->
+        <nav class="chapter-nav">
+          <a href="01-importancia-documentacao.html" class="nav-btn">
+            <span>
+              <span class="nav-btn-label">Anterior</span>
+              <span class="nav-btn-title">← Por que documentação é tão importante quanto o modelo</span>
+            </span>
+          </a>
+          <a href="03-readme-mermaid.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo</span>
+              <span class="nav-btn-title">README exemplar + Mermaid →</span>
+            </span>
+          </a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <!-- ══════════════════════ Scripts ══════════════════════ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('chapterApp', () => ({
+        sidebarCollapsed: localStorage.getItem('tb_sidebar_collapsed') === 'true',
+        activeSection: '',
+        currentChapter: '02',
+        init() {
+          TB_markVisited();
+          TB_initReadingProgress();
+          TB_addCopyButtons();
+          TB_initSectionObserver(id => this.activeSection = id);
+          // Re-render lucide icons after Alpine hydration
+          this.$nextTick(() => lucide.createIcons());
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return TB_isVisited(id); },
+      }));
+
+      // ───── Interativo 1: Explorador das 9 seções ─────
+      Alpine.data('explorador9', () => ({
+        secaoAtiva: null,
+        secoes: [
+          {
+            id: 'details', numero: 1, icone: 'file-text',
+            nome: 'Model Details',
+            descricao: 'Quem fez, quando, qual versão, qual licença, como citar. Identifica o modelo de forma inequívoca para reprodutibilidade e responsabilização.',
+            perguntasGuia: [
+              'Quem é a pessoa ou grupo responsável pelo modelo?',
+              'Qual a data de treinamento e a versão?',
+              'Que tipo de modelo é (arquitetura, paradigma)?',
+              'Qual licença? Como entrar em contato?'
+            ],
+            exemploTexto: 'It was introduced in this paper and first released in this repository. This model is uncased: it does not make a difference between english and English.',
+            exemploFonte: 'BERT · huggingface.co/google-bert/bert-base-uncased',
+            exemploUrl: 'https://huggingface.co/google-bert/bert-base-uncased'
+          },
+          {
+            id: 'intended', numero: 2, icone: 'target',
+            nome: 'Intended Use',
+            descricao: 'Os usos primários, os usuários previstos e — fundamental — os usos fora do escopo. É aqui que mora a maior proteção contra uso indevido.',
+            perguntasGuia: [
+              'Para que casos de uso o modelo foi projetado?',
+              'Quem é o usuário-alvo (engenheiro, pesquisador, usuário final)?',
+              'O que NÃO deve ser feito com este modelo?'
+            ],
+            exemploTexto: 'Intended to be used for fun applications, such as creating cartoon smiles on real images.',
+            exemploFonte: 'Smiling Face Detection · Mitchell et al. (2019)',
+            exemploUrl: 'https://arxiv.org/abs/1810.03993'
+          },
+          {
+            id: 'factors', numero: 3, icone: 'layers',
+            nome: 'Factors',
+            descricao: 'Fatores relevantes que influenciam desempenho: demográficos (idade, gênero, etnia), ambientais (iluminação, ruído) ou de instrumentação (sensor, qualidade de áudio).',
+            perguntasGuia: [
+              'Quais subpopulações ou condições afetam o desempenho?',
+              'Quais fatores foram considerados na avaliação?',
+              'Quais foram omitidos (e por quê)?'
+            ],
+            exemploTexto: 'Evaluated across gender (CelebA attribute) and age group. Fitzpatrick skin type was not evaluated — acknowledged as a known gap.',
+            exemploFonte: 'Smiling Face Detection · Mitchell et al. (2019)',
+            exemploUrl: 'https://arxiv.org/abs/1810.03993'
+          },
+          {
+            id: 'metrics', numero: 4, icone: 'activity',
+            nome: 'Metrics',
+            descricao: 'Quais métricas, com qual threshold, e como a incerteza é reportada. Uma métrica agregada sem IC e sem threshold explícito é insuficiente.',
+            perguntasGuia: [
+              'Quais métricas (acurácia, F1, AUC, Brier)?',
+              'Em que threshold de decisão?',
+              'Como a incerteza é estimada (CI, bootstrap, holdout múltiplo)?'
+            ],
+            exemploTexto: 'Pinned AUC measures threshold-agnostic separability of toxic and non-toxic comments for each group.',
+            exemploFonte: 'Toxicity Detection · Perspective API',
+            exemploUrl: 'https://arxiv.org/abs/1810.03993'
+          },
+          {
+            id: 'eval-data', numero: 5, icone: 'database',
+            nome: 'Evaluation Data',
+            descricao: 'Datasets usados na avaliação, motivação da escolha e pré-processamento aplicado. Base para qualquer afirmação de performance.',
+            perguntasGuia: [
+              'Quais datasets de teste? Por quê esses?',
+              'Os dados são públicos? Reproduzíveis?',
+              'Houve pré-processamento? Qual?'
+            ],
+            exemploTexto: 'Evaluated on WebText held-out set and on a suite of academic benchmarks (LAMBADA, Children’s Book Test, WikiText-2, ...).',
+            exemploFonte: 'GPT-2 · github.com/openai/gpt-2/blob/master/model_card.md',
+            exemploUrl: 'https://github.com/openai/gpt-2/blob/master/model_card.md'
+          },
+          {
+            id: 'train-data', numero: 6, icone: 'cpu',
+            nome: 'Training Data',
+            descricao: 'Qual dataset treinou o modelo, como foi coletado, rotulado, filtrado e amostrado. O paper recomenda espelhar a seção de Evaluation Data com a mesma profundidade.',
+            perguntasGuia: [
+              'Qual o dataset de treino?',
+              'Como foi coletado e rotulado?',
+              'Quais filtros e amostragens foram aplicados?'
+            ],
+            exemploTexto: '680,000 hours of audio and the corresponding transcripts collected from the internet.',
+            exemploFonte: 'Whisper · github.com/openai/whisper',
+            exemploUrl: 'https://github.com/openai/whisper/blob/main/model-card.md'
+          },
+          {
+            id: 'quant', numero: 7, icone: 'bar-chart-3',
+            nome: 'Quantitative Analyses',
+            descricao: 'Resultados desagregados pelos fatores definidos na seção 3. É aqui que os gaps de performance entre subgrupos aparecem — ou ficam invisíveis.',
+            perguntasGuia: [
+              'Como o modelo se comporta em cada subgrupo?',
+              'Há gaps de performance? Quais?',
+              'Resultados são reportados com IC?'
+            ],
+            exemploTexto: 'FPR/FNR/FDR/FOR reported at threshold 0.5 with CI95% via bootstrap, disaggregated by gender and age group — revealed substantially higher false discovery rate for older men.',
+            exemploFonte: 'Smiling Face Detection · Mitchell et al. (2019)',
+            exemploUrl: 'https://arxiv.org/abs/1810.03993'
+          },
+          {
+            id: 'ethics', numero: 8, icone: 'shield',
+            nome: 'Ethical Considerations',
+            descricao: 'Uso de dados sensíveis, riscos previsíveis e mitigações implementadas. Antecipar riscos antes que eles se materializem no mundo real.',
+            perguntasGuia: [
+              'Há dados sensíveis (saúde, raça, orientação)?',
+              'Quais riscos de uso indevido foram antecipados?',
+              'Que mitigações foram aplicadas (técnicas, de processo, contratuais)?'
+            ],
+            exemploTexto: 'Potential use in large-scale surveillance — documented explicitly as a foreseeable misuse of a model capable of transcribing 98 languages with high accuracy.',
+            exemploFonte: 'Whisper · github.com/openai/whisper',
+            exemploUrl: 'https://github.com/openai/whisper/blob/main/model-card.md'
+          },
+          {
+            id: 'caveats', numero: 9, icone: 'alert-circle',
+            nome: 'Caveats and Recommendations',
+            descricao: 'Ressalvas, testes adicionais necessários, lacunas conhecidas. Não é um espaço para "se proteger juridicamente" — é um espaço para ser honesto.',
+            perguntasGuia: [
+              'Há cenários não testados?',
+              'Que avaliação adicional o usuário deveria fazer antes de usar em produção?',
+              'Há limitações que não cabem em outras seções?'
+            ],
+            exemploTexto: 'Even if the training data used for this model could be characterized as fairly neutral, this model can have biased predictions.',
+            exemploFonte: 'BERT · huggingface.co/google-bert/bert-base-uncased',
+            exemploUrl: 'https://huggingface.co/google-bert/bert-base-uncased'
+          }
+        ],
+        selecionar(s) {
+          this.secaoAtiva = s;
+          this.$nextTick(() => lucide.createIcons());
+        }
+      }));
+
+      // ───── Interativo 2: Comparador Bom vs Ruim ─────
+      Alpine.data('comparadorMC', () => ({
+        mostrarVersao: 'preguicosa',
+        setVersao(v) {
+          this.mostrarVersao = v;
+          this.$nextTick(() => lucide.createIcons());
+        }
+      }));
+    });
+
+    // Initial icon render
+    document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+  </script>
+</body>
+</html>

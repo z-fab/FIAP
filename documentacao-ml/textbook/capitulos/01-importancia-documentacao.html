@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Por que documentação importa — Documentação em ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* ===== Timeline de Incidentes ===== */
+    .tl-wrap { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .tl-track {
+      position: relative;
+      padding: 0.5rem 0.25rem 0;
+    }
+    .tl-line {
+      position: absolute;
+      left: 1rem; right: 1rem;
+      top: 1.4rem;
+      height: 2px;
+      background: var(--color-border-strong);
+      border-radius: 1px;
+      z-index: 0;
+    }
+    .tl-dots {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.5rem;
+      position: relative;
+      z-index: 1;
+    }
+    .tl-dot {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      background: none; border: none; padding: 0;
+      font-family: var(--font-sans);
+      color: var(--color-text-secondary);
+    }
+    .tl-circle {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--color-surface);
+      border: 2px solid var(--color-border-strong);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 600;
+      color: var(--color-text-secondary);
+      transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out);
+    }
+    .tl-dot:hover .tl-circle {
+      transform: scale(1.06);
+      border-color: var(--color-primary-border);
+      color: var(--color-primary);
+    }
+    .tl-dot.selected .tl-circle {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 0 0 4px var(--color-primary-light);
+    }
+    .tl-year {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    .tl-dot.selected .tl-year { color: var(--color-primary); }
+
+    .tl-panel {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 1.25rem 1.35rem;
+      min-height: 200px;
+    }
+    .tl-panel-empty {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-muted);
+      font-size: 0.88rem;
+      font-style: italic;
+      text-align: center;
+      min-height: 200px;
+      padding: 1.5rem;
+    }
+    .tl-panel h5 {
+      font-family: var(--font-serif);
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: var(--color-text);
+      margin-bottom: 0.2rem;
+      line-height: 1.3;
+    }
+    .tl-panel-meta {
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.9rem;
+    }
+    .tl-panel .box { margin: 0.7rem 0; padding: 0.7rem 1rem; }
+    .tl-panel .box p { font-size: 0.88rem; line-height: 1.6; }
+    .tl-panel-source {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      margin-top: 0.85rem;
+      word-break: break-word;
+    }
+    .tl-panel-source a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+
+    /* ===== Quiz Diagnóstico ===== */
+    .qz-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .qz-prog-wrap {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .qz-prog-track {
+      flex: 1; height: 5px;
+      background: var(--color-border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .qz-prog-fill {
+      height: 100%;
+      background: var(--color-primary);
+      border-radius: 99px;
+      transition: width 0.35s var(--ease-out);
+    }
+    .qz-prog-lbl {
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .qz-question {
+      font-size: 1.02rem;
+      font-weight: 500;
+      color: var(--color-text);
+      line-height: 1.5;
+      margin-bottom: 1.1rem;
+    }
+    .qz-options { display: flex; flex-direction: column; gap: 0.55rem; }
+    .qz-option {
+      background: var(--color-surface);
+      border: 2px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: var(--color-text);
+      transition: all 0.18s var(--ease-out);
+    }
+    .qz-option:hover:not(:disabled) {
+      border-color: var(--color-primary-border);
+      background: var(--color-primary-light);
+    }
+    .qz-option.qz-selected {
+      border-color: var(--color-primary);
+      background: var(--color-primary-light);
+      box-shadow: 0 0 0 2px var(--color-primary-border);
+    }
+    .qz-option:disabled { cursor: default; opacity: 0.85; }
+
+    .qz-actions {
+      display: flex; justify-content: flex-end; align-items: center;
+      margin-top: 1.25rem; gap: 0.6rem;
+    }
+
+    .qz-result {
+      animation: fadeIn var(--duration-slow) var(--ease-out) forwards;
+    }
+    .qz-result-badge {
+      display: inline-block;
+      background: var(--color-primary);
+      color: white;
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0.3rem 0.7rem;
+      border-radius: 99px;
+      margin-bottom: 0.85rem;
+    }
+    .qz-result-title {
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--color-text);
+      margin-bottom: 0.65rem;
+      line-height: 1.2;
+    }
+    .qz-result-score {
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1rem;
+      font-family: var(--font-mono);
+    }
+    .qz-result .box p { font-size: 0.95rem; line-height: 1.65; }
+
+    .qz-fade { transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out); }
+    .qz-fade.qz-leaving { opacity: 0; transform: translateY(-6px); }
+    .qz-fade.qz-entering { opacity: 0; transform: translateY(6px); }
+
+    /* ===== Cards dos 3 públicos (seção 1.5) ===== */
+    .audience-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1.5rem 0 2rem;
+    }
+    @media (max-width: 820px) {
+      .audience-grid { grid-template-columns: 1fr; }
+    }
+    .audience-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 1.25rem 1.15rem 1.1rem;
+      display: flex; flex-direction: column;
+      gap: 0.1rem;
+    }
+    .audience-icon {
+      width: 34px; height: 34px;
+      background: var(--color-primary-light);
+      border: 1px solid var(--color-primary-border);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-primary);
+      margin-bottom: 0.65rem;
+    }
+    .audience-num {
+      font-size: 0.62rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--color-primary);
+      margin-bottom: 0.25rem;
+    }
+    .audience-card h4 {
+      font-family: var(--font-sans);
+      font-size: 1rem; font-weight: 700;
+      color: var(--color-text);
+      margin: 0 0 0.4rem;
+      line-height: 1.3;
+      letter-spacing: -0.005em;
+    }
+    .audience-card > p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--color-text-secondary);
+      margin: 0;
+      flex: 1;
+    }
+    .audience-focus {
+      margin-top: 0.9rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--color-border);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: var(--color-text);
+    }
+    .audience-focus b {
+      display: block;
+      font-size: 0.62rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.3rem;
+    }
+  </style>
+</head>
+<body x-data="chapterApp()" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+
+    <!-- ================= Sidebar ================= -->
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home" title="Voltar ao índice">
+          <span class="sb-home-icon">←</span>
+          <span class="sb-home-lbl">Documentação em ML</span>
+        </a>
+        <button class="tb" @click="toggleSidebar()" :title="sidebarCollapsed ? 'Expandir' : 'Recolher'">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+
+        <a href="01-importancia-documentacao.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') && currentChapter!=='01' }">
+          <span class="ch-num" x-text="(isVisited('01') && currentChapter!=='01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Por que documentação importa</span>
+        </a>
+        <a href="02-model-cards.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') && currentChapter!=='02' }">
+          <span class="ch-num" x-text="(isVisited('02') && currentChapter!=='02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Model Cards</span>
+        </a>
+        <a href="03-readme-mermaid.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') && currentChapter!=='03' }">
+          <span class="ch-num" x-text="(isVisited('03') && currentChapter!=='03') ? '✓' : '03'"></span>
+          <span class="ch-txt">README + Mermaid</span>
+        </a>
+        <a href="04-docstrings-type-hints.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') && currentChapter!=='04' }">
+          <span class="ch-num" x-text="(isVisited('04') && currentChapter!=='04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Docstrings, type hints e IA</span>
+        </a>
+        <a href="05-mlflow-star.html" class="ch-link" :class="{ 'active': currentChapter==='05', 'visited': isVisited('05') && currentChapter!=='05' }">
+          <span class="ch-num" x-text="(isVisited('05') && currentChapter!=='05') ? '✓' : '05'"></span>
+          <span class="ch-txt">MLflow + método STAR</span>
+        </a>
+        <a href="06-checklist-tech-challenge.html" class="ch-link" :class="{ 'active': currentChapter==='06', 'visited': isVisited('06') && currentChapter!=='06' }">
+          <span class="ch-num" x-text="(isVisited('06') && currentChapter!=='06') ? '✓' : '06'"></span>
+          <span class="ch-txt">Checklist Tech Challenge</span>
+        </a>
+
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#custo-invisivel" class="sec-link" :class="{ 'active': activeSection==='custo-invisivel' }">1.1 O custo invisível de não documentar</a>
+        <a href="#funciona-na-minha-maquina" class="sec-link" :class="{ 'active': activeSection==='funciona-na-minha-maquina' }">1.2 "Funciona na minha máquina"</a>
+        <a href="#infraestrutura-cognitiva" class="sec-link" :class="{ 'active': activeSection==='infraestrutura-cognitiva' }">1.3 Infraestrutura cognitiva</a>
+        <a href="#quando-vira-manchete" class="sec-link" :class="{ 'active': activeSection==='quando-vira-manchete' }">1.4 Quando vira manchete</a>
+        <a href="#tres-publicos" class="sec-link" :class="{ 'active': activeSection==='tres-publicos' }">1.5 Os três públicos</a>
+        <a href="#dez-por-cento" class="sec-link" :class="{ 'active': activeSection==='dez-por-cento' }">1.6 O que vale 10%</a>
+        <a href="#diagnostico" class="sec-link" :class="{ 'active': activeSection==='diagnostico' }">1.7 Diagnóstico</a>
+        <a href="#o-salto" class="sec-link" :class="{ 'active': activeSection==='o-salto' }">1.8 O salto</a>
+      </nav>
+    </aside>
+
+    <!-- ================= Main ================= -->
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar">
+        <a href="../index.html">Documentação em ML</a>
+        <span class="topbar-sep">›</span>
+        <span class="topbar-current">Capítulo 1 · Por que documentação importa</span>
+      </header>
+
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 01</div>
+        <h1>Por que documentação é tão importante quanto o <em>modelo</em></h1>
+
+        <blockquote class="chapter-epigraph">
+          "O modelo está com 94% de acurácia. A API está no ar. O MLflow está logando tudo. Falta só escrever um README rapidinho."
+        </blockquote>
+
+        <p>Se você já pensou alguma variação dessa frase, este capítulo é para você. E talvez você não goste muito do que vem a seguir.</p>
+
+        <hr>
+
+        <!-- ========== 1.1 ========== -->
+        <h2 id="custo-invisivel">1.1 O custo invisível de não documentar</h2>
+
+        <p>Em novembro de 2021, a Zillow, uma das maiores plataformas imobiliárias dos Estados Unidos, anunciou o <strong>encerramento do Zillow Offers</strong>, seu programa de iBuying baseado em Machine Learning. O modelo previa o preço de revenda de imóveis e decidia, de forma quase autônoma, quais casas comprar e por quanto. Em três meses, a empresa amargou prejuízos de cerca de <strong>US$ 881 milhões</strong>, demitiu <strong>25% da força de trabalho</strong> (aproximadamente 2.000 pessoas) e viu sua ação cair mais de 50%. Cerca de <strong>7.000 imóveis</strong> haviam sido comprados acima do valor de mercado.</p>
+
+        <p>A história costuma ser contada como uma "falha de modelo". Mas é mais que isso: foi uma falha de <strong>documentação</strong>. Não havia registro claro de em que distribuição de mercado o modelo tinha sido treinado (uma fase fortemente ascendente), não havia critério documentado de quando retreinar em resposta a <em>drift</em>, e não havia comunicação estruturada entre cientistas de dados e tomadores de decisão sobre os limites do sistema. O modelo continuou tomando decisões enquanto a base de realidade mudava embaixo dele, e ninguém tinha um documento que dissesse "aqui é onde paramos de confiar".</p>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px"></i> Definição</div>
+          <p><strong>Documentação, em ML, é o conjunto de artefatos textuais que tornam um sistema interpretável, reproduzível e auditável por outros humanos (incluindo você mesmo no futuro).</strong> Inclui READMEs, Model Cards, Datasheets, runbooks, ADRs (Architecture Decision Records) e planos de monitoramento. Não é um anexo do projeto. É <em>parte</em> do projeto.</p>
+        </div>
+
+        <p>Este capítulo tem um único objetivo: convencer você de que documentação não é o <strong>enfeite final</strong> do Tech Challenge, e sim um <strong>entregável técnico de primeira classe</strong>, no mesmo nível do <code>train.py</code>, do <code>Dockerfile</code> e do endpoint do FastAPI. No critério de avaliação do seu Tech Challenge, "Documentação e Model Card" vale <strong>10% da nota</strong>, mas o argumento aqui é mais profundo do que pontuação: documentação é o que separa um experimento bonito de um sistema de ML em produção.</p>
+
+        <hr>
+
+        <!-- ========== 1.2 ========== -->
+        <h2 id="funciona-na-minha-maquina">1.2 "Funciona na minha máquina": o pecado original</h2>
+
+        <p>Todo engenheiro de ML já viveu (ou cometeu) a cena. O notebook gera um gráfico lindo, o modelo bate a baseline, o stakeholder aprova. Três meses depois alguém pergunta: <em>"que features você usou mesmo?"</em>, <em>"esse 0.94 era F1 ou acurácia?"</em>, <em>"qual versão do PyTorch?"</em>. E ninguém sabe responder.</p>
+
+        <p>Sculley et al., em 2015, escreveram um dos papers mais citados de MLOps, <a href="https://papers.nips.cc/paper/5656-hidden-technical-debt-in-machine-learning-systems.pdf" target="_blank" rel="noopener"><em>Hidden Technical Debt in Machine Learning Systems</em></a>, com a frase que virou mantra:</p>
+
+        <blockquote>
+          <p><em>"Only a small fraction of real-world ML systems is composed of the ML code."</em></p>
+        </blockquote>
+
+        <p>Ao redor do código de treino, há um oceano de configuração, infraestrutura, monitoramento, ingestão de dados e — o que mais nos interessa aqui — <strong>conhecimento tácito</strong>. Esse conhecimento tácito é o que não está em lugar nenhum: está na cabeça de quem fez. E cabeças mudam de empresa, esquecem, ficam doentes, vão de férias.</p>
+
+        <p>A análise da <a href="https://arxiv.org/abs/2402.05160" target="_blank" rel="noopener">Liang et al. 2024 (Stanford/Hugging Face)</a>, que examinou cerca de 32 mil Model Cards no Hugging Face, traz números que deveriam doer:</p>
+
+        <ul>
+          <li>Apenas <strong>44,2%</strong> dos modelos hospedados no HF têm Model Card de algum tipo.</li>
+          <li>Esses modelos com card concentram <strong>90,5% do tráfego</strong> de downloads. Ou seja: <strong>quem documenta é quem é usado.</strong></li>
+          <li>Mesmo entre os que têm card, a seção <em>Limitations</em> aparece em só <strong>17,4%</strong> dos casos.</li>
+          <li><em>Evaluation</em> aparece em <strong>15,4%</strong>.</li>
+          <li><em>Environmental Impact</em> em <strong>2,0%</strong>.</li>
+          <li>Quando os pesquisadores adicionaram Model Cards a 42 modelos previamente sem documentação, os downloads semanais cresceram <strong>+29%</strong>.</li>
+        </ul>
+
+        <p>Traduzindo: a maior parte da comunidade de ML libera modelos no mundo sem dizer <strong>o que eles fazem, em que dados foram treinados, e onde eles falham</strong>. E quando alguém finalmente documenta, o impacto é mensurável em adoção.</p>
+
+        <div class="box box-warning">
+          <div class="box-label"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Atenção</div>
+          <p>Se você está pensando "mas isso é problema de modelos públicos, no meu trabalho é diferente", lembre-se: o "outro" mais importante que vai ler sua documentação é <strong>você mesmo daqui a seis meses</strong>. E ele não vai ter acesso à sua memória de hoje.</p>
+        </div>
+
+        <hr>
+
+        <!-- ========== 1.3 ========== -->
+        <h2 id="infraestrutura-cognitiva">1.3 Documentação como infraestrutura cognitiva</h2>
+
+        <p>Uma analogia útil: pense na documentação como <strong>uma carta para o seu eu futuro</strong>. Não para o você de amanhã (esse ainda lembra de tudo), mas para o você de seis meses à frente — depois de outro projeto, outras prioridades, outras stacks. Esse "eu futuro" abre o repositório, lê o código e tenta reconstruir o raciocínio. Tudo o que não estiver escrito vira arqueologia.</p>
+
+        <p>Mais ainda: documentação é <strong>infraestrutura cognitiva</strong>. Assim como você não rodaria seu modelo sem um cluster, sem um banco e sem rede, ninguém deveria operar um sistema de ML sem o substrato textual que torna esse sistema <strong>legível</strong>. Sem documentação, todo o conhecimento sobre o sistema mora em pessoas, e pessoas são um single point of failure horrível.</p>
+
+        <p>Na pesquisa da ZenML de dezembro de 2025, que analisou <strong>1.200 deployments de LLM</strong> em produção, a conclusão foi clara: <strong>engenharia de software (não a sofisticação do modelo) é o principal preditor de sucesso</strong>. Deployments que falham raramente falham porque o modelo era ruim — falham porque ninguém sabe onde está o quê, quem é responsável pelo retreino, e qual é o critério de rollback.</p>
+
+        <hr>
+
+        <!-- ========== 1.4 ========== -->
+        <h2 id="quando-vira-manchete">1.4 Quando a falta de documentação vira manchete</h2>
+
+        <p>A história da Zillow não é exceção. É padrão. Vamos passar por seis casos em que sistemas de ML causaram dano real, financeiro ou reputacional, e em todos eles a <strong>ausência de documentação adequada</strong> (sobre dados, sobre limites, sobre uso pretendido) é parte central da causa raiz.</p>
+
+        <!-- ===== INTERATIVO: Timeline de incidentes ===== -->
+        <div class="interactive" x-data="timelineIncidentes()">
+          <div class="interactive-label">
+            <i data-lucide="zap" style="width:14px;height:14px"></i>
+            Interativo · Timeline de incidentes ML
+          </div>
+          <h4>Seis manchetes, seis falhas de documentação</h4>
+          <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 1.25rem;">
+            Clique em um marco para ver o que aconteceu e qual artefato de documentação teria mitigado o caso.
+          </p>
+
+          <div class="tl-wrap">
+            <div class="tl-track">
+              <div class="tl-line"></div>
+              <div class="tl-dots">
+                <template x-for="inc in incidents" :key="inc.id">
+                  <button
+                    class="tl-dot"
+                    :class="{ 'selected': selectedIncident === inc.id }"
+                    @click="toggle(inc.id)"
+                    :aria-label="inc.ano + ' — ' + inc.titulo">
+                    <span class="tl-circle" x-text="'’' + inc.ano.substring(2,4)"></span>
+                    <span class="tl-year" x-text="inc.ano"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <div class="tl-panel">
+              <template x-if="!selectedIncident">
+                <div class="tl-panel-empty">
+                  Selecione um marco da timeline para explorar o caso.
+                </div>
+              </template>
+
+              <template x-if="selectedIncident">
+                <div x-transition.opacity x-data="{ inc: null }" x-effect="inc = incidents.find(i => i.id === selectedIncident)">
+                  <template x-if="inc">
+                    <div>
+                      <div class="tl-panel-meta" x-text="inc.ano + ' · ' + inc.org"></div>
+                      <h5 x-text="inc.titulo"></h5>
+
+                      <div class="box box-warning" style="margin-top: 0.9rem;">
+                        <div class="box-label"><i data-lucide="alert-triangle" style="width:12px;height:12px"></i> O que aconteceu</div>
+                        <p x-text="inc.oQueAconteceu"></p>
+                      </div>
+
+                      <div class="box box-example">
+                        <div class="box-label"><i data-lucide="flask-conical" style="width:12px;height:12px"></i> O que documentação teria evitado</div>
+                        <p x-text="inc.oQueDocEvitaria"></p>
+                      </div>
+
+                      <div class="tl-panel-source">
+                        Fonte: <a :href="inc.fonte" target="_blank" rel="noopener" x-text="inc.fonte"></a>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <!-- ===== /INTERATIVO ===== -->
+
+        <p>Note o padrão. Em todos os casos, a falha técnica era visível em algum nível — viés no dataset, comportamento OOD, escopo mal definido. O que faltou não foi modelagem mais inteligente; faltou um <strong>lugar onde alguém tivesse escrito</strong>: "este sistema foi treinado em X, funciona dentro do envelope Y, e falha em Z". Documentação é o pre-requisito para que limitações sejam <strong>discutíveis</strong> em vez de invisíveis.</p>
+
+        <hr>
+
+        <!-- ========== 1.5 ========== -->
+        <h2 id="tres-publicos">1.5 Os três públicos da sua documentação</h2>
+
+        <p>Quando você escreve documentação de ML, você escreve simultaneamente para <strong>três audiências distintas</strong>, e tratar todas como uma só é o erro mais comum.</p>
+
+        <div class="box box-definition">
+          <div class="box-label"><i data-lucide="book-open" style="width:14px;height:14px"></i> Definição</div>
+          <p><strong>ADR (Architecture Decision Record).</strong> Documento curto (≈1 página) que registra uma decisão técnica significativa, junto com o contexto que a motivou e as alternativas consideradas. Foi popularizado por Michael Nygard em 2011 e hoje é prática comum em times de engenharia. Exemplo: <em>"ADR-002: escolhemos MLP de 3 camadas em vez de XGBoost porque o time precisa servir o modelo com TorchScript no edge."</em></p>
+        </div>
+
+        <div class="audience-grid">
+          <article class="audience-card">
+            <div class="audience-icon"><i data-lucide="user" style="width:16px;height:16px"></i></div>
+            <div class="audience-num">Audiência 1</div>
+            <h4>Você do futuro</h4>
+            <p>Em seis meses, você não vai lembrar por que escolheu <code>lr=3e-4</code> em vez de <code>1e-3</code>. Não vai lembrar se <code>tenure_months</code> usou <code>StandardScaler</code> ou <code>MinMaxScaler</code>. Não vai lembrar por que removeu clientes com <code>monthly_charges &gt; 8000</code> do treino.</p>
+            <div class="audience-focus">
+              <b>Foco</b>
+              Decisões e seus porquês — ADRs curtos, seção "Notas de implementação" no README, comentários de "porquê" (não de "o quê") no código.
+            </div>
+          </article>
+
+          <article class="audience-card">
+            <div class="audience-icon"><i data-lucide="users" style="width:16px;height:16px"></i></div>
+            <div class="audience-num">Audiência 2</div>
+            <h4>Colega ou sucessor</h4>
+            <p>A pessoa que vai dar manutenção no seu modelo daqui a um ano — talvez nem trabalhe na empresa hoje. Ela precisa, em <strong>menos de uma hora</strong>, rodar o pipeline, regenerar os artefatos, entender o data flow e identificar onde mexer para corrigir um bug.</p>
+            <div class="audience-focus">
+              <b>Foco</b>
+              Reprodutibilidade e onboarding — README com <code>quickstart</code>, versões pinadas, Docker, diagrama de arquitetura, inputs e outputs claros do modelo.
+            </div>
+          </article>
+
+          <article class="audience-card">
+            <div class="audience-icon"><i data-lucide="briefcase" style="width:16px;height:16px"></i></div>
+            <div class="audience-num">Audiência 3</div>
+            <h4>Stakeholder não-técnico</h4>
+            <p>Gerente de produto, advogado, auditor, investidor, regulador. Pessoas que <strong>não vão ler seu código</strong>, mas precisam entender o que o modelo decide, em quais condições é confiável e quais são os riscos envolvidos.</p>
+            <div class="audience-focus">
+              <b>Foco</b>
+              Propósito, limites e risco — Model Card no formato Mitchell et al. 2019, FAQ executivo, plano de monitoramento legível por humanos.
+            </div>
+          </article>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica</div>
+          <p>Antes de escrever qualquer documento, pergunte: <strong>para qual dessas três audiências estou escrevendo agora?</strong> Se a resposta for "todas", o documento provavelmente vai falhar com todas. Separe.</p>
+        </div>
+
+        <hr>
+
+        <!-- ========== 1.6 ========== -->
+        <h2 id="dez-por-cento">1.6 O que vale 10% no seu Tech Challenge</h2>
+
+        <p>No critério de avaliação do Tech Challenge da Pós-Tech, <strong>"Documentação e Model Card" vale 10% da nota</strong>. Pode parecer pouco, mas pense: é o mesmo peso de itens técnicos individuais, e é o item de maior <strong>alavancagem por hora investida</strong>. Você não vai ganhar 10% extra de acurácia em uma tarde, mas pode escrever uma Model Card decente em duas horas.</p>
+
+        <p>Os avaliadores vão olhar três entregas centrais:</p>
+
+        <ol>
+          <li><strong>Model Card completa</strong> — para o seu MLP de churn em PyTorch, isso significa: descrição do modelo (arquitetura, hiperparâmetros, versão do PyTorch), dados de treino (origem, período, distribuição de classes, pré-processamento), métricas (não só acurácia: precision, recall, F1, AUC, idealmente desagregadas por subgrupo relevante), uso pretendido e usuários-alvo, e — crucialmente — <strong>limitações conhecidas</strong> (lembre dos 17,4%; seja a exceção).</li>
+          <li><strong>README claro</strong> — quickstart de menos de 5 minutos, instruções de execução do FastAPI, como subir o MLflow, como reproduzir o treino, estrutura do repositório.</li>
+          <li><strong>Plano de monitoramento</strong> — quais métricas serão monitoradas em produção (latência, throughput, distribuição de scores, drift de features), quais são os thresholds de alerta, qual é o critério de retreino, quem é responsável.</li>
+        </ol>
+
+        <div class="box box-example">
+          <div class="box-label"><i data-lucide="flask-conical" style="width:14px;height:14px"></i> Exemplo</div>
+          <p><strong>Mau exemplo de seção "Limitations":</strong></p>
+          <blockquote>
+            <p><em>"Como qualquer modelo, este pode errar."</em></p>
+          </blockquote>
+          <p><strong>Bom exemplo:</strong></p>
+          <blockquote>
+            <p><em>"O modelo foi treinado com dados de clientes ativos entre 2022-Q1 e 2023-Q4. Não foi avaliado em clientes corporativos (B2B) e não deve ser usado para esse segmento. A acurácia para clientes com tenure &lt; 3 meses é 12 pontos percentuais mais baixa do que a média (cold start). Não foi feita análise de fairness por gênero ou região, pois o dataset não contém esses campos."</em></p>
+          </blockquote>
+        </div>
+
+        <hr>
+
+        <!-- ========== 1.7 ========== -->
+        <h2 id="diagnostico">1.7 Diagnóstico: como anda a sua documentação?</h2>
+
+        <p>Antes de seguir para o capítulo 2, faça uma autoavaliação honesta. As perguntas a seguir não têm "resposta certa" — elas mapeiam <strong>onde você está hoje</strong>.</p>
+
+        <!-- ===== INTERATIVO: Quiz diagnóstico ===== -->
+        <div class="interactive" x-data="quizDiagnostico()">
+          <div class="interactive-label">
+            <i data-lucide="clipboard-list" style="width:14px;height:14px"></i>
+            Interativo · Quiz diagnóstico
+          </div>
+          <h4>Qual é o estado da sua documentação?</h4>
+
+          <div class="qz-card">
+            <!-- Em andamento -->
+            <template x-if="!finished">
+              <div>
+                <div class="qz-prog-wrap">
+                  <div class="qz-prog-track">
+                    <div class="qz-prog-fill" :style="`width: ${((currentQuestion + 1) / questions.length) * 100}%`"></div>
+                  </div>
+                  <div class="qz-prog-lbl" x-text="`Pergunta ${currentQuestion + 1} de ${questions.length}`"></div>
+                </div>
+
+                <div class="qz-fade" :class="{ 'qz-leaving': leaving, 'qz-entering': entering }">
+                  <p class="qz-question" x-text="questions[currentQuestion].pergunta"></p>
+
+                  <div class="qz-options">
+                    <template x-for="(op, idx) in questions[currentQuestion].opcoes" :key="currentQuestion + '-' + idx">
+                      <button
+                        class="qz-option"
+                        :class="{ 'qz-selected': selectedOption === idx }"
+                        :disabled="answers[currentQuestion] !== undefined && selectedOption !== null && false"
+                        @click="choose(idx)"
+                        x-text="op.texto">
+                      </button>
+                    </template>
+                  </div>
+
+                  <div class="qz-actions">
+                    <button class="btn-primary" :disabled="selectedOption === null" @click="next()">
+                      <span x-text="currentQuestion === questions.length - 1 ? 'Ver resultado' : 'Próxima'"></span>
+                      <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Resultado -->
+            <template x-if="finished">
+              <div class="qz-result" x-data="{ p: profile() }">
+                <span class="qz-result-badge" x-text="p.badge"></span>
+                <h5 class="qz-result-title" x-text="p.nome"></h5>
+                <div class="qz-result-score" x-text="`Pontuação: ${score} / 15`"></div>
+
+                <div class="box box-tip">
+                  <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Seu perfil</div>
+                  <p x-text="p.descricao"></p>
+                </div>
+
+                <div class="qz-actions" style="justify-content: flex-start;">
+                  <button class="btn-reset" @click="reset()">
+                    <i data-lucide="rotate-ccw" style="width:12px;height:12px; display:inline; vertical-align:middle; margin-right:4px"></i>
+                    Refazer quiz
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <!-- ===== /INTERATIVO ===== -->
+
+        <hr>
+
+        <!-- ========== 1.8 ========== -->
+        <h2 id="o-salto">1.8 O salto: documentação como prática de engenharia</h2>
+
+        <p>Repare no que aconteceu até aqui. Começamos com US$ 881 milhões da Zillow, passamos por seis manchetes, vimos que 17,4% dos modelos no Hugging Face dizem suas próprias limitações, e terminamos com um diagnóstico do seu próprio fluxo. O fio condutor é um só: <strong>documentação é o que torna o conhecimento de ML transferível, auditável e escalável</strong>.</p>
+
+        <p>Os números reforçam: o <a href="https://www.databricks.com/resources/ebook/state-of-data-ai" target="_blank" rel="noopener">Databricks State of AI Agents 2026</a> mostra que empresas que adotam práticas de <strong>governança de IA</strong> colocam <strong>mais de 12× mais</strong> projetos em produção do que as que não adotam — e sistemas multi-agente cresceram <strong>327% em menos de quatro meses</strong>. Estamos colocando muito mais modelos no mundo, e quase ninguém está documentando proporcionalmente. Isso é um vácuo de prática profissional — e quem se posiciona nele se diferencia.</p>
+
+        <p>A boa notícia é que <strong>documentação é uma habilidade, não um talento</strong>. Tem padrão, tem template, tem ferramenta. Os capítulos seguintes cobrem exatamente isso:</p>
+
+        <ul>
+          <li><strong>Capítulo 2</strong> — Model Cards no padrão Mitchell et al. 2019, aplicados ao seu MLP de churn, com exemplos reais de LLMs e modelos clássicos.</li>
+          <li><strong>Capítulo 3</strong> — README exemplar e Mermaid para diagramar sua arquitetura direto no GitHub.</li>
+          <li><strong>Capítulo 4</strong> — Documentação de código: docstrings, type hints e uso de IA como aliada.</li>
+          <li><strong>Capítulo 5</strong> — Documentando o processo: MLflow como documento científico e método STAR.</li>
+          <li><strong>Capítulo 6</strong> — Checklist prático aplicando tudo ao Tech Challenge.</li>
+        </ul>
+
+        <div class="box box-tip">
+          <div class="box-label"><i data-lucide="lightbulb" style="width:14px;height:14px"></i> Dica</div>
+          <p>Encare cada Pull Request de modelo como tendo dois reviews: o do código e o da documentação. Se a Model Card não foi atualizada, a PR não está pronta. Esse hábito sozinho coloca você acima da maior parte do mercado.</p>
+        </div>
+
+        <p>No próximo capítulo, vamos atacar o artefato mais específico e mais avaliado da sua entrega: o <strong>Model Card</strong> do seu MLP de churn.</p>
+
+        <!-- ================= Navegação ================= -->
+        <nav class="chapter-nav">
+          <a href="../index.html" class="nav-btn nav-btn-disabled" aria-disabled="true">
+            <span>
+              <span class="nav-btn-label">Início do textbook</span>
+              <span class="nav-btn-title">← Voltar ao índice</span>
+            </span>
+          </a>
+          <a href="02-model-cards.html" class="nav-btn nav-btn-next">
+            <span>
+              <span class="nav-btn-label">Próximo · Capítulo 2</span>
+              <span class="nav-btn-title">Model Cards: documentando modelos com responsabilidade →</span>
+            </span>
+          </a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <!-- Prism -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+
+  <!-- Helpers compartilhados -->
+  <script src="../assets/main.js"></script>
+
+  <script>
+    // ==========================================================
+    // Alpine data components
+    // ==========================================================
+    document.addEventListener('alpine:init', () => {
+
+      // ---------- Shell do capítulo ----------
+      Alpine.data('chapterApp', () => ({
+        sidebarCollapsed: localStorage.getItem('tb_sidebar_collapsed') === 'true',
+        activeSection: '',
+        currentChapter: '01',
+        init() {
+          TB_markVisited();
+          TB_initReadingProgress();
+          TB_addCopyButtons();
+          TB_initSectionObserver((id) => { this.activeSection = id; });
+          // Re-render ícones após Alpine montar
+          this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        },
+        toggleSidebar() {
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('tb_sidebar_collapsed', this.sidebarCollapsed);
+        },
+        isVisited(id) { return TB_isVisited(id); },
+      }));
+
+      // ---------- Timeline de incidentes ----------
+      Alpine.data('timelineIncidentes', () => ({
+        selectedIncident: null,
+        incidents: [
+          {
+            id: 'google-photos-2015',
+            ano: '2015',
+            initials: 'G',
+            org: 'Google',
+            titulo: "Google Photos rotula pessoas negras como 'gorilas'",
+            oQueAconteceu: "O sistema de classificação automática de imagens do Google Photos categorizou fotos de pessoas negras com a tag 'gorillas'. O caso veio a público quando um engenheiro postou as evidências no Twitter.",
+            oQueDocEvitaria: "Um Datasheet for Datasets descrevendo a representatividade racial do conjunto de treino teria sinalizado o gap demográfico antes do deploy. Uma seção 'Limitations' no Model Card teria explicitado o risco de erro em populações sub-representadas.",
+            fonte: 'https://www.theverge.com/2018/1/12/16882408/google-racist-gorillas-photo-recognition-algorithm-ai',
+          },
+          {
+            id: 'compas-2016',
+            ano: '2016',
+            initials: 'N',
+            org: 'Northpointe / Cortes dos EUA',
+            titulo: 'COMPAS: viés racial em predição de reincidência',
+            oQueAconteceu: "Investigação da ProPublica mostrou que o software COMPAS, usado por juízes nos EUA para prever reincidência criminal, classificava réus negros como alto risco quase 2× mais que brancos (45% vs 24% de falsos positivos), com AUC de apenas ~0,67. A Northpointe nunca divulgou código nem metodologia.",
+            oQueDocEvitaria: 'Model Card pública com métricas desagregadas por subgrupo (raça, gênero) e seção de uso pretendido teria exposto o viés antes do uso judicial.',
+            fonte: 'https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing',
+          },
+          {
+            id: 'amazon-hiring-2018',
+            ano: '2017-18',
+            initials: 'A',
+            org: 'Amazon',
+            titulo: 'Sistema de recrutamento da Amazon penaliza mulheres',
+            oQueAconteceu: "Sistema de IA desenvolvido em Edinburgh a partir de 2014 para triagem de CVs penalizava currículos contendo a palavra 'women's' (ex.: 'women's chess club captain') e rebaixava graduadas de duas universidades femininas. O modelo havia sido treinado em 10 anos de CVs históricos predominantemente masculinos. Foi encerrado em 2017.",
+            oQueDocEvitaria: "Datasheet do dataset declarando a distribuição de gênero do histórico de contratações teria tornado evidente que o sinal aprendido era o viés histórico, não 'mérito'.",
+            fonte: 'https://www.euronews.com/business/2018/10/10/amazon-scraps-secret-ai-recruiting-tool-that-showed-bias-against-women',
+          },
+          {
+            id: 'apple-card-2019',
+            ano: '2019',
+            initials: '',
+            org: 'Apple / Goldman Sachs',
+            titulo: 'Apple Card oferece limites menores para mulheres',
+            oQueAconteceu: 'Steve Wozniak relatou publicamente que recebeu limite de crédito 10× maior que o da esposa, mesmo compartilhando contas e patrimônio. Outros casos similares vieram à tona, levando a investigação do Departamento de Serviços Financeiros de Nova York.',
+            oQueDocEvitaria: 'Model Card declarando features usadas, métricas de fairness por gênero e processo de auditoria teria permitido detectar e responder ao viés antes do escândalo público.',
+            fonte: 'https://www.bbc.com/news/business-50365609',
+          },
+          {
+            id: 'zillow-2021',
+            ano: '2021',
+            initials: 'Z',
+            org: 'Zillow',
+            titulo: 'Zillow Offers perde US$ 881 milhões em iBuying',
+            oQueAconteceu: 'Modelo de previsão de preços imobiliários, treinado em mercado em alta, comprou ~7.000 imóveis acima do valor de mercado quando as condições mudaram. Prejuízo de US$ 528 milhões só no Q3/2021, totais ~US$ 881 milhões. 25% da força de trabalho (~2.000 pessoas) foi demitida.',
+            oQueDocEvitaria: 'Model Card com seção explícita de comportamento out-of-distribution e plano de monitoramento documentado com gatilhos de retreino teriam forçado revisão antes do colapso.',
+            fonte: 'https://www.wsj.com/articles/zillow-quits-home-flipping-business-cites-inability-to-forecast-prices-11635885027',
+          },
+          {
+            id: 'air-canada-2024',
+            ano: '2024',
+            initials: 'AC',
+            org: 'Air Canada',
+            titulo: 'Tribunal responsabiliza Air Canada por chatbot que mentiu',
+            oQueAconteceu: "O chatbot da Air Canada deu informação incorreta sobre tarifa de luto (bereavement fare) a Jake Moffatt. A empresa argumentou que o chatbot era 'entidade separada' e não a vinculava. O BC Civil Resolution Tribunal rejeitou a defesa em 14/02/2024 e responsabilizou a Air Canada por negligent misrepresentation. Precedente legal: empresas não podem se eximir de responsabilidade por outputs de IA.",
+            oQueDocEvitaria: 'Documentação clara de uso pretendido, escopo do chatbot e disclaimer integrado ao produto teriam reduzido o risco regulatório e jurídico.',
+            fonte: 'https://www.mccarthy.ca/en/insights/blogs/techlex/moffatt-v-air-canada-misrepresentation-ai-chatbot',
+          },
+        ],
+        toggle(id) {
+          this.selectedIncident = (this.selectedIncident === id) ? null : id;
+          this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        },
+      }));
+
+      // ---------- Quiz diagnóstico ----------
+      Alpine.data('quizDiagnostico', () => ({
+        currentQuestion: 0,
+        score: 0,
+        answers: [],
+        finished: false,
+        selectedOption: null,
+        leaving: false,
+        entering: false,
+
+        questions: [
+          {
+            pergunta: 'Quando você termina um experimento de ML que deu certo, qual é a próxima coisa que você faz?',
+            opcoes: [
+              { pontos: 3, texto: 'Escrevo no README/Model Card o que mudou, métricas finais e decisões tomadas.' },
+              { pontos: 2, texto: 'Faço commit com mensagem detalhada e atualizo o CHANGELOG.' },
+              { pontos: 1, texto: "Faço commit com 'update model' e sigo para o próximo experimento." },
+              { pontos: 0, texto: 'Já estou rodando o próximo experimento, documento depois.' },
+            ],
+          },
+          {
+            pergunta: 'Se um colega abrir seu repositório agora, em quanto tempo ele consegue rodar seu pipeline de treino do zero?',
+            opcoes: [
+              { pontos: 3, texto: 'Em menos de 10 minutos: tem README, requirements pinados e/ou Dockerfile.' },
+              { pontos: 2, texto: 'Em meia hora, se ele perguntar uma ou duas coisas no chat.' },
+              { pontos: 1, texto: 'Em algumas horas, vai ter que entender muita coisa lendo o código.' },
+              { pontos: 0, texto: 'Sinceramente, ele não consegue sem mim.' },
+            ],
+          },
+          {
+            pergunta: 'Você tem documentado em algum lugar quais são as limitações conhecidas do seu modelo (subgrupos onde erra mais, segmentos não cobertos, premissas)?',
+            opcoes: [
+              { pontos: 3, texto: "Sim, em uma seção 'Limitations' da Model Card, com métricas desagregadas." },
+              { pontos: 2, texto: 'Tenho anotado em um doc interno, não está no repo.' },
+              { pontos: 1, texto: 'Sei na minha cabeça, nunca escrevi.' },
+              { pontos: 0, texto: 'Nunca pensei sistematicamente nisso.' },
+            ],
+          },
+          {
+            pergunta: 'Para a versão atual do modelo em produção (ou que você entregaria), você sabe responder em 30 segundos: data de treino, dataset usado, métrica principal e versão exata do código?',
+            opcoes: [
+              { pontos: 3, texto: 'Sim, está tudo no MLflow + Model Card e versionado.' },
+              { pontos: 2, texto: 'Sei a maioria, teria que olhar o MLflow para confirmar.' },
+              { pontos: 1, texto: 'Sei só algumas coisas, vou ter que abrir vários lugares.' },
+              { pontos: 0, texto: 'Vou ter que perguntar ou fazer engenharia reversa.' },
+            ],
+          },
+          {
+            pergunta: 'Como você comunica para um stakeholder não-técnico (gerente, cliente) o que seu modelo faz, para quem serve e onde NÃO deve ser usado?',
+            opcoes: [
+              { pontos: 3, texto: "Tenho uma seção 'Intended Use' na Model Card e/ou um one-pager executivo." },
+              { pontos: 2, texto: 'Faço uma apresentação rápida quando me pedem.' },
+              { pontos: 1, texto: 'Explico verbalmente quando surge a necessidade.' },
+              { pontos: 0, texto: 'Nunca tive essa conversa.' },
+            ],
+          },
+        ],
+
+        perfis: [
+          {
+            badge: '0–5 pontos',
+            nome: 'Documentador Bombeiro',
+            descricao: 'Você só documenta quando algo pega fogo: auditoria, troca de time, bug em produção. O custo disso é alto e invisível. Boa notícia: este textbook foi escrito para te tirar desse modo. Comece pelo Capítulo 2 e foque especialmente nos templates do Capítulo 5.',
+          },
+          {
+            badge: '6–10 pontos',
+            nome: 'Documentador Reativo',
+            descricao: 'Você documenta quando lembra ou quando alguém pede. Provavelmente seu README é razoável, mas Model Card e plano de monitoramento estão lacunosos. Foco recomendado: Capítulos 3 (Model Card) e 6 (Monitoramento).',
+          },
+          {
+            badge: '11–15 pontos',
+            nome: 'Documentador Sistemático',
+            descricao: 'Você já entende que documentação é parte do entregável. Use este textbook como referência para padronizar formatos e adotar Datasheets for Datasets (Capítulo 4) — provavelmente o item mais maduro que ainda falta no seu fluxo.',
+          },
+        ],
+
+        choose(idx) {
+          this.selectedOption = idx;
+        },
+
+        next() {
+          if (this.selectedOption === null) return;
+          const pontos = this.questions[this.currentQuestion].opcoes[this.selectedOption].pontos;
+          this.answers[this.currentQuestion] = this.selectedOption;
+          this.score += pontos;
+
+          if (this.currentQuestion === this.questions.length - 1) {
+            this.finished = true;
+            this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+            return;
+          }
+
+          // Transição suave
+          this.leaving = true;
+          setTimeout(() => {
+            this.currentQuestion += 1;
+            this.selectedOption = null;
+            this.leaving = false;
+            this.entering = true;
+            this.$nextTick(() => {
+              requestAnimationFrame(() => {
+                this.entering = false;
+                if (window.lucide) lucide.createIcons();
+              });
+            });
+          }, 180);
+        },
+
+        profile() {
+          if (this.score <= 5) return this.perfis[0];
+          if (this.score <= 10) return this.perfis[1];
+          return this.perfis[2];
+        },
+
+        reset() {
+          this.currentQuestion = 0;
+          this.score = 0;
+          this.answers = [];
+          this.finished = false;
+          this.selectedOption = null;
+          this.leaving = false;
+          this.entering = false;
+          this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        },
+      }));
+    });
+
+    // Inicializa ícones Lucide após DOM pronto
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+    window.addEventListener('load', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
