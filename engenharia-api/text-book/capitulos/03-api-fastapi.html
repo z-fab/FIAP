@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APIs de Inferência com FastAPI — Do Notebook à Produção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['DM Sans','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    window.TB_CHAPTERS = [
+      { id:'01', path:'01-refatoracao-pipeline.html', title:'Refatoração & Pipeline' },
+      { id:'02', path:'02-testes.html', title:'Testes em ML' },
+      { id:'03', path:'03-api-fastapi.html', title:'API com FastAPI' },
+      { id:'04', path:'04-empacotamento-tooling.html', title:'Empacotamento & Tooling' },
+    ];
+  </script>
+</head>
+<body x-data="chapterApp('03')" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home"><span class="sb-home-icon">←</span><span class="sb-home-lbl">Do Notebook à Produção</span></a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-refatoracao-pipeline.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }"><span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span><span class="ch-txt">Refatoração &amp; Pipeline</span></a>
+        <a href="02-testes.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }"><span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span><span class="ch-txt">Testes em ML</span></a>
+        <a href="03-api-fastapi.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }"><span class="ch-num" x-text="currentChapter==='03' ? '03' : (isVisited('03') ? '✓' : '03')"></span><span class="ch-txt">API com FastAPI</span></a>
+        <a href="04-empacotamento-tooling.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }"><span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span><span class="ch-txt">Empacotamento &amp; Tooling</span></a>
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a class="sec-link" href="#introducao" :class="{ 'active': activeSection==='introducao' }">Introdução: sair do notebook</a>
+        <a class="sec-link" href="#api-rest" :class="{ 'active': activeSection==='api-rest' }">O que é uma API REST</a>
+        <a class="sec-link" href="#fastapi-essencial" :class="{ 'active': activeSection==='fastapi-essencial' }">FastAPI: o essencial</a>
+        <a class="sec-link" href="#pydantic" :class="{ 'active': activeSection==='pydantic' }">Validação com Pydantic</a>
+        <a class="sec-link" href="#endpoints" :class="{ 'active': activeSection==='endpoints' }">Endpoints /predict e /health</a>
+        <a class="sec-link" href="#observabilidade" :class="{ 'active': activeSection==='observabilidade' }">Observabilidade</a>
+        <a class="sec-link" href="#serving" :class="{ 'active': activeSection==='serving' }">Padrões de serving</a>
+      </nav>
+    </aside>
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar"><a href="../index.html">Do Notebook à Produção</a><span class="topbar-sep">›</span><span class="topbar-current">APIs de Inferência com FastAPI</span></header>
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 03</div>
+        <h1>APIs de Inferência com <em>FastAPI</em></h1>
+        <p class="chapter-objective">Expor o modelo como uma API REST profissional, com validação de contrato (Pydantic), observabilidade (logging + latência), endpoints de saúde, e entender os padrões de serving (batch, online, micro-batching, streaming).</p>
+
+        <!-- ====== CONTEÚDO ====== -->
+
+        <h2 id="introducao">Introdução: o modelo precisa sair do notebook</h2>
+        <p>Você treinou um bom modelo. O <code>pipeline.joblib</code> está salvo, o RMSE está aceitável, e no notebook a célula <code>model.predict(X)</code> devolve previsões em milissegundos. O problema é que ninguém — nem outro time, nem um aplicativo, nem um sistema de cobrança — consegue chamar o seu notebook. Um notebook é um ambiente de exploração, não um serviço. Para que o modelo gere valor, ele precisa ser <strong>exposto</strong>: alguém faz uma pergunta ("quanto vale este imóvel com estas características?") e recebe uma resposta padronizada, validada e rápida.</p>
+        <p>A forma padrão de fazer isso na indústria é uma <strong>API REST de inferência</strong>. Neste capítulo, transformamos o modelo de regressão do <em>California Housing</em> — que recebe 8 features de um imóvel e prevê o preço — em uma API profissional com <strong>FastAPI</strong>. O caminho até lá tem cinco etapas:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">HTTP</span> Vocabulário REST</div><p>Recursos, verbos e status codes — a linguagem que cliente e servidor usam para se entender.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Pydantic V2</span> Contrato de entrada</div><p>Validar automaticamente o que entra na API, devolvendo erros claros quando o dado é inválido.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Endpoints</span> /predict e /health</div><p>As rotas que servem a previsão e que reportam se o serviço está de pé e pronto.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Observabilidade</span> Logging + latência</div><p>Logging estruturado em JSON e um middleware de latência para enxergar o que acontece em produção.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Serving</span> Padrões de arquitetura</div><p>Batch, online, micro-batching e streaming — para escolher a arquitetura certa para cada caso.</p></div>
+        </div>
+
+        <h2 id="api-rest">O que é uma API REST</h2>
+        <p>REST é um estilo de arquitetura para comunicação entre sistemas pela web. A ideia central é organizar tudo em torno de <strong>recursos</strong> — substantivos identificados por uma URL — e manipular esses recursos com um conjunto pequeno e padronizado de <strong>verbos HTTP</strong>. Na nossa API, <code>/predict</code> e <code>/health</code> são recursos.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Recurso:</strong> uma "coisa" que a API expõe, endereçada por um caminho (path). <code>/predict</code> representa a operação de prever um preço; <code>/health</code> representa o estado de saúde do serviço. <strong>Verbo HTTP:</strong> a ação que você quer executar sobre o recurso (GET, POST, etc.).</p>
+        </div>
+
+        <h3>Verbos HTTP</h3>
+        <p>Cada verbo comunica a <em>intenção</em> da operação. Cinco cobrem quase tudo:</p>
+        <table>
+          <thead>
+            <tr><th>Verbo</th><th>Uso típico</th><th>Idempotente?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>GET</strong></td><td>Ler um recurso, sem alterar nada (ex.: <code>/health</code>)</td><td>Sim</td></tr>
+            <tr><td><strong>POST</strong></td><td>Criar algo novo ou disparar um processamento (ex.: <code>/predict</code>)</td><td>Não</td></tr>
+            <tr><td><strong>PUT</strong></td><td>Substituir um recurso inteiro por uma nova versão</td><td>Sim</td></tr>
+            <tr><td><strong>PATCH</strong></td><td>Alterar apenas parte de um recurso</td><td>Não necessariamente</td></tr>
+            <tr><td><strong>DELETE</strong></td><td>Remover um recurso</td><td>Sim</td></tr>
+          </tbody>
+        </table>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Idempotente</strong> quer dizer que repetir a mesma requisição várias vezes tem o <strong>mesmo efeito</strong> que fazê-la uma única vez. <code>GET /health</code> dez vezes não muda nada no servidor. Já <code>POST /predict</code> dez vezes pode gerar dez registros (ou dez cobranças). Isso importa para <em>retries</em>: o cliente pode repetir com segurança uma chamada idempotente que falhou, mas precisa de cuidado com as não idempotentes.</p>
+        </div>
+
+        <p><strong>POST, PUT e PATCH</strong> costumam confundir, porque os três "enviam dados" no corpo da requisição. A diferença está na intenção:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">POST</span>criar / processar</div><p>Cria um recurso novo ou dispara um processamento. <strong>Não idempotente</strong>: repetir gera um novo resultado a cada vez. É o que usamos para enviar features e pedir uma previsão.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">PUT</span>substituir</div><p>Troca um recurso <strong>inteiro</strong> por uma nova versão. <strong>Idempotente</strong>: enviar o mesmo objeto duas vezes deixa o servidor no mesmo estado. Ex.: substituir o cadastro completo de um imóvel.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">PATCH</span>atualizar parte</div><p>Altera <strong>só um pedaço</strong> de um recurso, deixando o resto intacto. <strong>Nem sempre idempotente</strong> — depende do que o patch faz (veja abaixo). Ex.: corrigir só o campo "preço" de um imóvel.</p></div>
+        </div>
+
+        <div class="box box-example">
+          <div class="box-label">🔬 Exemplo</div>
+          <p><strong>Por que o PATCH não é <em>garantidamente</em> idempotente?</strong> Idempotente = repetir N vezes tem o mesmo efeito que fazer 1 vez. No PATCH, depende de como a alteração é descrita:</p>
+          <ul>
+            <li><strong>Absoluto</strong> (define um valor): <code>PATCH {"preço": 100}</code> → repetir mantém <code>100</code>. <em>É idempotente.</em></li>
+            <li><strong>Relativo</strong> (descreve uma mudança): <code>PATCH "aumentar o preço em 10"</code> ou <code>"adicionar um item à lista"</code> → cada repetição muda o estado de novo (110, 120…). <em>Não é idempotente.</em></li>
+          </ul>
+          <p>Como o PATCH <strong>permite</strong> o caso relativo, não dá para <em>garantir</em> idempotência — por isso a tabela diz "não necessariamente". O <code>PUT</code>, por sempre substituir o recurso inteiro, é idempotente por construção. Na prática isso importa para <em>retries</em>: repetir um PATCH que falhou pode aplicar a mudança duas vezes.</p>
+        </div>
+
+        <p>Para inferência, usamos <strong>POST em <code>/predict</code></strong>: enviamos um JSON com as features e pedimos um processamento. Já <code>/health</code> é um <strong>GET</strong>: apenas lemos um estado, sem alterar nada.</p>
+
+        <h3>Status codes</h3>
+        <p>Cada resposta HTTP carrega um <strong>status code</strong> — um número de três dígitos que resume o que aconteceu. O <strong>primeiro dígito</strong> define a classe:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent" style="border-left-color:var(--color-success);"><div class="concept-title">2xx · Sucesso</div><p>Deu certo. O <code>200 OK</code> é o mais comum — a requisição foi atendida e a resposta vem no corpo.</p></div>
+          <div class="concept-card accent" style="border-left-color:#D97706;"><div class="concept-title">4xx · Erro do cliente</div><p>A requisição tem algo errado (dado inválido, rota inexistente, sem permissão). Quem precisa corrigir é <strong>quem chamou</strong>.</p></div>
+          <div class="concept-card accent" style="border-left-color:var(--color-danger);"><div class="concept-title">5xx · Erro do servidor</div><p>A requisição estava ok, mas algo <strong>quebrou no servidor</strong>. O problema é nosso, não do cliente.</p></div>
+        </div>
+        <p>(Existem ainda <code>1xx</code> informativo e <code>3xx</code> redirecionamento, raros numa API de inferência.) Os que mais aparecem no nosso caso — clique para ver quando cada um ocorre:</p>
+
+        <div class="interactive-container" x-data="{ open: null }">
+          <div class="interactive-label">Accordion · Referência rápida de status codes HTTP</div>
+
+          <div class="acc-item" style="border-left-color: var(--color-success);">
+            <button class="acc-head" @click="open === '200' ? open=null : open='200'">
+              <span><code>200</code> · OK</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='200' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='200'" x-collapse>Requisição bem-sucedida. <code>/predict</code> retornou a previsão; <code>/health</code> confirmou que está tudo certo.</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: var(--color-success);">
+            <button class="acc-head" @click="open === '201' ? open=null : open='201'">
+              <span><code>201</code> · Created</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='201' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='201'" x-collapse>Recurso criado. Raro em inferência síncrona; aparece quando um job de predição em batch é registrado/agendado.</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: #D97706;">
+            <button class="acc-head" @click="open === '400' ? open=null : open='400'">
+              <span><code>400</code> · Bad Request</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='400' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='400'" x-collapse>Requisição malformada (JSON inválido, sintaxe quebrada). Também usado para <strong>erros de negócio</strong> que você decide sinalizar manualmente.</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: #D97706;">
+            <button class="acc-head" @click="open === '404' ? open=null : open='404'">
+              <span><code>404</code> · Not Found</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='404' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='404'" x-collapse>Rota inexistente (ex.: cliente chamou <code>/predction</code>).</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: #D97706;">
+            <button class="acc-head" @click="open === '422' ? open=null : open='422'">
+              <span><code>422</code> · Unprocessable Entity</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='422' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='422'" x-collapse>Sintaxe OK, mas o <strong>dado é inválido</strong>. O FastAPI/Pydantic retorna isto <strong>automaticamente</strong> quando a validação falha (ex.: <code>HouseAge: "trinta"</code>).</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: #D97706;">
+            <button class="acc-head" @click="open === '429' ? open=null : open='429'">
+              <span><code>429</code> · Too Many Requests</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='429' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='429'" x-collapse>Cliente excedeu o rate limit.</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: var(--color-danger);">
+            <button class="acc-head" @click="open === '500' ? open=null : open='500'">
+              <span><code>500</code> · Internal Server Error</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='500' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='500'" x-collapse>Erro inesperado no servidor (ex.: exceção dentro de <code>model.predict</code>).</div>
+          </div>
+
+          <div class="acc-item" style="border-left-color: var(--color-danger);">
+            <button class="acc-head" @click="open === '503' ? open=null : open='503'">
+              <span><code>503</code> · Service Unavailable</span>
+              <svg class="acc-chevron" :class="{ 'open': open==='503' }" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 5L7 8.5L10.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="acc-body" x-show="open==='503'" x-collapse>Serviço indisponível — típico quando o <strong>modelo ainda não carregou</strong> ou a instância está sobrecarregada.</div>
+          </div>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>422 (Pydantic, automático) vs. 400 (erro de negócio).</strong> Um equívoco comum é tratar tudo como <code>400</code>. O <code>422</code> é gerado <strong>automaticamente</strong> pelo Pydantic quando o <em>tipo/range</em> do dado é inválido — você não escreve código para isso. O <code>400</code> é para erros que <strong>você</strong> decide sinalizar (regra de negócio violada).</p>
+        </div>
+
+        <h2 id="fastapi-essencial">FastAPI: o essencial</h2>
+        <p>FastAPI é um framework web em Python construído sobre <strong>Starlette</strong> (camada web/ASGI) e <strong>Pydantic</strong> (validação de dados). Três características o tornam ideal para servir modelos:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title">Docs automáticas</div>
+            <span class="concept-tag">OpenAPI / Swagger</span>
+            <p>A partir dos seus tipos e modelos Pydantic, o FastAPI gera, com zero configuração, uma interface interativa em <code>/docs</code> (Swagger UI) e outra em <code>/redoc</code>. Quem for consumir a API consegue testá-la pelo navegador.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><code>async</code> / <code>await</code></div>
+            <span class="concept-tag">Concorrência</span>
+            <p>Rotas podem ser assíncronas, permitindo alta concorrência em operações de I/O sem travar o processo.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title">Injeção de dependência</div>
+            <span class="concept-tag"><code>Depends()</code></span>
+            <p>Você declara o que uma rota precisa e o FastAPI fornece — e essas dependências também aparecem no Swagger.</p>
+          </div>
+        </div>
+
+        <div class="keypoint">
+          <span class="kp-icon">🎯</span>
+          <p>Carregue o modelo <strong>uma única vez no startup, nunca por request</strong>. Recarregar a cada chamada custa CPU e memória e abre brechas para <em>race conditions</em>.</p>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p>A forma moderna e correta é usar o <strong>lifespan</strong> com <code>@asynccontextmanager</code>: o código antes do <code>yield</code> roda no startup (carrega o modelo), o código depois roda no shutdown.</p>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>@app.on_event("startup")</code> está DEPRECADO.</strong> Use <code>lifespan</code>. E cuidado: se você definir <code>on_event</code> <strong>e</strong> <code>lifespan</code> juntos, o <code>on_event</code> é <strong>ignorado silenciosamente</strong>.</p>
+        </div>
+
+        <h3>Estrutura da aplicação</h3>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">from contextlib import asynccontextmanager
+from fastapi import FastAPI
+import joblib
+
+ml_models = {}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # STARTUP: carrega o pipeline treinado uma única vez
+    ml_models["housing"] = joblib.load("pipeline.joblib")
+    yield
+    # SHUTDOWN: libera recursos
+    ml_models.clear()
+
+app = FastAPI(title="California Housing API", version="1.0.0", lifespan=lifespan)</code></pre></div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>Segurança — <code>joblib.load</code> executa código.</strong> Desserializar um <code>.joblib</code>/pickle roda código arbitrário embutido no arquivo. <strong>Só carregue artefatos que o seu próprio pipeline gerou</strong> (confiáveis). Nunca carregue um <code>.joblib</code> recebido de fonte desconhecida. Para dados simples, prefira JSON.</p>
+        </div>
+
+        <h2 id="pydantic">Validação de contrato com Pydantic</h2>
+        <p>O <strong>contrato</strong> da API é a definição exata do que entra e do que sai. <strong>Pydantic</strong> é a biblioteca que o FastAPI usa para isso: você descreve o contrato como uma classe Python, e cada requisição é <strong>validada automaticamente</strong> contra ela.</p>
+        <p>O fluxo, quando um <code>POST</code> chega, é:</p>
+        <ol>
+          <li>o FastAPI lê o JSON do corpo da requisição;</li>
+          <li>tenta encaixá-lo na sua classe, <strong>convertendo tipos</strong> quando faz sentido (a string <code>"41"</code> vira o número <code>41.0</code>);</li>
+          <li>confere as <strong>restrições</strong> que você declarou (faixas de valor, formatos);</li>
+          <li>se algo não bate, devolve <code>422</code> automaticamente com a lista de erros — você não escreve nenhuma linha de validação;</li>
+          <li>se tudo bate, sua função recebe um objeto Python <strong>já validado e tipado</strong>.</li>
+        </ol>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong><code>BaseModel</code></strong> é a classe-base de todo modelo Pydantic — herdar dela é o que liga a validação automática. <strong><code>Field(...)</code></strong> descreve um campo: o <code>...</code> (reticências) o marca como <strong>obrigatório</strong>; os argumentos seguintes declaram as restrições (<code>gt=0</code> = maior que zero; <code>ge</code>/<code>le</code> = maior-ou-igual / menor-ou-igual) e a <code>description</code> que aparece na documentação do Swagger.</p>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>Use Pydantic V2 (jun/2023). Material antigo usa V1 e vai te confundir.</strong> Principais mudanças: <code>@validator</code> → <strong><code>@field_validator</code></strong> (exige <code>@classmethod</code>); classe interna <code>Config</code> → <strong><code>model_config = ConfigDict(...)</code></strong>; validadores cross-field: <strong><code>@model_validator(mode="after")</code></strong>; <code>mode="before"</code> valida antes da coerção de tipo, <code>mode="after"</code>, depois.</p>
+        </div>
+
+        <h3>Modelo de entrada e saída</h3>
+        <p>As 8 features do California Housing são <code>MedInc</code>, <code>HouseAge</code>, <code>AveRooms</code>, <code>AveBedrms</code>, <code>Population</code>, <code>AveOccup</code>, <code>Latitude</code> e <code>Longitude</code>.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+class HousingFeatures(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # rejeita campos desconhecidos
+
+    MedInc:     float = Field(..., gt=0,   description="Renda mediana do bloco (10k USD)")
+    HouseAge:   float = Field(..., ge=0,   le=100)
+    AveRooms:   float = Field(..., gt=0)
+    AveBedrms:  float = Field(..., gt=0)
+    Population: float = Field(..., gt=0)
+    AveOccup:   float = Field(..., gt=0)
+    Latitude:   float = Field(..., ge=32.0, le=42.0)
+    Longitude:  float = Field(..., ge=-125.0, le=-114.0)
+
+    # Field já cobre tipo e range (gt, ge, le...). O @field_validator entra
+    # quando a regra NÃO cabe numa restrição — aqui, normalizar a entrada:
+    @field_validator("MedInc", "AveRooms", "AveBedrms", mode="before")
+    @classmethod
+    def aceitar_virgula_decimal(cls, v):
+        # roda ANTES da conversão de tipo: aceita "8,32" (vírgula) além de 8.32
+        if isinstance(v, str):
+            return v.replace(",", ".")
+        return v
+
+
+class PredictionOut(BaseModel):
+    predicted_price: float = Field(..., description="Preço previsto (100k USD)")</code></pre></div>
+
+        <p>Duas coisas a notar. O <code>@field_validator</code> serve para o que o <code>Field</code> <strong>não</strong> consegue: tipos e faixas de valor (<code>gt</code>, <code>ge</code>, <code>le</code>…) já são responsabilidade do <code>Field</code> — repetir isso num validador seria redundante. O validador entra quando a regra exige lógica: <strong>normalizar/limpar a entrada</strong> (como acima, com <code>mode="before"</code>, que roda <em>antes</em> da conversão de tipo) ou validar algo que uma restrição não expressa. E o <code>PredictionOut</code> declara o <strong>contrato de saída</strong>: usado como <code>response_model</code> na rota, ele faz o FastAPI validar e documentar também a resposta, não só a entrada.</p>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><code>Field</code> oferece muito mais que <code>ge/le</code>: <code>gt</code>, <code>lt</code>, <code>min_length</code>, <code>max_length</code>, <code>pattern</code> (regex), <code>multiple_of</code>, <code>max_digits</code>, <code>decimal_places</code>. Para checagens que envolvem <strong>mais de um campo</strong> (ex.: "AveBedrms não pode ser maior que AveRooms"), use <code>@model_validator(mode="after")</code>, que recebe a instância já validada.</p>
+        </div>
+
+        <h3>Exemplo de request e respostas</h3>
+
+        <div class="box box-example">
+          <div class="box-label">🔬 Exemplo</div>
+          <p><strong>Request (<code>POST /predict</code>):</strong></p>
+          <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-json">{
+  "MedInc": 8.3252, "HouseAge": 41.0, "AveRooms": 6.984, "AveBedrms": 1.024,
+  "Population": 322.0, "AveOccup": 2.555, "Latitude": 37.88, "Longitude": -122.23
+}</code></pre></div>
+          <p><strong>Resposta 200 OK:</strong> <code>{ "predicted_price": 4.526 }</code></p>
+          <p><strong>Resposta 422</strong> (enviando <code>"HouseAge": "trinta"</code>):</p>
+          <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-json">{ "detail": [ {
+  "type": "float_parsing", "loc": ["body", "HouseAge"],
+  "msg": "Input should be a valid number, unable to parse string as a number",
+  "input": "trinta"
+} ] }</code></pre></div>
+        </div>
+
+        <p>Repare na riqueza do corpo do <code>422</code>: <code>loc</code> (onde está o erro), <code>msg</code>, <code>type</code> e <code>input</code>. Isso permite ao cliente corrigir o problema sem adivinhação. É possível customizá-lo com <code>@app.exception_handler(RequestValidationError)</code>.</p>
+
+        <h2 id="endpoints">Os endpoints <code>/predict</code> e <code>/health</code></h2>
+
+        <h3><code>/predict</code></h3>
+        <p>Aqui aparece uma decisão de arquitetura importante. É tentador montar a matriz de features e chamar o modelo <strong>dentro da própria rota</strong> — mas misturar lógica de ML com a camada web é má prática: fica difícil de testar (você precisaria subir a API inteira só para checar uma previsão) e difícil de reusar (um job em batch não aproveita uma lógica presa numa rota HTTP).</p>
+        <p>O padrão é separar em camadas: a <strong>rota</strong> cuida do HTTP (receber, validar, responder) e um <strong>serviço</strong> cuida da regra de ML (preparar as features e prever). Começamos por uma função que converte o objeto validado no formato que o pipeline espera:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># api/service.py — lógica de ML, sem nada de HTTP
+import pandas as pd
+
+FEATURE_ORDER = ["MedInc", "HouseAge", "AveRooms", "AveBedrms",
+                 "Population", "AveOccup", "Latitude", "Longitude"]
+
+def to_features(data: HousingFeatures) -> pd.DataFrame:
+    """DataFrame de 1 linha com colunas NOMEADAS — o contrato do pipeline.
+
+    Por que não um array cru? O ColumnTransformer seleciona as colunas
+    POR NOME; um array sem nomes seria rejeitado na inferência.
+    """
+    return pd.DataFrame({nome: [getattr(data, nome)] for nome in FEATURE_ORDER})
+
+def predict_price(model, data: HousingFeatures) -> float:
+    return float(model.predict(to_features(data))[0])</code></pre></div>
+        <p>A rota fica enxuta — só orquestra o HTTP e <strong>delega</strong> a previsão ao serviço:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># api/app.py — camada web
+from fastapi import HTTPException
+from housing.api.service import predict_price
+
+@app.post("/predict", response_model=PredictionOut)
+async def predict(features: HousingFeatures):
+    model = ml_models.get("housing")
+    if model is None:
+        raise HTTPException(status_code=503, detail="Modelo indisponível")
+    try:
+        preco = predict_price(model, features)
+        return PredictionOut(predicted_price=preco)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro na inferência: {exc}")</code></pre></div>
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Com a previsão numa função pura (<code>predict_price</code>), você a testa sem subir a API e a reaproveita fora dela — num job em batch, num notebook, num teste. A rota vira só uma "casca" HTTP.</p></div>
+
+        <h3><code>/health</code></h3>
+        <p>Um <strong>health check</strong> é um endpoint simples que responde a uma pergunta: "estou de pé e pronto para atender?". Ele não é chamado por usuários, e sim pela <strong>infraestrutura</strong>:</p>
+        <ul>
+          <li>o <strong>balanceador de carga</strong> decide se manda tráfego para esta instância;</li>
+          <li>o <strong>orquestrador</strong> (ex.: Kubernetes) decide se reinicia o contêiner quando ele trava;</li>
+          <li>ferramentas de <strong>monitoramento</strong> acompanham o <em>uptime</em> e disparam alertas.</li>
+        </ul>
+        <p>Como é chamado o tempo todo, deve ser <strong>barato e rápido</strong> — nada de rodar uma predição de verdade. Mas precisa checar o que realmente importa: no nosso caso, se o <strong>modelo foi carregado</strong>.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>/health</code> que sempre retorna "ok" é inútil.</strong> Se ele não checa se o modelo carregou, ele mente: o orquestrador acha que está tudo bem enquanto a API devolve <code>503</code> em toda predição.</p>
+        </div>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">@app.get("/health")
+async def health():
+    loaded = "housing" in ml_models
+    return {"status": "ok" if loaded else "degraded", "model_loaded": loaded}</code></pre></div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Em Kubernetes, separe <code>/live</code> e <code>/ready</code>.</strong> O <strong>liveness</strong> (<code>/live</code>) responde se o processo está vivo (reinicia o pod se travar). O <strong>readiness</strong> (<code>/ready</code>) deve <strong>falhar enquanto o modelo não carregou</strong>, evitando que o tráfego seja roteado para uma instância que ainda não consegue prever.</p>
+        </div>
+
+        <h3>O ciclo completo de uma request</h3>
+        <p>Antes de instrumentar, vale ver a ordem em que uma request atravessa as camadas — incluindo o caminho feliz (<code>200</code>) e o de erro de validação (<code>422</code>):</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Diagrama · Ciclo de uma request</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+sequenceDiagram
+    participant C as Cliente
+    participant M as Middleware (latência)
+    participant V as Validação (Pydantic)
+    participant Mod as Modelo
+    C->>M: POST /predict (JSON)
+    M->>M: start = perf_counter()
+    M->>V: encaminha request
+    alt Dados inválidos
+        V-->>M: erro de validação
+        M-->>C: 422 Unprocessable Entity
+    else Dados válidos
+        V->>Mod: features validadas
+        Mod->>Mod: model.predict(X)
+        Mod-->>V: previsão
+        V-->>M: PredictionOut
+        M->>M: X-Process-Time = perf_counter() - start
+        M-->>C: 200 OK + header X-Process-Time
+    end
+            </div>
+          </div>
+        </div>
+
+        <h2 id="observabilidade">Observabilidade: logging estruturado e latência</h2>
+        <p>Em produção, "imprimir na tela" não basta. Você precisa <strong>medir</strong> (quanto tempo cada request leva) e <strong>registrar de forma pesquisável</strong> (o que aconteceu).</p>
+
+        <h3>Middleware de latência</h3>
+        <p>Um <strong>middleware</strong> é um código que envolve toda request: roda antes de a rota ser chamada e depois de ela responder. É o lugar perfeito para cronometrar a latência e anexar o resultado a um header.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import time
+from fastapi import Request
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    response.headers["X-Process-Time"] = str(elapsed)
+    return response</code></pre></div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p>Use <strong><code>time.perf_counter()</code></strong>, não <code>time.time()</code>, para medir durações. O <code>perf_counter</code> é um relógio monotônico de alta resolução, mais preciso para intervalos curtos e imune a ajustes do relógio do sistema.</p>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>Ordem dos middlewares importa.</strong> O <strong>último middleware adicionado é o mais externo</strong> e executa primeiro na entrada (e por último na saída). Pense na cebola: a request atravessa as camadas de fora para dentro e a resposta volta de dentro para fora.</p>
+        </div>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Diagrama · Cadeia de middleware + latência</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart LR
+    C([Cliente]) -->|request| MStart["Middleware<br/>start = perf_counter()"]
+    MStart --> R["Rota /predict<br/>(validação + modelo)"]
+    R --> MEnd["Middleware<br/>elapsed = perf_counter() - start<br/>header X-Process-Time"]
+    MEnd -->|response| C
+    classDef medir fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6;
+    classDef rota fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52;
+    class MStart medir;
+    class MEnd medir;
+    class R rota;
+            </div>
+          </div>
+        </div>
+
+        <h3>Logging estruturado</h3>
+        <p>Por que <strong>estruturado</strong> (em JSON)? Porque texto plano é difícil de pesquisar em escala. Ferramentas de observabilidade — Elasticsearch, Datadog, Loki, CloudWatch — consomem JSON nativamente, então você filtra por campos (latência, status, id do usuário) sem inventar expressões regulares frágeis.</p>
+        <p>O logging embutido do Python funciona, mas é cerimonioso de configurar (handlers, formatters, níveis). Uma opção mais simples e muito popular é o <strong>loguru</strong>: um único objeto <code>logger</code> pronto para usar, com saída em JSON ligada por um parâmetro.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import sys
+from loguru import logger
+
+# serialize=True emite cada log como uma linha JSON, pronta para ingestão
+logger.remove()                                  # remove o handler padrão
+logger.add(sys.stdout, serialize=True, level="INFO")
+
+# uso dentro da rota — bind() anexa campos extras ao log:
+logger.bind(rota="/predict", latency_ms=12.3).info("predicao concluida")</code></pre></div>
+        <p><strong>O que o <code>bind(...)</code> faz?</strong> Sozinho, <code>logger.info("predicao concluida")</code> registra só a mensagem. O <code>bind(campo=valor, ...)</code> devolve um logger com esses <strong>campos extras anexados</strong> — e, com <code>serialize=True</code>, cada um vira uma <strong>chave no JSON</strong> de saída. É isso que torna o log <em>pesquisável</em>: em vez de caçar texto, você filtra por <code>rota = "/predict"</code> ou <code>latency_ms &gt; 100</code>.</p>
+        <p>Além disso, <code>bind</code> devolve um <strong>logger reutilizável</strong>: você "carimba" um valor uma vez — por exemplo, um id da requisição — e reusa, para que <strong>todas</strong> as linhas daquela requisição saiam com o mesmo campo:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">log = logger.bind(request_id=req_id)     # carimba o id uma vez
+log.info("validando entrada")            # sai com request_id
+log.info("predicao concluida")           # sai com o MESMO request_id
+
+# cada chamada acima vira uma linha JSON parecida com:
+# {"message": "predicao concluida", "level": "INFO",
+#  "request_id": "a1b2c3", "rota": "/predict", "latency_ms": 12.3}</code></pre></div>
+        <p>Em produção, costuma-se registrar pelo menos rota, status, latência e um <strong>identificador de correlação</strong> (o <code>request_id</code>). É ele que permite juntar todos os logs de uma mesma requisição — mesmo quando ela passa por vários serviços.</p>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Exclua <code>/health</code> do log de acesso.</strong> O orquestrador o chama de segundo em segundo; deixá-lo no log enche os registros de ruído e esconde o que importa.</p>
+        </div>
+
+        <h2 id="serving">Padrões de serving: escolhendo a arquitetura</h2>
+        <p>Nem todo modelo precisa de uma API que responde na hora. A forma de servir as predições — o <strong>padrão de serving</strong> — depende de dois números e do que o problema exige. Antes de tudo, dois conceitos:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title">Latência</div><p>O <strong>tempo entre a pergunta e a resposta</strong> — por exemplo, 50&nbsp;ms para uma previsão. É o que o usuário sente enquanto espera; quanto menor, melhor a experiência.</p></div>
+          <div class="concept-card accent"><div class="concept-title">Throughput (vazão)</div><p>Quantas previsões o sistema entrega <strong>por unidade de tempo</strong> — por exemplo, 5.000 por segundo. É a capacidade total; importa quando o volume é grande.</p></div>
+        </div>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Os dois puxam para lados opostos: juntar requisições e processá-las em grupo <strong>aumenta o throughput</strong> (usa melhor o hardware) mas <strong>piora a latência</strong> de cada uma (todas esperam o grupo encher). O <strong>requisito de latência</strong> — quanto o usuário pode esperar — é o que decide o padrão. Ele costuma ser escrito como um SLO, por exemplo: "99% das respostas em menos de 200&nbsp;ms".</p></div>
+
+        <h3>Os quatro padrões</h3>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">batch</span>offline, em lote</div><p>As previsões são <strong>calculadas antes</strong>, em lote (ex.: toda madrugada), e guardadas para consulta. Latência alta (minutos a horas), throughput enorme, custo baixo. <strong>Quando:</strong> o resultado pode esperar — relatórios, segmentação mensal de clientes.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">online</span>tempo real</div><p>Uma requisição → uma previsão <strong>na hora</strong>. Latência baixa (ms), serviço sempre ligado, custo mais alto. <strong>Quando:</strong> o usuário espera a resposta — fraude, recomendação, chatbot. <strong>É o padrão deste capítulo.</strong></p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">micro-batching</span>online em pequenos lotes</div><p>Variante do online: junta as requisições que chegam numa <strong>janela curta</strong> (ex.: 50&nbsp;ms) e processa o lote de uma vez. Troca um pouco de latência por melhor uso da GPU. <strong>Quando:</strong> alto volume em tempo real.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">streaming</span>fluxo contínuo</div><p>Reage a um <strong>fluxo de eventos que nunca para</strong> (via Kafka/Flink), processando cada um à medida que chega. <strong>Quando:</strong> os dados chegam continuamente — sensores (IoT), cliques, logs.</p></div>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Online × micro-batching × streaming, em uma frase cada:</strong> o <strong>online</strong> responde a perguntas isoladas, uma de cada vez, quando alguém pergunta; o <strong>micro-batching</strong> é online que agrupa por eficiência; o <strong>streaming</strong> não espera ninguém perguntar — reage a um fluxo que chega sozinho, sem parar.</p>
+        </div>
+
+        <p>Resumindo os trade-offs de cada padrão:</p>
+        <table>
+          <thead>
+            <tr><th>Padrão</th><th>Latência</th><th>Throughput</th><th>Custo</th><th>Quando usar</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Batch</strong></td><td>minutos–horas</td><td>muito alto</td><td>baixo</td><td>Segmentação mensal, retraining, relatórios noturnos</td></tr>
+            <tr><td><strong>Online</strong></td><td>ms–s</td><td>baixo (por instância)</td><td>alto</td><td>Fraude, recomendação, chatbot</td></tr>
+            <tr><td><strong>Micro-batching</strong></td><td>janela 5–200ms</td><td>alto</td><td>moderado</td><td>Amortizar a GPU sob alto volume</td></tr>
+            <tr><td><strong>Streaming</strong></td><td>sub-segundo</td><td>muito alto</td><td>alto</td><td>IoT, logs, eventos contínuos</td></tr>
+          </tbody>
+        </table>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Animação · Padrões de serving — batch vs online vs micro-batching vs streaming</div>
+
+          <div id="sv-tabs" style="display:flex; gap:0.25rem; border-bottom:1px solid var(--color-border); margin-bottom:1rem; flex-wrap:wrap;">
+            <button class="tab-btn sv-tab active" data-mode="batch" onclick="tbSvSwitch('batch')" style="background:none; border:none; border-bottom:2px solid transparent; padding:0.5rem 1rem; font-family:var(--font-sans); font-size:0.85rem; cursor:pointer; color:var(--color-text-muted); margin-bottom:-1px;">Batch</button>
+            <button class="tab-btn sv-tab" data-mode="online" onclick="tbSvSwitch('online')" style="background:none; border:none; border-bottom:2px solid transparent; padding:0.5rem 1rem; font-family:var(--font-sans); font-size:0.85rem; cursor:pointer; color:var(--color-text-muted); margin-bottom:-1px;">Online</button>
+            <button class="tab-btn sv-tab" data-mode="microbatch" onclick="tbSvSwitch('microbatch')" style="background:none; border:none; border-bottom:2px solid transparent; padding:0.5rem 1rem; font-family:var(--font-sans); font-size:0.85rem; cursor:pointer; color:var(--color-text-muted); margin-bottom:-1px;">Micro-batching</button>
+            <button class="tab-btn sv-tab" data-mode="streaming" onclick="tbSvSwitch('streaming')" style="background:none; border:none; border-bottom:2px solid transparent; padding:0.5rem 1rem; font-family:var(--font-sans); font-size:0.85rem; cursor:pointer; color:var(--color-text-muted); margin-bottom:-1px;">Streaming</button>
+          </div>
+
+          <div id="sv-desc" style="font-size:0.85rem; color:var(--color-text-secondary); margin-bottom:0.75rem; min-height:1.2em;"></div>
+
+          <style>
+            .sv-node { position:absolute; top:44%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:var(--color-surface); border:1px solid var(--color-border-strong); border-radius:14px; box-shadow:0 2px 8px rgba(28,25,23,0.07); font-size:0.66rem; font-weight:600; color:var(--color-text-secondary); text-align:center; padding:8px 6px; z-index:3; }
+            .sv-node .sv-ico { font-size:1.4rem; line-height:1; }
+            #sv-model.sv-node { border:2px solid var(--color-primary); color:var(--color-primary-dark); }
+            #sv-model .sv-status { font-size:0.55rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-text-muted); }
+            @keyframes svGlow { 0%,100% { box-shadow:0 0 0 0 rgba(124,58,237,0); } 50% { box-shadow:0 0 0 10px rgba(124,58,237,0.22); } }
+            @keyframes svSpin { to { transform:rotate(360deg); } }
+            #sv-model.processing { animation: svGlow 0.9s ease-in-out infinite; }
+            #sv-model.processing .sv-ico { display:inline-block; animation: svSpin 1.1s linear infinite; }
+            #sv-model.processing .sv-status { color: var(--color-primary); }
+          </style>
+          <div id="sv-stage" style="position:relative; height:252px; background:var(--color-surface-3); border:1px solid var(--color-border); border-radius:10px; overflow:hidden;">
+            <!-- origem (esquerda): clientes / fonte / dados -->
+            <div id="sv-src" class="sv-node" style="left:16px; width:92px; height:116px;"><span class="sv-ico" id="sv-src-ico">👥</span><span id="sv-src-lbl">Clientes</span></div>
+            <!-- buffer do micro-batching (área delimitada por slots) -->
+            <div id="sv-buffer" style="position:absolute; display:none; border:1.5px dashed var(--color-box-warning-border); background:var(--color-box-warning-bg); border-radius:8px; z-index:0;"></div>
+            <div id="sv-buffer-lbl" style="position:absolute; display:none; font-size:0.54rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--color-warning); z-index:0;">buffer (janela)</div>
+            <!-- modelo (posição horizontal definida via JS) -->
+            <div id="sv-model" class="sv-node" style="width:104px; height:124px;"><span class="sv-ico">⚙️</span><span>Modelo</span><span class="sv-status" id="sv-model-status">ocioso</span></div>
+            <!-- destino (direita): banco / pub-sub -->
+            <div id="sv-dest" class="sv-node" style="right:16px; width:92px; height:116px; display:none;"><span class="sv-ico" id="sv-dest-ico">🗄️</span><span id="sv-dest-lbl">Banco de dados</span></div>
+            <!-- contador, posicionado embaixo do modelo via JS -->
+            <div id="sv-done" class="chip" style="position:absolute; z-index:5; white-space:nowrap; transform:translateX(-50%);">Processadas: 0</div>
+          </div>
+
+          <div style="display:flex; gap:0.6rem; margin-top:1rem; flex-wrap:wrap; align-items:center;">
+            <span class="chip" id="sv-chip-lat">Latência: —</span>
+            <span class="chip" id="sv-chip-thr">Throughput: —</span>
+            <span class="chip" id="sv-chip-cost">Custo: —</span>
+            <button class="btn-secondary" onclick="tbSvRestart()" style="margin-left:auto;">Reiniciar</button>
+          </div>
+        </div>
+
+        <h3>Como decidir, na prática</h3>
+        <p>Parta sempre do requisito de latência:</p>
+        <ul>
+          <li><strong>O usuário está esperando a resposta</strong> (P99 abaixo de ~200&nbsp;ms): use <strong>online</strong> — e, sob alto volume, <strong>micro-batching</strong> para aproveitar melhor a GPU.</li>
+          <li><strong>O resultado pode ser consumido depois</strong>: use <strong>batch</strong> — mais simples e barato, sem precisar de um servidor sempre ligado.</li>
+          <li><strong>Os eventos chegam continuamente</strong> e precisam ser tratados na hora: use <strong>streaming</strong>.</li>
+        </ul>
+
+        <h3>O que muda na infraestrutura</h3>
+        <p>Um detalhe importante: <strong>nem todo padrão de serving é uma API</strong>. A arquitetura — e as ferramentas — mudam bastante de um para o outro:</p>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Só o <strong>online</strong> (e o micro-batching) são uma <strong>API</strong> de fato. O <strong>batch</strong> é um <em>job agendado</em> que grava previsões; o <strong>streaming</strong> é um <em>consumidor de eventos</em>. São serviços de naturezas diferentes.</p></div>
+
+        <table>
+          <thead>
+            <tr><th>Padrão</th><th>É uma API?</th><th>Como serve</th><th>Infra / ferramentas típicas</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Batch</strong></td><td>Não</td><td>Um job roda o modelo sobre o lote e <strong>grava</strong> as previsões; quem precisa apenas <strong>consulta</strong> o resultado pronto</td><td>Agendador (cron, Airflow, Prefect) + armazenamento (banco, data warehouse, S3)</td></tr>
+            <tr><td><strong>Online</strong></td><td>Sim</td><td>API <strong>sempre ligada</strong> que responde a cada requisição na hora</td><td>FastAPI + servidor ASGI (uvicorn/gunicorn), atrás de um balanceador, com réplicas em containers (Docker/Kubernetes)</td></tr>
+            <tr><td><strong>Micro-batching</strong></td><td>Sim (API + buffer)</td><td>API que <strong>agrupa</strong> requisições numa janela curta antes de chamar o modelo</td><td>Servidor de inferência especializado (BentoML, NVIDIA Triton), geralmente com GPU</td></tr>
+            <tr><td><strong>Streaming</strong></td><td>Não</td><td><strong>Consome</strong> um fluxo contínuo de eventos e <strong>publica</strong> os resultados em outro destino</td><td>Broker de eventos (Kafka, Pulsar) + processador de stream (Flink, Spark Streaming)</td></tr>
+          </tbody>
+        </table>
+
+        <p>Por isso a pergunta "qual padrão de serving?" vem <strong>antes</strong> de escrever a API: ela define se você vai construir um serviço HTTP, agendar um job ou subir um consumidor de eventos. Neste capítulo focamos no <strong>online</strong> — o caso mais comum para servir um modelo sob demanda.</p>
+
+        <h3>Referências</h3>
+        <ul>
+          <li><a href="https://fastapi.tiangolo.com/" target="_blank">FastAPI — documentação oficial</a></li>
+          <li><a href="https://docs.pydantic.dev/latest/" target="_blank">Pydantic — documentação (v2)</a></li>
+          <li><a href="https://loguru.readthedocs.io/" target="_blank">Loguru — documentação</a></li>
+          <li><a href="https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status" target="_blank">MDN — códigos de status HTTP</a></li>
+        </ul>
+
+        <nav class="chapter-nav">
+          <a href="02-testes.html" class="nav-btn"><span><span class="nav-btn-label">Anterior</span><span class="nav-btn-title">← Testes Automatizados em ML</span></span></a>
+          <a href="04-empacotamento-tooling.html" class="nav-btn nav-btn-next"><span><span class="nav-btn-label">Próximo</span><span class="nav-btn-title">Empacotamento e Tooling →</span></span></a>
+        </nav>
+      </article>
+    </main>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize(window.TB_MERMAID_THEME);
+  </script>
+  <script>
+    // ── Animação: padrões de serving (estado centralizado) ──
+    const SV = {
+      mode: 'batch', done: 0, proc: 0, timers: [], items: [], stage: null,
+      cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); },
+    };
+
+    const SV_SEALS = {
+      batch:      { lat: 'minutos–horas', thr: 'muito alto', cost: 'baixo',
+                    latCls: 'chip-high', thrCls: 'chip-low',  costCls: 'chip-low',
+                    desc: 'Observe: um lote inteiro entra de uma vez no modelo, é processado e as previsões são SALVAS no banco — mão única, sem ninguém esperando.' },
+      online:     { lat: 'ms–s',          thr: 'baixo (por instância)', cost: 'alto',
+                    latCls: 'chip-low',  thrCls: 'chip-high', costCls: 'chip-high',
+                    desc: 'Observe: cada requisição entra no modelo, ele processa (engrenagem girando) e a RESPOSTA volta ao cliente — uma de cada vez.' },
+      microbatch: { lat: 'janela 5–200ms', thr: 'alto',       cost: 'moderado',
+                    latCls: 'chip-mid',  thrCls: 'chip-low',  costCls: 'chip-mid',
+                    desc: 'Observe: as requisições ENCHEM o buffer (área âmbar) e só então entram juntas no modelo; cada resposta volta ao cliente.' },
+      streaming:  { lat: 'sub-segundo',   thr: 'muito alto',  cost: 'alto',
+                    latCls: 'chip-low',  thrCls: 'chip-low',  costCls: 'chip-high',
+                    desc: 'Observe: um fluxo contínuo de eventos atravessa o modelo (processando sem parar) e é publicado no Pub/Sub.' },
+    };
+
+    const SV_ENDPOINTS = {
+      batch:      { src: 'Dados (lote)', srcIco: '📦', dest: 'Banco de dados', destIco: '🗄️', showDest: true,  showBuffer: false },
+      online:     { src: 'Clientes',     srcIco: '👥', dest: '',               destIco: '',    showDest: false, showBuffer: false },
+      microbatch: { src: 'Clientes',     srcIco: '👥', dest: '',               destIco: '',    showDest: false, showBuffer: true  },
+      streaming:  { src: 'Fonte de eventos', srcIco: '📡', dest: 'Pub/Sub',    destIco: '📨',  showDest: true,  showBuffer: false },
+    };
+
+    const SV_BUF_CAP = 4;          // capacidade do buffer do micro-batching
+    const SV_ITEM = 15, SV_GAP = 6; // tamanho do quadrado e espaçamento
+
+    function tbSvT(id) { SV.timers.push(id); return id; }
+    function tbSvClearTimers() { SV.timers.forEach(id => { clearTimeout(id); clearInterval(id); }); SV.timers = []; }
+    function tbSvClearStage() {
+      if (window.anime) anime.remove(SV.items);
+      SV.items.forEach(el => el.remove());
+      SV.items = [];
+      SV.proc = 0;
+      const m = document.getElementById('sv-model');
+      if (m) m.classList.remove('processing');
+      const st = document.getElementById('sv-model-status');
+      if (st) st.textContent = 'ocioso';
+    }
+    function tbSvColors() {
+      return { PURPLE: SV.cssVar('--color-primary'), GREEN: SV.cssVar('--color-success'), AMBER: SV.cssVar('--color-warning') };
+    }
+
+    // estado "processando": engrenagem gira + brilho enquanto houver trabalho no modelo
+    function tbSvProcStart() {
+      SV.proc++;
+      document.getElementById('sv-model').classList.add('processing');
+      document.getElementById('sv-model-status').textContent = 'processando…';
+    }
+    function tbSvProcEnd() {
+      SV.proc = Math.max(0, SV.proc - 1);
+      if (SV.proc === 0) {
+        document.getElementById('sv-model').classList.remove('processing');
+        document.getElementById('sv-model-status').textContent = 'ocioso';
+      }
+    }
+
+    function tbSvMakeItem(color, leftPx, topPx) {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute; width:' + SV_ITEM + 'px; height:' + SV_ITEM + 'px; border-radius:4px; opacity:0; z-index:1; box-shadow:0 1px 3px rgba(28,25,23,0.18);';
+      el.style.background = color;
+      el.style.left = leftPx + 'px';
+      el.style.top = topPx + 'px';
+      SV.stage.appendChild(el);
+      SV.items.push(el);
+      return el;
+    }
+    // pacote (lote) — um único bloco rotulado, usado no batch
+    function tbSvMakePack(color, leftPx, topPx, label) {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute; width:40px; height:28px; border-radius:7px; opacity:0; z-index:1; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:700; color:#fff; font-family:var(--font-sans); box-shadow:0 1px 4px rgba(28,25,23,0.25);';
+      el.style.background = color;
+      el.style.left = leftPx + 'px';
+      el.style.top = topPx + 'px';
+      el.textContent = label;
+      SV.stage.appendChild(el);
+      SV.items.push(el);
+      return el;
+    }
+    function tbSvRemoveItem(el) {
+      const k = SV.items.indexOf(el);
+      if (k >= 0) SV.items.splice(k, 1);
+      if (window.anime) anime.remove(el);
+      el.remove();
+    }
+
+    function tbSvGeo() {
+      const w = SV.stage.clientWidth, h = SV.stage.clientHeight || 252;
+      const modelW = 104, modelX = Math.round(w * 0.56);
+      const cy = Math.round(h * 0.44);
+      return {
+        w, h, cy, modelX,
+        modelEdgeL: modelX - modelW / 2,
+        modelEdgeR: modelX + modelW / 2,
+        srcRight: 16 + 92,
+        destLeft: w - 16 - 92,
+        reqTop: cy - 22,   // esteira de entrada (lado do cliente, perto do centro)
+        resTop: cy + 8,    // esteira de resposta ao cliente (logo abaixo)
+        midTop: cy - 7,    // esteira central (modelo → destino)
+      };
+    }
+
+    function tbSvUpdateSeals(mode) {
+      const s = SV_SEALS[mode];
+      const lat = document.getElementById('sv-chip-lat');
+      const thr = document.getElementById('sv-chip-thr');
+      const cost = document.getElementById('sv-chip-cost');
+      lat.className = 'chip ' + s.latCls;   lat.textContent = 'Latência: ' + s.lat;
+      thr.className = 'chip ' + s.thrCls;   thr.textContent = 'Throughput: ' + s.thr;
+      cost.className = 'chip ' + s.costCls; cost.textContent = 'Custo: ' + s.cost;
+      document.getElementById('sv-desc').textContent = s.desc;
+    }
+    function tbSvSetDone(n) { SV.done = n; const el = document.getElementById('sv-done'); if (el) el.textContent = 'Processadas: ' + n; }
+    function tbSvAddDone(n) { tbSvSetDone(SV.done + n); }
+
+    function tbSvLayout(mode) {
+      const g = tbSvGeo();
+      document.getElementById('sv-model').style.left = g.modelEdgeL + 'px';
+      const done = document.getElementById('sv-done');
+      done.style.left = g.modelX + 'px';
+      done.style.top = (g.cy + 62 + 12) + 'px';
+      const ep = SV_ENDPOINTS[mode];
+      document.getElementById('sv-src-lbl').textContent = ep.src;
+      document.getElementById('sv-src-ico').textContent = ep.srcIco;
+      document.getElementById('sv-dest-lbl').textContent = ep.dest;
+      document.getElementById('sv-dest-ico').textContent = ep.destIco;
+      document.getElementById('sv-dest').style.display = ep.showDest ? 'flex' : 'none';
+      const buf = document.getElementById('sv-buffer');
+      const bufLbl = document.getElementById('sv-buffer-lbl');
+      if (ep.showBuffer) {
+        // dimensionado para SV_BUF_CAP slots: padding 7px de cada lado
+        const bw = 14 + SV_BUF_CAP * SV_ITEM + (SV_BUF_CAP - 1) * SV_GAP;
+        const bl = Math.round((g.srcRight + g.modelEdgeL - bw) / 2);  // centrado entre cliente e modelo
+        buf.style.display = 'block';
+        buf.style.left = bl + 'px';
+        buf.style.width = bw + 'px';
+        buf.style.top = (g.reqTop - 8) + 'px';
+        buf.style.height = (SV_ITEM + 16) + 'px';
+        bufLbl.style.display = 'block';
+        bufLbl.style.left = bl + 'px';
+        bufLbl.style.top = (g.reqTop - 8 - 13) + 'px';
+        buf.dataset.left = bl;
+      } else { buf.style.display = 'none'; bufLbl.style.display = 'none'; }
+    }
+
+    // respostas/resultados saem do modelo após o processamento
+    // toLeft=true: voltam ao cliente (esteira de resposta); false: seguem ao destino (esteira central)
+    function tbSvOut(toLeft, g, n, color) {
+      const startX = toLeft ? g.modelEdgeL - SV_ITEM : g.modelEdgeR;
+      const topY   = toLeft ? g.resTop : g.midTop;
+      const endX   = toLeft ? g.srcRight - 4 : g.destLeft - SV_ITEM + 4;
+      const arr = [];
+      for (let k = 0; k < n; k++) arr.push(tbSvMakeItem(color, toLeft ? g.modelEdgeL : g.modelEdgeR - SV_ITEM, topY));
+      anime.timeline({ complete: () => { tbSvAddDone(n); arr.forEach(tbSvRemoveItem); } })
+        .add({ targets: arr, opacity: [0, 1], left: startX, duration: 200, delay: anime.stagger(70) })
+        .add({ targets: arr, left: endX, duration: 560, easing: 'easeInOutQuad', delay: anime.stagger(70) }, '-=60')
+        .add({ targets: arr, opacity: 0, duration: 160, delay: anime.stagger(40) });
+    }
+
+    // ── BATCH: um PACOTE (lote ×8) sai dos dados → entra no modelo → pacote de previsões vai ao banco ──
+    function tbSvRunBatch() {
+      if (!window.anime) return;
+      const { PURPLE, GREEN } = tbSvColors();
+      const g = tbSvGeo();
+      const N = 8;
+      const pack = tbSvMakePack(PURPLE, g.srcRight - 40, g.midTop - 7, '×' + N);
+      anime.timeline({})
+        .add({ targets: pack, opacity: [0, 1], left: g.srcRight + 12, duration: 260, easing: 'easeOutQuad' })
+        .add({ targets: pack, left: g.modelEdgeL - 10, duration: 700, easing: 'easeInOutQuad', delay: 500 })
+        .add({ targets: pack, left: g.modelX - 20, opacity: [1, 0], duration: 260, easing: 'easeInQuad',
+          complete: () => {
+            tbSvRemoveItem(pack);
+            tbSvProcStart();
+            tbSvT(setTimeout(() => {
+              tbSvProcEnd();
+              if (SV.mode !== 'batch') return;
+              const out = tbSvMakePack(GREEN, g.modelEdgeR - 40, g.midTop - 7, '×' + N);
+              anime.timeline({ complete: () => { tbSvAddDone(N); tbSvRemoveItem(out); } })
+                .add({ targets: out, opacity: [0, 1], left: g.modelEdgeR + 6, duration: 240 })
+                .add({ targets: out, left: g.destLeft - 16, duration: 700, easing: 'easeInOutQuad' })
+                .add({ targets: out, left: g.destLeft + 14, opacity: [1, 0], duration: 240, easing: 'easeInQuad' });
+              tbSvT(setTimeout(() => { if (SV.mode === 'batch') tbSvRunBatch(); }, 1700));
+            }, 1100));
+          } });
+    }
+
+    // ── ONLINE: requisição → modelo processa → resposta volta ao cliente ──
+    function tbSvSpawnOnline() {
+      if (!window.anime) return;
+      const { PURPLE, GREEN } = tbSvColors();
+      const g = tbSvGeo();
+      const el = tbSvMakeItem(PURPLE, g.srcRight - SV_ITEM, g.reqTop);
+      anime.timeline({})
+        .add({ targets: el, opacity: [0, 1], left: g.srcRight + 10, duration: 200, easing: 'easeOutQuad' })
+        .add({ targets: el, left: g.modelEdgeL - 8, duration: 560, easing: 'easeInOutQuad' })
+        .add({ targets: el, left: g.modelX - 8, opacity: [1, 0], duration: 220, easing: 'easeInQuad',
+          complete: () => {
+            tbSvRemoveItem(el);
+            tbSvProcStart();
+            tbSvT(setTimeout(() => {
+              tbSvProcEnd();
+              if (SV.mode === 'online') tbSvOut(true, g, 1, GREEN);
+            }, 620));
+          } });
+    }
+    function tbSvRunOnline() {
+      tbSvSpawnOnline();
+      tbSvT(setInterval(() => { if (SV.mode === 'online') tbSvSpawnOnline(); }, 1500));
+    }
+
+    // ── MICRO-BATCHING: requisições ENCHEM o buffer e só então entram juntas no modelo ──
+    function tbSvRunMicrobatch() {
+      if (!window.anime) return;
+      const { GREEN, AMBER } = tbSvColors();
+      const g = tbSvGeo();
+      const bufLeft = parseInt(document.getElementById('sv-buffer').dataset.left || (g.srcRight + 26), 10);
+      let queue = [];
+      let dispatching = false;
+
+      function dispatch() {
+        if (queue.length === 0) return;
+        dispatching = true;
+        const grupo = queue; queue = [];
+        anime.timeline({})
+          .add({ targets: grupo, left: g.modelEdgeL - 8, duration: 420, easing: 'easeInOutQuad', delay: anime.stagger(35) })
+          .add({ targets: grupo, left: g.modelX - 8, opacity: [1, 0], duration: 200, easing: 'easeInQuad', delay: anime.stagger(25),
+            complete: () => {
+              const n = grupo.length;
+              grupo.forEach(tbSvRemoveItem);
+              tbSvProcStart();
+              tbSvT(setTimeout(() => {
+                tbSvProcEnd();
+                if (SV.mode === 'microbatch') tbSvOut(true, g, n, GREEN);
+                dispatching = false;
+              }, 650));
+            } });
+      }
+
+      tbSvT(setInterval(() => {
+        if (SV.mode !== 'microbatch' || dispatching || queue.length >= SV_BUF_CAP) return;
+        const slot = queue.length;
+        const el = tbSvMakeItem(AMBER, g.srcRight - SV_ITEM, g.reqTop);
+        queue.push(el);
+        anime.timeline({})
+          .add({ targets: el, opacity: [0, 1], left: g.srcRight + 8, duration: 180 })
+          .add({ targets: el, left: bufLeft + 7 + slot * (SV_ITEM + SV_GAP), duration: 380, easing: 'easeOutQuad',
+            complete: () => { if (queue.length >= SV_BUF_CAP && !dispatching) dispatch(); } });
+      }, 340));
+    }
+
+    // ── STREAMING: fluxo contínuo → modelo (sempre processando) → Pub/Sub ──
+    function tbSvSpawnStreaming() {
+      if (!window.anime) return;
+      const { PURPLE, GREEN } = tbSvColors();
+      const g = tbSvGeo();
+      const el = tbSvMakeItem(PURPLE, g.srcRight - SV_ITEM, g.reqTop);
+      anime.timeline({})
+        .add({ targets: el, opacity: [0, 1], left: g.srcRight + 8, duration: 140 })
+        .add({ targets: el, left: g.modelEdgeL - 8, duration: 440, easing: 'linear' })
+        .add({ targets: el, left: g.modelX - 8, opacity: [1, 0], duration: 180, easing: 'easeInQuad',
+          complete: () => {
+            tbSvRemoveItem(el);
+            tbSvProcStart();
+            tbSvT(setTimeout(() => {
+              tbSvProcEnd();
+              if (SV.mode === 'streaming') tbSvOut(false, g, 1, GREEN);
+            }, 260));
+          } });
+    }
+    function tbSvRunStreaming() {
+      tbSvSpawnStreaming();
+      tbSvT(setInterval(() => { if (SV.mode === 'streaming') tbSvSpawnStreaming(); }, 380));
+    }
+
+    function tbSvRun(mode) {
+      if (mode === 'batch') tbSvRunBatch();
+      else if (mode === 'online') tbSvRunOnline();
+      else if (mode === 'microbatch') tbSvRunMicrobatch();
+      else if (mode === 'streaming') tbSvRunStreaming();
+    }
+
+    function tbSvSwitch(mode) {
+      tbSvClearTimers();
+      tbSvClearStage();
+      SV.mode = mode;
+      document.querySelectorAll('.sv-tab').forEach(b => {
+        const on = b.dataset.mode === mode;
+        b.classList.toggle('active', on);
+        b.style.color = on ? SV.cssVar('--color-primary') : SV.cssVar('--color-text-muted');
+        b.style.borderBottomColor = on ? SV.cssVar('--color-primary') : 'transparent';
+      });
+      tbSvUpdateSeals(mode);
+      tbSvLayout(mode);
+      tbSvSetDone(0);
+      tbSvRun(mode);
+    }
+    function tbSvRestart() { tbSvSwitch(SV.mode); }
+
+    window.tbSvSwitch = tbSvSwitch;
+    window.tbSvRestart = tbSvRestart;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      SV.stage = document.getElementById('sv-stage');
+      if (SV.stage) tbSvSwitch('batch');
+    });
+  </script>
+</body>
+</html>

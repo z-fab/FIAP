@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empacotamento e Tooling — Do Notebook à Produção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['DM Sans','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    window.TB_CHAPTERS = [
+      { id:'01', path:'01-refatoracao-pipeline.html', title:'Refatoração & Pipeline' },
+      { id:'02', path:'02-testes.html', title:'Testes em ML' },
+      { id:'03', path:'03-api-fastapi.html', title:'API com FastAPI' },
+      { id:'04', path:'04-empacotamento-tooling.html', title:'Empacotamento & Tooling' },
+    ];
+  </script>
+</head>
+<body x-data="chapterApp('04')" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home"><span class="sb-home-icon">←</span><span class="sb-home-lbl">Do Notebook à Produção</span></a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-refatoracao-pipeline.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }"><span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span><span class="ch-txt">Refatoração &amp; Pipeline</span></a>
+        <a href="02-testes.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }"><span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span><span class="ch-txt">Testes em ML</span></a>
+        <a href="03-api-fastapi.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }"><span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span><span class="ch-txt">API com FastAPI</span></a>
+        <a href="04-empacotamento-tooling.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }"><span class="ch-num" x-text="currentChapter==='04' ? '04' : (isVisited('04') ? '✓' : '04')"></span><span class="ch-txt">Empacotamento &amp; Tooling</span></a>
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#introducao" class="sec-link" :class="{ 'active': activeSection==='introducao' }">Introdução</a>
+        <a href="#uv-gerenciador" class="sec-link" :class="{ 'active': activeSection==='uv-gerenciador' }">1. uv: gerenciador de ambiente</a>
+        <a href="#pyproject-toml" class="sec-link" :class="{ 'active': activeSection==='pyproject-toml' }">2. pyproject.toml</a>
+        <a href="#ruff-lint-format" class="sec-link" :class="{ 'active': activeSection==='ruff-lint-format' }">3. ruff: lint e format</a>
+        <a href="#taskipy-atalhos" class="sec-link" :class="{ 'active': activeSection==='taskipy-atalhos' }">4. taskipy: atalhos</a>
+        <a href="#makefile-bootstrap" class="sec-link" :class="{ 'active': activeSection==='makefile-bootstrap' }">5. Makefile: bootstrap</a>
+        <a href="#versionamento-modelo-api" class="sec-link" :class="{ 'active': activeSection==='versionamento-modelo-api' }">6. Versionamento de modelos</a>
+        <a href="#construir-vs-pronto" class="sec-link" :class="{ 'active': activeSection==='construir-vs-pronto' }">7. API própria ou serving pronto?</a>
+        <a href="#readme-projeto" class="sec-link" :class="{ 'active': activeSection==='readme-projeto' }">8. README do projeto</a>
+      </nav>
+    </aside>
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar"><a href="../index.html">Do Notebook à Produção</a><span class="topbar-sep">›</span><span class="topbar-current">Empacotamento e Tooling</span></header>
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 04</div>
+        <h1>Empacotamento e <em>Tooling</em> Profissional</h1>
+        <p class="chapter-objective">Configurar o projeto como um pacote reutilizável com automação de qualidade (uv, ruff, taskipy, Makefile) e uma estratégia clara para versionar modelo e API juntos.</p>
+
+        <!-- ====== CONTEÚDO ====== -->
+
+        <!-- INTRODUÇÃO -->
+        <h2 id="introducao">Introdução</h2>
+        <p>Até aqui, o projeto California Housing provavelmente vive como um conjunto de notebooks e arquivos <code>.py</code> soltos, com dependências instaladas "na fé" via <code>pip install</code> direto no ambiente global. Isso funciona para explorar dados, mas desmorona no momento em que outra pessoa (ou o seu eu de daqui a três meses) tenta rodar o código. As versões das bibliotecas não batem, o <code>import</code> quebra com <code>ModuleNotFoundError</code>, e ninguém sabe qual modelo foi treinado com qual commit.</p>
+        <p>Engenharia de software resolve esses problemas com três pilares que vamos montar agora:</p>
+        <ol>
+          <li><strong>Reprodutibilidade</strong> — qualquer pessoa instala e roda o projeto com um comando, obtendo exatamente as mesmas versões de dependências (via <code>uv</code> e <code>uv.lock</code>).</li>
+          <li><strong>Qualidade automatizada</strong> — lint, formatação e testes rodam com um comando curto (<code>ruff</code>, <code>taskipy</code>, <code>Makefile</code>).</li>
+          <li><strong>Rastreabilidade de versão</strong> — o artefato <code>pipeline.joblib</code> e a API que o serve evoluem em conjunto, com versão e hash explícitos.</li>
+        </ol>
+        <p>O objetivo final é que <code>from housing import ...</code> funcione em qualquer máquina, e que comandos como <code>task lint</code>, <code>task test</code>, <code>task train</code> e <code>task run</code> sejam o cotidiano do projeto.</p>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Sem a seção <code>[build-system]</code>, <code>from housing import ...</code> falha com <code>ModuleNotFoundError</code> — é a causa nº 1 do "instalei tudo e não importa".</p></div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Pacote vs. script.</strong> Um <em>script</em> é um arquivo <code>.py</code> que você executa diretamente. Um <em>pacote</em> é uma coleção de módulos organizada e <strong>instalável</strong>, que pode ser importada de qualquer lugar do ambiente (<code>import housing</code>). A diferença prática: um script só funciona se você estiver na pasta certa; um pacote instalado funciona em qualquer diretório, em testes, e quando empacotado num container.</p>
+        </div>
+
+        <h3>Quando virar pacote — e onde entra o Dockerfile</h3>
+        <p>Uma dúvida comum: "se eu já vou colocar tudo num container, ainda preciso transformar o projeto num pacote instalável?". A resposta é sim, porque <strong>pacote e Dockerfile resolvem problemas diferentes e são complementares</strong>, não alternativas. Um não substitui o outro; na prática, os dois costumam andar juntos.</p>
+        <p>O <strong>pacote instalável</strong> resolve o "meu código importa em qualquer lugar": ele torna o seu código uma biblioteca <strong>importável e reutilizável</strong>, de modo que a API, os testes e os scripts de treino façam todos <code>import housing</code> sem depender de qual pasta você está. Já o <strong>Dockerfile</strong> resolve o "roda igual em qualquer lugar": ele empacota a aplicação <em>junto com o ambiente</em> (sistema operacional, versão do Python, dependências) para rodar e deployar de forma reprodutível em qualquer máquina ou servidor.</p>
+        <p>Na prática você costuma ter os <strong>dois</strong>: o Dockerfile instala o seu pacote dentro da imagem. A regra de bolso:</p>
+
+        <div class="vs-grid">
+          <div class="vs-card good">
+            <div class="vs-head">✓ Faça um pacote</div>
+            <ul>
+              <li>Quando o código for <strong>importado</strong> por outros módulos.</li>
+              <li>Quando o código for <strong>reutilizado</strong> entre API, testes e treino.</li>
+              <li>Quando precisar <strong>compartilhar</strong> a lógica entre partes do projeto.</li>
+            </ul>
+          </div>
+          <div class="vs-card good">
+            <div class="vs-head">✓ Faça um Dockerfile</div>
+            <ul>
+              <li>Quando precisar <strong>empacotar</strong> a aplicação com o ambiente.</li>
+              <li>Quando precisar <strong>deployar</strong> para rodar fora da sua máquina.</li>
+              <li>Por dentro, ele <strong>instala o seu pacote</strong> — os dois andam juntos.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">pacote</span>Código importável</div>
+            <p>Transforma o projeto numa biblioteca: <code>import housing</code> funciona em qualquer lugar. Resolve a <strong>reutilização do código</strong> — API, testes e treino compartilham os mesmos módulos.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">Dockerfile</span>Ambiente reprodutível</div>
+            <p>Empacota a aplicação com o ambiente (SO, Python, deps) para rodar igual em qualquer máquina. Resolve o <strong>deploy reprodutível</strong> — e por dentro ele instala o seu pacote.</p>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 1 -->
+        <h2 id="uv-gerenciador">1. uv: o gerenciador de ambiente e projeto</h2>
+        <p>O <code>uv</code> é uma ferramenta da <a href="https://docs.astral.sh/uv" target="_blank">Astral</a>, escrita em Rust e lançada em fevereiro de 2024. Ele substitui, num único binário, todo um zoológico de ferramentas que cientistas de dados costumam misturar: <code>pip</code>, <code>pip-tools</code>, <code>virtualenv</code>, <code>poetry</code>, <code>pyenv</code> e <code>pipx</code>. Além de unificar, ele é absurdamente rápido: de 8 a 10x mais rápido que o <code>pip</code> sem cache, e de 80 a 115x com cache quente.</p>
+
+        <div class="stat-grid">
+          <div class="stat-card is-success"><div class="stat-value">80–115×</div><div class="stat-label">mais rápido que o pip com cache quente (uv)</div></div>
+          <div class="stat-card"><div class="stat-value">900+</div><div class="stat-label">regras de lint no ruff (substitui flake8, isort, black...)</div></div>
+        </div>
+
+        <h3>1.1 A decisão crítica: <code>uv init --package</code></h3>
+        <p>Existem dois jeitos de iniciar um projeto:</p>
+        <ul>
+          <li><code>uv init</code> (sem flag) — cria apenas um <code>hello.py</code> na raiz. <strong>Não</strong> cria pasta <code>src/</code>, <strong>não</strong> cria <code>[build-system]</code>, e portanto o seu código <strong>não vira um pacote importável</strong>.</li>
+          <li><code>uv init --package nome</code> — cria a estrutura de pacote completa, com <code>src/nome/__init__.py</code> e o <code>[build-system]</code> no <code>pyproject.toml</code>.</li>
+        </ul>
+        <p>Como queremos <code>from housing import ...</code>, usamos sempre a segunda forma:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash">uv init --package housing</code></pre>
+        </div>
+
+        <p>Estrutura gerada:</p>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash">housing/
+├── pyproject.toml        # com [build-system] E [project]
+├── README.md
+├── .python-version
+├── uv.lock               # criado/atualizado a cada uv add/sync
+└── src/
+    └── housing/
+        └── __init__.py</code></pre>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>A diferença que quebra tudo.</strong> Se você rodar <code>uv init</code> (sem <code>--package</code>), o <code>pyproject.toml</code> sai <strong>sem</strong> a seção <code>[build-system]</code>. Sem ela, o <code>uv sync</code> <strong>não instala o seu projeto</strong> no ambiente, e qualquer <code>from housing import x</code> falha com <code>ModuleNotFoundError</code>. Esta é a causa mais comum de "mas eu instalei tudo e não importa!". Sempre verifique se há um bloco <code>[build-system]</code>.</p>
+        </div>
+
+        <h3>1.2 Adicionando dependências</h3>
+        <p>Em vez de <code>pip install</code>, usamos <code>uv add</code>. Cada <code>uv add</code> atualiza o <code>pyproject.toml</code> <strong>e</strong> o <code>uv.lock</code>, e instala no ambiente virtual do projeto.</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash"># Dependências de runtime (a API e o pipeline precisam delas em produção)
+uv add fastapi uvicorn 'scikit-learn>=1.4' polars pydantic joblib
+
+# Dependências de desenvolvimento (NÃO vão para a distribuição)
+uv add --dev pytest ruff taskipy pandera</code></pre>
+        </div>
+
+        <p>Comandos do dia a dia:</p>
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash">uv sync                            # cria o venv e instala tudo (modo editável)
+uv run python -m housing.modeling.train     # roda algo dentro do venv, sem ativá-lo
+uv run pytest                      # roda os testes
+uv lock --upgrade-package fastapi  # atualiza só uma dependência no lock
+uv add -r requirements.txt         # importa um projeto legado
+uv sync --frozen                   # CI/Docker: usa o lock exato, não recalcula</code></pre>
+        </div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong><code>uv.lock</code>.</strong> Arquivo TOML legível, gerado e mantido pelo <code>uv</code>. Registra as versões <strong>exatas</strong> de todas as dependências (diretas e transitivas), de forma reprodutível e <em>cross-platform</em>. <strong>Nunca edite à mão</strong> — só via comandos <code>uv</code>. Comite-o no Git: é o que garante que todo mundo instale exatamente as mesmas versões.</p>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Modo editável é automático.</strong> Quando há <code>[build-system]</code>, o <code>uv sync</code> e o <code>uv run</code> instalam o seu pacote em <strong>modo editável</strong> por padrão. Você edita o código em <code>src/housing/</code> e a mudança vale na hora, sem reinstalar.</p>
+        </div>
+
+        <!-- INTERATIVO A: Diagrama Mermaid "Do uv ao pacote instalável" -->
+        <div class="interactive-container">
+          <div class="interactive-label">Do uv ao pacote instalável</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart TD
+    A["uv init --package housing"]:::cmd --> B["pyproject.toml&#10;[build-system] + [project]"]:::artifact
+    B --> C["uv add fastapi ...&#10;resolve deps → uv.lock"]:::cmd
+    C --> D["uv sync&#10;.venv + install editável"]:::cmd
+    D --> E["from housing import ... ✅"]:::success
+    B -.->|"sem [build-system] → ModuleNotFoundError"| E
+
+    classDef cmd fill:#EDE9FE,stroke:#7C3AED,color:#3b0764
+    classDef artifact fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    classDef success fill:#E8F0EB,stroke:#3D6B52,color:#1A3A28
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 2 -->
+        <h2 id="pyproject-toml">2. pyproject.toml: o coração do projeto (PEP 621)</h2>
+        <p>O <code>pyproject.toml</code> é o arquivo único de configuração de projetos Python modernos (PEP 621). Substitui o antigo trio <code>setup.py</code> / <code>setup.cfg</code> / <code>requirements.txt</code> e centraliza: metadados, dependências, como construir o pacote, scripts executáveis e a configuração de ferramentas como <code>ruff</code> e <code>taskipy</code>.</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-toml">[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "housing"
+version = "0.1.0"
+description = "API de inferência de preços de imóveis na Califórnia"
+readme = "README.md"
+requires-python = "&gt;=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Equipe Data Science", email = "ds@exemplo.com" }]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "scikit-learn&gt;=1.4",
+    "polars",
+    "pydantic",
+    "joblib",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "taskipy", "pandera"]
+
+[project.scripts]
+housing-api = "housing.api.entry:run"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.taskipy.tasks]
+lint = "ruff check . &amp;&amp; ruff format --check ."
+format = "ruff check --fix . &amp;&amp; ruff format ."
+test = "pytest tests/ -v"
+train = "python -m housing.modeling.train"
+run = "uvicorn housing.api.app:app --reload"</code></pre>
+        </div>
+
+        <h3>2.1 Entendendo as seções</h3>
+        <ul>
+          <li><strong><code>[build-system]</code></strong> — diz ao Python <em>como</em> construir o pacote. Usamos <code>hatchling</code>. <strong>Sem esta seção, seu pacote não é instalável.</strong></li>
+          <li><strong><code>[project]</code></strong> — os metadados. O <code>name</code> pode ter hífen, mas o <strong>módulo importável</strong> usa underscore.</li>
+          <li><strong><code>dependencies</code></strong> — o que o projeto precisa <strong>em runtime</strong>.</li>
+          <li><strong><code>[dependency-groups]</code></strong> (PEP 735, <code>uv ≥ 0.4</code>) — dependências <strong>locais</strong> de desenvolvimento que <strong>não</strong> vão para a distribuição. Instala com <code>uv sync --group dev</code>.</li>
+          <li><strong><code>[project.scripts]</code></strong> — <em>entry points</em>. <code>housing-api = "housing.api.entry:run"</code> cria um comando de terminal <code>housing-api</code>.</li>
+        </ul>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong><code>[dependency-groups]</code> vs. <code>[project.optional-dependencies]</code>.</strong> As <code>optional-dependencies</code> (instaladas com <code>uv sync --extra dev</code>) <strong>vão</strong> para a distribuição publicada — útil para extras ao usuário final (<code>pip install housing[train]</code>). Já os <code>dependency-groups</code> (<code>uv sync --group dev</code>) são puramente locais. Para ferramentas de dev (pytest, ruff), use <code>dependency-groups</code>.</p>
+        </div>
+
+        <h3>2.2 src layout: por que <code>src/</code>?</h3>
+        <p>O <em>src layout</em> coloca o código em <code>src/housing/</code> em vez de <code>housing/</code> na raiz. A vantagem é decisiva: o pacote <strong>só é importável depois de instalado</strong>. Isso garante que seus testes rodem contra a versão <em>instalada</em> (como o usuário verá), e não acidentalmente contra os arquivos soltos do diretório atual.</p>
+
+        <!-- Guia das seções do pyproject.toml (estático) -->
+        <h3>2.3 Guia das seções</h3>
+        <p>Cada seção do <code>pyproject.toml</code> acima tem um papel bem definido. O guia abaixo resume o que cada uma faz:</p>
+        <table>
+          <thead><tr><th>Seção</th><th>O que faz</th></tr></thead>
+          <tbody>
+            <tr><td><code>[build-system]</code></td><td>Define o backend de build (<code>hatchling</code>). <strong>Sem ela</strong>, o <code>uv sync</code> não instala o pacote e <code>import housing</code> falha com <code>ModuleNotFoundError</code>.</td></tr>
+            <tr><td><code>[project]</code></td><td>Metadados do pacote: nome, versão, descrição, Python mínimo, autores e licença — o que vai para a distribuição.</td></tr>
+            <tr><td><code>dependencies</code></td><td>Bibliotecas de <strong>runtime</strong> (fastapi, uvicorn, scikit-learn, polars, pydantic, joblib) — o que a API e o pipeline precisam em produção.</td></tr>
+            <tr><td><code>[dependency-groups]</code></td><td>Dependências <strong>locais</strong> de desenvolvimento (pytest, ruff, taskipy, pandera). PEP 735; instala com <code>uv sync --group dev</code> e <strong>não</strong> vão para a distribuição.</td></tr>
+            <tr><td><code>[project.scripts]</code></td><td><em>Entry points</em>: comandos de terminal instalados <strong>com o pacote</strong> (<code>housing-api</code> → função <code>housing.api.entry:run</code>). Diferente do taskipy, que é só automação de dev.</td></tr>
+            <tr><td><code>[tool.ruff]</code> · <code>.lint</code> · <code>.format</code></td><td>Configuração do linter/formatter. As regras de lint (<code>select</code>) ficam em <code>[tool.ruff.lint]</code>; a formatação em <code>[tool.ruff.format]</code>; a config geral (<code>line-length</code>) em <code>[tool.ruff]</code>.</td></tr>
+            <tr><td><code>[tool.taskipy.tasks]</code></td><td>Atalhos de <strong>desenvolvimento</strong> (<code>task lint</code>, <code>task test</code>, <code>task run</code>…). Rodam comandos de shell e <strong>não</strong> vão para a distribuição.</td></tr>
+          </tbody>
+        </table>
+
+        <!-- SEÇÃO 3 -->
+        <h2 id="ruff-lint-format">3. ruff: lint e format num só binário</h2>
+        <p>O <code>ruff</code>, também da Astral, é um linter <strong>e</strong> formatter escrito em Rust, com mais de 900 regras. Sozinho substitui <code>flake8</code>, <code>pylint</code>, <code>isort</code>, <code>black</code>, <code>pydocstyle</code> e <code>pyupgrade</code>. Mas antes do código, vale fixar os dois conceitos que ele combina:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">linter</span>Aponta problemas</div>
+            <p>Um <strong>linter</strong> analisa o código <em>sem executá-lo</em> e <strong>aponta</strong> problemas: imports não usados, variáveis não definidas, bugs prováveis, violações de estilo. Ele não muda nada — só te avisa.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">formatter</span>Reescreve o estilo</div>
+            <p>Um <strong>formatter</strong> <strong>reescreve</strong> o código automaticamente num estilo consistente (espaçamento, aspas, quebras de linha), sem alterar o comportamento. Tira a discussão de estilo da revisão de código.</p>
+          </div>
+        </div>
+
+        <p>O ruff faz os dois, num único binário e muito rápido. São <strong>dois subcomandos distintos</strong> — confundi-los é um erro comum:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash">ruff check .            # LINT: encontra problemas (imports não usados, bugs, etc.)
+ruff check --fix .      # LINT + corrige automaticamente o que dá
+ruff format .           # FORMAT: reformata o código (equivalente ao black)
+ruff format --check .   # FORMAT em modo verificação (não altera) — para CI</code></pre>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>select</code> vai dentro de <code>[tool.ruff.lint]</code>.</strong> Em versões recentes do ruff, as regras de lint (<code>select</code>, <code>ignore</code>) ficam em <code>[tool.ruff.lint]</code>, <strong>não</strong> em <code>[tool.ruff]</code>. A configuração geral (<code>line-length</code>, <code>target-version</code>) fica em <code>[tool.ruff]</code>; o lint em <code>[tool.ruff.lint]</code>; a formatação em <code>[tool.ruff.format]</code>.</p>
+        </div>
+
+        <p>No nosso <code>pyproject.toml</code>, <code>select = ["E", "F", "I", "UP", "B", "SIM"]</code> ativa: erros de estilo (E), Pyflakes (F), ordenação de imports (I, equivale ao isort), modernização de sintaxe (UP), bugs prováveis (B, bugbear) e simplificações (SIM).</p>
+
+        <!-- SEÇÃO 4 -->
+        <h2 id="taskipy-atalhos">4. taskipy: atalhos no próprio pyproject</h2>
+        <p>Digitar <code>uvicorn housing.api.app:app --reload</code> toda vez é tedioso. O <code>taskipy</code> define atalhos diretamente no <code>pyproject.toml</code>, em <code>[tool.taskipy.tasks]</code>. Para usar:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-bash">task lint      # ruff check . &amp;&amp; ruff format --check .
+task format    # ruff check --fix . &amp;&amp; ruff format .
+task test      # pytest tests/ -v
+task train     # python -m housing.modeling.train
+task run       # uvicorn housing.api.app:app --reload
+task --list    # lista todas as tasks disponíveis</code></pre>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>task</code> precisa do venv.</strong> O comando <code>task</code> só funciona com o ambiente virtual ativado, ou prefixado com <code>uv run task lint</code>. Como não ativamos venvs manualmente neste fluxo, prefira <strong>sempre</strong> <code>uv run task &lt;nome&gt;</code>.</p>
+        </div>
+
+        <h3>4.1 <code>[project.scripts]</code> vs. taskipy</h3>
+        <p>Os dois geram "comandos", mas servem a públicos opostos — e é fácil confundi-los:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">[project.scripts]</span>Comandos do pacote</div>
+            <p><em>Entry points</em> instalados <strong>com o pacote</strong>: ficam disponíveis para quem instala o pacote e apontam para uma <strong>função Python</strong> (<code>housing-api</code> → <code>housing.api.entry:run</code>). São parte da distribuição/produto.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">taskipy</span>Automação de dev</div>
+            <p>Atalhos de <strong>desenvolvimento</strong> (lint/test/run) que rodam comandos de <strong>shell</strong> e <strong>não</strong> vão para a distribuição. Servem ao fluxo do dev, não ao usuário final do pacote.</p>
+          </div>
+        </div>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Em resumo: <code>[project.scripts]</code> = comandos <strong>públicos do pacote</strong> (vão para quem instala); <code>taskipy</code> = automação <strong>interna de tarefas</strong> (fica no seu fluxo de dev).</p></div>
+
+        <p>O taskipy suporta <em>hooks</em> (<code>pre_test</code>, <code>post_train</code>) e tasks com descrição:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-toml">[tool.taskipy.tasks]
+lint = { cmd = "ruff check . &amp;&amp; ruff format --check .", help = "Verifica lint e formatação" }</code></pre>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>Cuidado com loops em hooks.</strong> Um hook <code>pre_lint = "task lint"</code> chama <code>task lint</code>, que dispara <code>pre_lint</code> de novo, criando recursão infinita. Hooks devem chamar comandos diferentes da própria task.</p>
+        </div>
+
+        <!-- SEÇÃO 5 -->
+        <h2 id="makefile-bootstrap">5. Makefile: o bootstrap universal</h2>
+        <p>Se o taskipy já dá atalhos, por que um <code>Makefile</code>? Porque o <code>make</code> <strong>não depende de Python nem de venv ativado</strong>. Ele é a porta de entrada universal: alguém que clonou o repositório e ainda não tem nada instalado pode rodar <code>make install</code>. Os demais alvos delegam para <code>uv run</code>.</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-makefile">.PHONY: install lint format test train run clean
+
+install:
+	uv sync --group dev
+
+lint:
+	uv run task lint
+
+format:
+	uv run task format
+
+test:
+	uv run task test
+
+train:
+	uv run task train
+
+run:
+	uv run task run
+
+clean:
+	rm -rf .pytest_cache .ruff_cache **/__pycache__</code></pre>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>.PHONY</code> é essencial.</strong> Sem a declaração <code>.PHONY</code>, o <code>make</code> pensa que <code>test</code>, <code>clean</code> etc. são <em>arquivos</em> a serem construídos. Se existir um arquivo ou pasta chamado <code>test</code>, o <code>make test</code> simplesmente não roda nada. <code>.PHONY</code> diz ao make que esses alvos são comandos. (Lembre: indentação de Makefile usa <strong>TAB</strong>, não espaços.)</p>
+        </div>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>São três camadas que se delegam: <code>make</code> → <code>task</code> → <code>uv run</code> → ferramenta real (<code>ruff</code>, <code>pytest</code>, <code>uvicorn</code>). Cada uma existe para um público.</p></div>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-tag">make</div>
+            <div class="concept-title">Bootstrap universal</div>
+            <p>Para quem chega de fora: não depende de Python nem de venv ativado.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-tag">task</div>
+            <div class="concept-title">Atalhos de projeto</div>
+            <p>Para quem já está no projeto: comandos curtos definidos no <code>pyproject.toml</code>.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-tag">uv run</div>
+            <div class="concept-title">Garante o ambiente</div>
+            <p>Executa no venv correto, sem precisar ativá-lo, e delega para a ferramenta real.</p>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 6 -->
+        <h2 id="versionamento-modelo-api">6. Versionamento de modelos</h2>
+        <p>A API e o modelo são <strong>dois artefatos que evoluem juntos</strong>, e desincronizá-los causa bugs sutis. Você atualiza a API esperando um modelo novo, mas o <code>pipeline.joblib</code> ainda é o antigo — isso é o <strong>drift de versão</strong>, e ele falha em silêncio (sem erro, só previsões erradas).</p>
+
+        <h3>6.1 Por que versionar modelos</h3>
+        <p>Versionar não é burocracia: é o que torna o sistema de ML auditável e recuperável. Quatro motivos concretos:</p>
+        <ul>
+          <li><strong>Reprodutibilidade</strong> — conseguir recriar exatamente a previsão que um modelo deu numa certa data, com os mesmos dados e código.</li>
+          <li><strong>Rollback</strong> — se um modelo novo piorar em produção, voltar para a última versão boa em minutos, não em dias.</li>
+          <li><strong>Auditoria</strong> — saber quem treinou o quê, com quais dados e parâmetros — essencial em domínios regulados.</li>
+          <li><strong>Compatibilidade modelo↔API</strong> — garantir que a versão do modelo carregada bate com o contrato de entrada/saída que a API espera.</li>
+        </ul>
+
+        <h3>6.2 O que versionar (não é só o .joblib)</h3>
+        <p>Versionar "o modelo" de verdade significa amarrar <strong>quatro coisas</strong>, não apenas o arquivo de pesos:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">artefato</span>O modelo treinado</div>
+            <p>O <code>pipeline.joblib</code> — pré-processamento + estimador serializados. É o que a API carrega para servir previsões.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">código</span>Como foi feito</div>
+            <p>O código de treino e da API, versionado no <strong>Git</strong> (commit/tag). Define a lógica de feature engineering e o contrato da API.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">dados</span>Com o que treinou</div>
+            <p>Os <strong>dados de treino</strong> (ou seu <em>fingerprint</em>/hash). Mesmo código + dados diferentes geram modelos diferentes.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">metadados</span>O contexto</div>
+            <p>Métricas, params, hash dos dados e versão do sklearn — o <code>meta.json</code> do capítulo 1. É o que torna o modelo auditável.</p>
+          </div>
+        </div>
+
+        <h3>6.3 Semver para modelos</h3>
+        <p>Adaptamos o <em>Semantic Versioning</em> (<code>MAJOR.MINOR.PATCH</code>) ao ciclo de vida do modelo:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-tag">MAJOR</div>
+            <div class="concept-title">Quebra de contrato</div>
+            <p>Nova arquitetura ou mudança que quebra o contrato: features de entrada diferentes ou formato de saída novo.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-tag">MINOR</div>
+            <div class="concept-title">Retreino compatível</div>
+            <p>Retreino com a <strong>mesma arquitetura</strong>: novos dados, mas mesmas features e mesma saída.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-tag">PATCH</div>
+            <div class="concept-title">Ajuste fino</div>
+            <p>Ajuste de threshold ou correção de bug no pré-processamento, sem mudar o comportamento esperado.</p>
+          </div>
+        </div>
+
+        <h3>6.4 Boas práticas</h3>
+        <ul>
+          <li><strong>Artefatos são imutáveis</strong> — nunca sobrescreva um <code>pipeline.joblib</code> existente. Versione no nome ou no <em>registry</em>; sobrescrever apaga a possibilidade de rollback e auditoria.</li>
+          <li><strong>Registre o fingerprint dos dados</strong> — um hash do conjunto de treino, gravado nos metadados, prova com qual recorte de dados aquele modelo nasceu.</li>
+          <li><strong>Amarre modelo + código + dados</strong> por um commit/tag de Git, para que <code>git checkout &lt;tag&gt;</code> restaure o trio exato.</li>
+          <li><strong>Automatize a promoção</strong> — a passagem de <code>staging → produção</code> deve ser um passo deliberado e registrado, não um arquivo copiado na mão.</li>
+        </ul>
+
+        <h3>6.5 Lock explícito no código</h3>
+        <p>A documentação não basta — a versão precisa estar <strong>travada no código</strong>:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-python"># src/housing/version.py
+MODEL_VERSION = "2.3.1"
+MODEL_URI = f"models:/california-housing/{MODEL_VERSION}"</code></pre>
+        </div>
+
+        <p>E uma <strong>tag de Git conjunta</strong> amarra o commit do código da API à referência do artefato. Mantenha também um CHANGELOG e, idealmente, uma <strong>matriz de compatibilidade</strong> API × modelo.</p>
+
+        <h3>6.6 Na prática: MLflow e DVC</h3>
+        <p>Na prática, ferramentas dedicadas tiram esse trabalho das suas costas. Com o <strong>MLflow</strong>, você registra o modelo versionado no treino e carrega uma versão específica ao servir:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-python">import mlflow
+
+# ao treinar: registra o modelo versionado
+mlflow.sklearn.log_model(pipeline, name="model", registered_model_name="california-housing")
+
+# ao servir: carrega uma versão específica
+model = mlflow.sklearn.load_model("models:/california-housing/3")</code></pre>
+        </div>
+
+        <p>Para os <strong>dados</strong> e artefatos pesados, que não cabem no Git, entra o <strong>DVC</strong>: ele os versiona fora do Git, deixando no repositório só um ponteiro leve.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>MLflow Model Registry e DVC.</strong> O <strong>MLflow Model Registry</strong> organiza modelos em estágios — <code>Staging → Production → Archived</code> — e captura, junto, o commit do Git, parâmetros, métricas e artefato. <strong>Atenção:</strong> esses estágios são <strong>lógicos</strong>, não ambientes físicos; marcar como "Production" não faz deploy. O <strong>DVC</strong> versiona dados e modelos pesados <em>fora</em> do Git: um arquivo <code>.dvc</code> pequeno fica no Git apontando para o S3/GCS, e <code>git checkout &lt;tag&gt; + dvc pull</code> restaura o par exato código+modelo. Armadilha: se o <em>remote</em> não estiver configurado, o <code>dvc pull</code> falha de forma <strong>silenciosa</strong>.</p>
+        </div>
+
+        <!-- INTERATIVO D: Mermaid "Versionamento modelo + API" -->
+        <div class="interactive-container">
+          <div class="interactive-label">Fluxo de decisão: versionamento modelo + API</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart TD
+    START["Mudança no modelo?"] --> D1{"Mudou arquitetura&#10;ou contrato?"}
+    D1 -->|SIM| MAJOR["Incrementa MAJOR (x.0.0)"]:::inc
+    D1 -->|NÃO| D2{"Retreinou mesma&#10;arquitetura?"}
+    D2 -->|SIM| MINOR["Incrementa MINOR (2.x.0)"]:::inc
+    D2 -->|NÃO| D3{"Ajuste threshold&#10;/ bugfix?"}
+    D3 -->|SIM| PATCH["Incrementa PATCH (2.3.x)"]:::inc
+    MAJOR --> TAG["Atualiza MODEL_VERSION&#10;+ tag de Git conjunta"]:::inc
+    MINOR --> TAG
+    PATCH --> TAG
+    TAG --> REG["Registra no MLflow / DVC ✅"]:::success
+
+    classDef decision fill:#FEF3C7,stroke:#D97706,color:#78350f
+    classDef inc fill:#EDE9FE,stroke:#7C3AED,color:#3b0764
+    classDef success fill:#E8F0EB,stroke:#3D6B52,color:#1A3A28
+
+    class D1,D2,D3 decision
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 7 -->
+        <h2 id="construir-vs-pronto">7. Construir sua própria API ou usar serving pronto?</h2>
+        <p>Para servir o <code>pipeline.joblib</code>, há duas abordagens de fundo. Você pode <strong>construir a sua própria API</strong> (com FastAPI ou Flask) ou <strong>usar uma solução pronta de serving</strong> (BentoML, MLflow Models serve, Triton...). A escolha depende menos de moda e mais do estágio do projeto, da escala e do hardware.</p>
+
+        <div class="stat-grid">
+          <div class="stat-card is-success"><div class="stat-value">42%</div><div class="stat-label">dos engenheiros de ML usam FastAPI para servir modelos (2025)</div></div>
+        </div>
+
+        <p>De um lado, <strong>construir a sua própria</strong> significa escrever a API você mesmo: controle total, poucas dependências, simples de entender. É ótimo para casos simples ou customizados, para aprender, ou para embutir o ML dentro de uma aplicação maior. Do outro lado, <strong>usar serving pronto</strong> traz empacotamento, versionamento, <em>batching</em> e escalabilidade "de fábrica" — menos código seu, mas mais um framework para aprender e adotar.</p>
+
+        <!-- INTERATIVO C: Tabs construir vs pronto (Alpine) -->
+        <div class="interactive-container"
+          x-data="{
+            tab: 'fastapi',
+            opcoes: {
+              fastapi: {
+                label: 'FastAPI (própria)',
+                abordagem: 'Construir a sua própria',
+                oque: 'Framework web ASGI assíncrono; você escreve a API. Validação com Pydantic e Swagger/OpenAPI automático.',
+                pros: ['Controle total sobre a API', 'Pydantic valida a entrada', 'Swagger/OpenAPI automático', 'async nativo, alto desempenho'],
+                cons: ['Você escreve o empacotamento/versionamento', 'Exige entender async para o máximo'],
+                quando: 'APIs REST + ML simples a médias, ou ML embutido numa app maior — a escolha moderna padrão.'
+              },
+              flask: {
+                label: 'Flask (própria)',
+                abordagem: 'Construir a sua própria',
+                oque: 'Microframework WSGI síncrono, mais antigo. Você escreve a API com bibliotecas extras para validação e docs.',
+                pros: ['Simples e maduro', 'Muitíssima documentação'],
+                cons: ['Validação manual', 'Sem docs automáticas', 'Síncrono (menor throughput)'],
+                quando: 'Protótipos rápidos, equipes que já dominam Flask ou manutenção de legado.'
+              },
+              bentoml: {
+                label: 'BentoML (pronta)',
+                abordagem: 'Usar serving pronto',
+                oque: 'Framework de serving de ML: empacota modelo + código numa unidade, gera imagem Docker e expõe a API.',
+                pros: ['Empacotamento e versionamento prontos', 'Build de imagem Docker automático', 'Micro-batching e suporte a GPU', 'Bom para múltiplos modelos'],
+                cons: ['Mais um framework para aprender', 'BentoCloud é pago'],
+                quando: 'Produção pesada com GPU, batching, ou orquestração de muitos modelos.'
+              },
+              mlflow: {
+                label: 'MLflow serve (pronta)',
+                abordagem: 'Usar serving pronto',
+                oque: 'Serve um modelo já registrado no MLflow Model Registry direto, sem você escrever a API.',
+                pros: ['Integra com o Model Registry', 'Versionamento e rollback prontos', 'Sobe um endpoint com um comando'],
+                cons: ['Menos flexível para lógica custom', 'Acopla você ao ecossistema MLflow'],
+                quando: 'Quando já versiona modelos no MLflow e quer servir uma versão sem escrever código de API.'
+              }
+            }
+          }">
+          <div class="interactive-label">Construir a sua própria vs. usar serving pronto</div>
+
+          <!-- Barra de abas -->
+          <div class="tabs-bar" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+            <template x-for="(op, key) in opcoes" :key="key">
+              <button
+                class="tab-btn"
+                @click="tab=key"
+                :style="tab===key ? 'background:var(--color-primary);color:#fff;border-color:var(--color-primary);' : 'background:var(--color-surface);color:var(--color-text);border-color:var(--color-border);'"
+                style="padding:0.5rem 1.25rem;border-radius:6px;border:1px solid;font-weight:500;cursor:pointer;transition:all 150ms;"
+                x-text="op.label"
+              ></button>
+            </template>
+          </div>
+
+          <!-- Painel de conteúdo -->
+          <template x-for="(op, key) in opcoes" :key="key">
+            <div x-show="tab===key" style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;padding:1.25rem;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+                <div>
+                  <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-muted);">Abordagem</p>
+                  <p style="margin:0 0 1rem;font-weight:500;" x-text="op.abordagem"></p>
+                  <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-muted);">O que é</p>
+                  <p style="margin:0 0 1rem;" x-text="op.oque"></p>
+                  <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-muted);">Quando usar</p>
+                  <p style="margin:0;" x-text="op.quando"></p>
+                </div>
+                <div>
+                  <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-success);">Prós</p>
+                  <ul style="margin:0 0 1rem;padding-left:1.2rem;">
+                    <template x-for="pro in op.pros" :key="pro">
+                      <li style="color:var(--color-success);margin-bottom:0.2rem;" x-text="pro"></li>
+                    </template>
+                  </ul>
+                  <p style="margin:0 0 0.25rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-warning);">Contras</p>
+                  <ul style="margin:0;padding-left:1.2rem;">
+                    <template x-for="con in op.cons" :key="con">
+                      <li style="color:var(--color-warning);margin-bottom:0.2rem;" x-text="con"></li>
+                    </template>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <p>Para o California Housing — um modelo único, em CPU, servindo previsões REST — <strong>FastAPI próprio é suficiente</strong>: pouca dependência, total controle e fácil de entender. As soluções prontas de serving brilham quando o cenário cresce — escala alta, múltiplos modelos ou GPU — e o empacotamento/versionamento embutido passa a compensar a curva de aprendizado.</p>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Regra de decisão: <strong>construa a sua própria API</strong> quando o caso é simples ou o ML é embutido numa app maior; <strong>use serving pronto</strong> quando há escala, muitos modelos ou GPU em jogo.</p></div>
+
+        <!-- SEÇÃO 8 -->
+        <h2 id="readme-projeto">8. Conectando com o README da pasta de código</h2>
+        <p>Todo esse tooling precisa estar documentado no <code>README.md</code> do projeto, para que a próxima pessoa (ou o avaliador) saiba como começar:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button>
+          <pre><code class="language-markdown"># California Housing — API de Inferência
+
+## Setup
+make install          # ou: uv sync --group dev
+
+## Comandos
+| Comando        | O que faz                              |
+|----------------|----------------------------------------|
+| make lint      | Verifica lint e formatação (ruff)      |
+| make format    | Corrige lint e formata o código        |
+| make test      | Roda os testes (pytest)                |
+| make train     | Treina e salva pipeline.joblib         |
+| make run       | Sobe a API (uvicorn, localhost:8000)   |
+
+## Modelo
+Versão atual: 2.3.1 (ver src/housing/version.py)</code></pre>
+        </div>
+
+        <p>O README é o contrato de entrada do projeto: transforma todo o tooling em algo <strong>descobrível</strong>. Um projeto profissional permite ir de <code>git clone</code> a uma API rodando em menos de cinco minutos, sem precisar perguntar nada a ninguém.</p>
+
+        <h3>Referências</h3>
+        <ul>
+          <li><a href="https://docs.astral.sh/uv/" target="_blank">uv — documentação oficial (Astral)</a></li>
+          <li><a href="https://docs.astral.sh/ruff/" target="_blank">ruff — documentação oficial (Astral)</a></li>
+          <li><a href="https://github.com/taskipy/taskipy" target="_blank">taskipy — repositório</a></li>
+          <li><a href="https://packaging.python.org/en/latest/specifications/pyproject-toml/" target="_blank">Python Packaging — pyproject.toml (PEP 621/735)</a></li>
+          <li><a href="https://mlflow.org/docs/latest/model-registry.html" target="_blank">MLflow — Model Registry</a> · <a href="https://docs.bentoml.com/" target="_blank">BentoML — documentação</a></li>
+        </ul>
+
+        <nav class="chapter-nav">
+          <a href="03-api-fastapi.html" class="nav-btn"><span><span class="nav-btn-label">Anterior</span><span class="nav-btn-title">← APIs de Inferência com FastAPI</span></span></a>
+          <a href="../index.html" class="nav-btn nav-btn-next"><span><span class="nav-btn-label">Concluir</span><span class="nav-btn-title">Voltar ao início →</span></span></a>
+        </nav>
+      </article>
+    </main>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-toml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-makefile.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize(window.TB_MERMAID_THEME);
+  </script>
+</body>
+</html>

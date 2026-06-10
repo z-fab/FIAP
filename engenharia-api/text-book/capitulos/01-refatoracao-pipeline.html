@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refatoração &amp; Pipeline — Do Notebook à Produção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['DM Sans','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    window.TB_CHAPTERS = [
+      { id:'01', path:'01-refatoracao-pipeline.html', title:'Refatoração & Pipeline' },
+      { id:'02', path:'02-testes.html', title:'Testes em ML' },
+      { id:'03', path:'03-api-fastapi.html', title:'API com FastAPI' },
+      { id:'04', path:'04-empacotamento-tooling.html', title:'Empacotamento & Tooling' },
+    ];
+  </script>
+</head>
+<body x-data="chapterApp('01')" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home"><span class="sb-home-icon">←</span><span class="sb-home-lbl">Do Notebook à Produção</span></a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-refatoracao-pipeline.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }"><span class="ch-num" x-text="currentChapter==='01' ? '01' : (isVisited('01') ? '✓' : '01')"></span><span class="ch-txt">Refatoração &amp; Pipeline</span></a>
+        <a href="02-testes.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }"><span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span><span class="ch-txt">Testes em ML</span></a>
+        <a href="03-api-fastapi.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }"><span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span><span class="ch-txt">API com FastAPI</span></a>
+        <a href="04-empacotamento-tooling.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }"><span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span><span class="ch-txt">Empacotamento &amp; Tooling</span></a>
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a href="#dois-mundos" class="sec-link" :class="{ 'active': activeSection==='dois-mundos' }">Dois mundos: notebook vs. produção</a>
+        <a href="#solid" class="sec-link" :class="{ 'active': activeSection==='solid' }">SOLID aplicado a Machine Learning</a>
+        <a href="#anatomia" class="sec-link" :class="{ 'active': activeSection==='anatomia' }">Anatomia de um repositório de ML</a>
+        <a href="#depois" class="sec-link" :class="{ 'active': activeSection==='depois' }">O "depois": módulos src/ limpos</a>
+        <a href="#reprodutibilidade" class="sec-link" :class="{ 'active': activeSection==='reprodutibilidade' }">Reprodutibilidade e o fim do data leakage</a>
+      </nav>
+    </aside>
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar"><a href="../index.html">Do Notebook à Produção</a><span class="topbar-sep">›</span><span class="topbar-current">Refatoração &amp; Pipeline</span></header>
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 01</div>
+        <h1>Do Notebook à Produção: <em>Refatoração &amp; Pipeline</em></h1>
+        <p class="chapter-objective">Transformar código exploratório de notebook em módulos src/ limpos, aplicando SOLID, e encapsular o pré-processamento num Pipeline scikit-learn reprodutível.</p>
+
+        <blockquote>"Qualquer tolo escreve código que um computador entende. Bons programadores escrevem código que humanos entendem." — Martin Fowler</blockquote>
+
+        <h2 id="introducao">Introdução</h2>
+        <p>Se você é cientista de dados, provavelmente sua vida intelectual acontece dentro de um notebook. É lá que você carrega os dados, plota histogramas, testa três versões de uma feature, treina um modelo, descobre que ele é ruim, treina outro, e — eventualmente — chega a algo que funciona. O notebook é uma ferramenta de <strong>exploração</strong> excelente. O problema começa quando alguém pergunta: <em>"Ótimo, e como a gente coloca isso em produção?"</em></p>
+        <p>A resposta honesta, na maioria das equipes, é constrangedora: copia-se o <code>.ipynb</code> para um servidor, reza-se para que as células rodem na ordem certa, e cruzam-se os dedos para que o modelo treinado hoje seja igual ao de ontem. Não é.</p>
+
+        <p>Este capítulo trata da ponte entre esses dois mundos. Vamos pegar um caso concreto — regressão de preços de imóveis com o dataset <strong>California Housing</strong> — e levá-lo de uma célula de notebook bagunçada até módulos <code>src/</code> limpos, testáveis e determinísticos. O caminho passa por quatro ferramentas:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">SOLID</span> Princípios de design</div><p>Cinco princípios de OO aplicados a ML para separar responsabilidades e desacoplar o código.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Pipeline</span> scikit-learn</div><p>Todo o pré-processamento encapsulado num único objeto reprodutível, sem vazamento de dados.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Polars</span> ETL</div><p>Leitura e transformação dos dados de forma rápida e econômica em memória.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">.joblib</span> Artefato</div><p>Um arquivo único e versionável que faz <code>predict</code> de forma determinística — sem surpresas.</p></div>
+        </div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Refatoração</strong> (Martin Fowler, <em>Refactoring</em>, 2ª ed., 2018): processo de reestruturar código existente — alterando sua estrutura interna — <strong>sem mudar seu comportamento externo observável</strong>. Refatorar não é reescrever nem adicionar features: é melhorar o <em>design</em> de um código que já funciona. A regra de ouro: depois de refatorar, o modelo deve produzir exatamente as mesmas predições de antes.</p>
+        </div>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Refatorar = mudar a <strong>estrutura</strong> sem mudar o <strong>comportamento</strong>. Mesmas predições antes e depois.</p></div>
+
+        <h2 id="dois-mundos">1.1 Dois mundos: notebook vs. produção</h2>
+        <p>Notebook e código de produção otimizam para coisas diferentes, e é por isso que tentar usar um como o outro dá errado.</p>
+
+        <table>
+          <thead>
+            <tr><th>Dimensão</th><th>Notebook (exploração)</th><th>Produção (módulos <code>src/</code>)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Objetivo</td><td>Descobrir, experimentar</td><td>Servir, repetir, manter</td></tr>
+            <tr><td>Ordem de execução</td><td>Fora de ordem, estado oculto</td><td>Determinística, top-down</td></tr>
+            <tr><td>Estado</td><td>Variáveis globais mutáveis</td><td>Funções/classes encapsuladas</td></tr>
+            <tr><td>Testes</td><td>Inexistentes</td><td>Unitários e de integração</td></tr>
+            <tr><td>Reuso</td><td>Copy-paste entre células</td><td>Imports</td></tr>
+            <tr><td>Determinismo</td><td>"Funciona na minha máquina"</td><td>Mesma entrada → mesma saída</td></tr>
+          </tbody>
+        </table>
+
+        <p>O notebook acumula <strong>estado oculto</strong>: você executa a célula 12, depois volta e edita a 5, roda a 5 de novo mas esquece de re-rodar a 8, e agora a variável <code>X_train</code> reflete um estado que <em>nenhuma ordem linear de execução jamais produziria</em>. Isso é veneno para reprodutibilidade.</p>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Notebook é para <strong>explorar</strong>; <code>src/</code> é para <strong>produzir</strong>. Estado oculto é o inimigo número um da reprodutibilidade.</p></div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Quando refatorar?</strong> Não refatore enquanto ainda está explorando — você só vai jogar fora o trabalho. Refatore quando o código <strong>passar do experimento para a entrega</strong>: quando alguém vai depender dele, quando precisa rodar de novo amanhã, ou quando você se pega copiando a mesma célula pela terceira vez. A regra dos três (Fowler): na terceira repetição, extraia.</p>
+        </div>
+
+        <h3>O "antes": uma célula de notebook típica</h3>
+        <p>Eis o tipo de célula que todos nós já escrevemos. Funciona, produz um modelo, e é um pesadelo de manter:</p>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># Célula 7 — California Housing (versão notebook)
+import pandas as pd
+from sklearn.datasets import fetch_california_housing
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+d = fetch_california_housing(as_frame=True).frame
+
+# feature engineering "na mão"
+d["rooms_per_household"] = d["AveRooms"] / d["AveOccup"]
+d["pop_per_household"]   = d["Population"] / d["AveOccup"]
+
+# OPS: scaler ajustado ANTES do split → data leakage
+sc = StandardScaler()
+X = sc.fit_transform(d.drop(columns=["MedHouseVal"]))
+y = d["MedHouseVal"].values
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)  # sem random_state!
+
+m = LinearRegression().fit(X_tr, y_tr)
+print(m.score(X_te, y_te))   # score otimista e irreproduzível</code></pre></div>
+
+        <p>Conte os problemas: (1) o <code>StandardScaler</code> é ajustado no dataset <strong>inteiro</strong>, antes do split — <strong>vazamento de dados</strong>; (2) <code>train_test_split</code> sem <code>random_state</code> — irreproduzível; (3) a lógica de features está solta, impossível de reusar na inferência; (4) variáveis de uma letra; (5) nada disso é testável. Vamos consertar tudo.</p>
+
+        <h2 id="solid">1.2 SOLID aplicado a Machine Learning</h2>
+        <p>SOLID são <strong>cinco</strong> princípios de design orientado a objetos (Robert C. Martin). Parecem "coisa de engenheiro de software", mas cada um tem um paralelo direto e útil em ML — e o próprio scikit-learn já foi desenhado em cima deles.</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">S</span> Single Responsibility</div><p>Uma classe, <strong>uma</strong> razão para mudar. Separe <code>DataLoader</code> · <code>FeatureTransformer</code> · <code>ModelTrainer</code>.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">O</span> Open/Closed</div><p>Aberto para <strong>extensão</strong>, fechado para modificação. Adicione um transformador ao <code>Pipeline</code> sem editar os passos existentes.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">L</span> Liskov Substitution</div><p>Subtipos <strong>substituíveis</strong>. Troque <code>LinearRegression</code> por <code>RandomForestRegressor</code> no mesmo Pipeline e nada quebra.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">I</span> Interface Segregation</div><p>Interfaces <strong>enxutas</strong>. A API de inferência só precisa de <code>predict</code> — não arraste o código de treino.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">D</span> Dependency Inversion</div><p>Dependa de <strong>abstrações</strong>. Injete o transformador via <code>TransformerMixin</code>, não o instancie fixo.</p></div>
+        </div>
+
+        <p>A seguir, cada princípio com o seu paralelo concreto em um projeto de Machine Learning.</p>
+
+        <h3>SRP — Single Responsibility Principle</h3>
+        <blockquote><em>"Uma classe deve ter uma, e apenas uma, razão para mudar."</em></blockquote>
+        <p>A célula acima viola o SRP de forma flagrante: ela carrega dados, cria features, escala, divide e treina — tudo num bloco. Se a fonte de dados mudar, você mexe aqui. Se a feature engineering mudar, você mexe aqui. Se o modelo mudar, você mexe aqui. São <strong>muitas razões para mudar</strong> no mesmo lugar.</p>
+        <p>A correção é separar responsabilidades em unidades coesas:</p>
+
+        <div class="box box-example">
+          <div class="box-label">🔬 Exemplo</div>
+          <p>Em vez de um monolítico <code>DataProcessor</code> que "faz tudo", divida em:</p>
+          <ul>
+            <li><strong><code>DataLoader</code></strong> — sabe ler os dados (e só isso).</li>
+            <li><strong><code>FeatureTransformer</code></strong> — sabe criar/transformar features (e só isso).</li>
+            <li><strong><code>ModelTrainer</code></strong> — sabe treinar e avaliar (e só isso).</li>
+          </ul>
+          <p>Cada um tem uma única razão para mudar. Trocar de Parquet para uma API afeta apenas o <code>DataLoader</code>.</p>
+        </div>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># ❌ Uma classe que faz tudo — várias razões para mudar
+class DataProcessor:
+    def run(self, caminho):
+        df = pl.read_csv(caminho)                 # I/O
+        df = df.with_columns(...)                 # feature engineering
+        model = RandomForestRegressor().fit(X, y) # treino
+        return model
+
+# ✅ Uma responsabilidade por classe
+class DataLoader:       # só lê dados
+    def load(self, caminho): ...
+
+class FeatureBuilder:   # só cria features
+    def transform(self, df): ...
+
+class ModelTrainer:     # só treina e avalia
+    def train(self, X, y): ...</code></pre></div>
+
+        <h3>OCP — Open/Closed Principle</h3>
+        <blockquote><em>"Entidades devem estar abertas para extensão, mas fechadas para modificação."</em></blockquote>
+        <p>Você adiciona comportamento novo <strong>sem reescrever</strong> o que já funciona. É exatamente o que o <code>Pipeline</code> e o <code>ColumnTransformer</code> oferecem: para testar uma feature nova, você <strong>acrescenta</strong> um transformador à lista de passos — não edita os passos existentes nem o código de treino. Herdar de <code>BaseEstimator</code>/<code>TransformerMixin</code> também <em>estende</em> o scikit-learn sem tocar no código da biblioteca.</p>
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Feature nova? Adicione um passo ao Pipeline. O resto do código nem fica sabendo.</p></div>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># Pipeline já existente
+passos = [("imputer", SimpleImputer()), ("scaler", StandardScaler())]
+
+# Estender = ACRESCENTAR um passo, sem editar os que já existem
+passos.insert(1, ("attribs", CombinedAttributesAdder()))   # feature nova
+pipe = Pipeline(passos)
+# nenhum passo anterior foi modificado — só estendido</code></pre></div>
+
+        <h3>LSP — Liskov Substitution Principle</h3>
+        <blockquote><em>"Um subtipo deve poder substituir seu tipo base sem quebrar o programa."</em></blockquote>
+        <p>No scikit-learn, todo estimador honra o mesmo contrato (<code>fit</code>/<code>predict</code>). Por isso você troca <code>LinearRegression</code> por <code>RandomForestRegressor</code> dentro do mesmo <code>Pipeline</code> e <strong>nada mais precisa mudar</strong>. O contrato vale também para o <em>seu</em> transformador: se ele respeita a interface (<code>fit</code> retorna <code>self</code>, <code>transform</code> devolve um array no shape esperado), ele é substituível em qualquer ponto onde um transformador é esperado — inclusive dentro de um <code>GridSearchCV</code>.</p>
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p>Quebrar o contrato quebra o LSP: um <code>transform</code> que às vezes devolve <code>DataFrame</code> e às vezes <code>ndarray</code>, ou um <code>fit</code> que não retorna <code>self</code>, torna seu objeto <em>não</em> substituível e estoura erros difíceis de rastrear no Pipeline.</p>
+        </div>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">def build(estimator):
+    return Pipeline([("prep", preprocessor), ("model", estimator)])
+
+build(LinearRegression())            # funciona
+build(RandomForestRegressor())       # também funciona — mesmo contrato fit/predict
+build(GradientBoostingRegressor())   # idem; nada mais no código precisa mudar</code></pre></div>
+
+        <h3>ISP — Interface Segregation Principle</h3>
+        <blockquote><em>"Nenhum cliente deve ser forçado a depender de métodos que não usa."</em></blockquote>
+        <p>Prefira interfaces pequenas e específicas a uma que "faz tudo". Em ML isso aparece na fronteira <strong>treino × inferência</strong>: treinar precisa de dados, validação e bibliotecas pesadas; <strong>servir</strong> precisa apenas de <code>predict</code> sobre um artefato já treinado. Manter essas responsabilidades separadas faz a API de inferência depender só do necessário — sem arrastar o código (e as dependências) de treino para dentro do servidor de produção.</p>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># Treino precisa de tudo: dados, validação, bibliotecas pesadas
+def treinar(): ...                       # usa polars, sklearn, etc.
+
+# Inferência só precisa de predict sobre o artefato já pronto
+class Preditor:
+    def __init__(self, model):
+        self.model = model
+    def predict(self, X):
+        return self.model.predict(X)
+# a API importa apenas o Preditor — não arrasta o módulo de treino</code></pre></div>
+
+        <h3>DIP — Dependency Inversion Principle</h3>
+        <blockquote><em>"Dependa de abstrações, não de implementações concretas."</em></blockquote>
+        <p>Em vez de o <code>ModelTrainer</code> instanciar internamente um <code>StandardScaler</code> fixo, <strong>injete</strong> o transformador como dependência. A abstração que o scikit-learn nos dá para isso é a interface <code>TransformerMixin</code> (tudo que tem <code>fit</code>/<code>transform</code>). Assim o treinador funciona com <em>qualquer</em> transformador que respeite o contrato — <code>StandardScaler</code>, <code>RobustScaler</code>, ou seu transformador custom.</p>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># DIP: o treinador recebe o pré-processador, não o cria
+class ModelTrainer:
+    def __init__(self, preprocessor, estimator):
+        self.preprocessor = preprocessor   # abstração injetada
+        self.estimator = estimator
+
+    def build(self):
+        from sklearn.pipeline import Pipeline
+        return Pipeline([("prep", self.preprocessor),
+                         ("model", self.estimator)])</code></pre></div>
+
+        <p>Isso torna o código testável (você injeta um <em>mock</em>), flexível (troca de implementação sem editar o treinador) e desacoplado.</p>
+
+        <h2 id="anatomia">1.3 Anatomia de um repositório de ML</h2>
+        <p>Antes de escrever os módulos, precisamos de um lugar para colocá-los. A estrutura abaixo é uma organização comum e testada para projetos de ML, com adaptações para servir uma API de inferência.</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">🗂️ Diagrama · Anatomia do repositório ML</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+graph TD
+    R["repo/"]
+    R --> D["data/ — dados"]
+    R --> NB["notebooks/ — exploração e EDA"]
+    R --> S["src/ — código de produção"]
+    R --> T["tests/ — testes unitários e de integração"]
+    R --> M["models/ — artefatos .joblib versionados"]
+    D --> RAW["raw/ — dados brutos, NUNCA editar"]
+    D --> INT["interim/ — intermediários"]
+    D --> PROC["processed/ — prontos para treino"]
+    S --> CFG["config.py · version.py — constantes, SEED, versão"]
+    S --> SD["data/ — io.py (Polars/joblib) · schema.py (pandera)"]
+    S --> SM["modeling/ — preprocessing.py · pipeline.py · train.py"]
+    S --> SA["api/ — app.py · schemas.py · service.py · middleware.py"]
+    classDef raw fill:#FEF3C7,stroke:#D97706,color:#92400E;
+    classDef ok fill:#E8F0EB,stroke:#3D6B52,color:#1C1917;
+    class RAW raw;
+    class M ok;
+            </div>
+          </div>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong><code>data/raw</code> é sagrado.</strong> Dados brutos são <strong>imutáveis</strong>: você nunca os edita ou sobrescreve. Toda transformação gera novos arquivos em <code>interim/</code> ou <code>processed/</code>. Isso garante que você sempre possa reconstruir o pipeline a partir de uma fonte de verdade confiável. Trate <code>raw/</code> como somente-leitura (e mantenha-o fora do versionamento de código pesado — use DVC ou armazenamento de objetos).</p>
+        </div>
+
+        <p>A migração das células do notebook para esses arquivos é o coração da refatoração:</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">🗺️ Mapa da refatoração · do notebook aos módulos</div>
+          <p style="font-size:0.875rem;color:var(--color-text-secondary);margin:0 0 1.25rem;">Refatorar não é reescrever: é dar a cada pedaço solto do notebook um <strong>endereço claro</strong> em <code>src/</code>. Cada célula exploratória vira parte de um módulo com responsabilidade única.</p>
+          <div class="refac-map">
+            <div class="refac-row">
+              <div class="refac-src"><span class="refac-n">[1]</span><code>df = fetch_california_housing()</code></div>
+              <span class="refac-to" aria-hidden="true">→</span>
+              <div class="refac-dst mod-io"><span class="refac-dot"></span>data/io.py<span class="refac-role">carrega &amp; salva dados</span></div>
+            </div>
+            <div class="refac-row">
+              <div class="refac-src"><span class="refac-n">[2]</span><code>rooms_per_household = AveRooms / AveOccup</code></div>
+              <span class="refac-to" aria-hidden="true">→</span>
+              <div class="refac-dst mod-pre"><span class="refac-dot"></span>modeling/preprocessing.py<span class="refac-role">transformador custom</span></div>
+            </div>
+            <div class="refac-row">
+              <div class="refac-src"><span class="refac-n">[3]</span><code>ColumnTransformer([…]) + Pipeline([…])</code></div>
+              <span class="refac-to" aria-hidden="true">→</span>
+              <div class="refac-dst mod-pip"><span class="refac-dot"></span>modeling/pipeline.py<span class="refac-role">monta o pipeline</span></div>
+            </div>
+            <div class="refac-row">
+              <div class="refac-src"><span class="refac-n">[4]</span><code>model.fit(); model.score()</code></div>
+              <span class="refac-to" aria-hidden="true">→</span>
+              <div class="refac-dst mod-mod"><span class="refac-dot"></span>modeling/train.py<span class="refac-role">treino &amp; avaliação</span></div>
+            </div>
+          </div>
+        </div>
+
+        <h2 id="depois">1.4 O "depois": módulos <code>src/</code> limpos</h2>
+        <p>Vamos materializar cada módulo. Note como cada arquivo tem uma única responsabilidade.</p>
+
+        <h3><code>src/config.py</code> — constantes e a semente</h3>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/config.py
+from pathlib import Path
+
+SEED = 42                                   # freeze seeds: uma fonte de verdade
+TARGET = "MedHouseVal"
+DATA_DIR = Path("data")
+MODELS_DIR = Path("models")
+NUMERIC_FEATURES = [
+    "MedInc", "HouseAge", "AveRooms", "AveBedrms",
+    "Population", "AveOccup", "Latitude", "Longitude",
+]</code></pre></div>
+
+        <h3><code>src/data/io.py</code> — carregar com Polars, salvar com joblib</h3>
+        <p>Tudo que toca o "mundo externo" — ler os dados, gravar e recarregar o modelo — fica isolado num único módulo. Assim, se a fonte de dados mudar (de um dataset embutido para um arquivo ou uma API), só este arquivo é afetado: é o princípio da responsabilidade única na prática. <code>joblib</code> é a biblioteca padrão para salvar objetos do scikit-learn em disco — ela guarda o pipeline inteiro, já treinado, num único arquivo <code>.joblib</code>.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/data/io.py
+import joblib
+import polars as pl
+from sklearn.datasets import fetch_california_housing
+from src.config import MODELS_DIR
+
+
+def load_california() -&gt; pl.DataFrame:
+    """Carrega o dataset como Polars DataFrame (eager)."""
+    bunch = fetch_california_housing(as_frame=True)
+    return pl.from_pandas(bunch.frame)
+
+
+def save_pipeline(pipeline, name: str = "model.joblib") -&gt; None:
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pipeline, MODELS_DIR / name)
+
+
+def load_pipeline(name: str = "model.joblib"):
+    return joblib.load(MODELS_DIR / name)</code></pre></div>
+
+        <h3><code>src/modeling/preprocessing.py</code> — escrevendo um transformador próprio</h3>
+        <p>No notebook, a engenharia de atributos ficava solta no meio das células: criávamos colunas novas com operações diretas no DataFrame. O problema é que essa mesma lógica precisa ser aplicada <strong>exatamente igual</strong> em dois momentos — quando treinamos o modelo e quando ele entra em produção para fazer previsões. Se ela vive solta, é fácil aplicar de um jeito no treino e de outro no serviço — uma das maiores fontes de erro silencioso em ML.</p>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Lógica de feature solta no notebook = risco de aplicar diferente no treino e no serviço. Empacotada num transformador, ela viaja junto com o modelo e é aplicada igual em todo lugar.</p></div>
+
+        <p>A solução do scikit-learn é empacotar essa lógica num <strong>transformador</strong>: um objeto que segue um contrato simples — tem um método <code>fit</code> (que aprende dos dados o que precisar) e um método <code>transform</code> (que aplica a transformação). Uma vez nesse formato, o transformador "viaja junto" dentro do pipeline e é aplicado de forma idêntica em qualquer contexto.</p>
+        <p>O nosso transformador vai criar <strong>atributos derivados</strong>: razões entre colunas que costumam ter mais poder preditivo do que os valores brutos. No California Housing, em vez de usar só o total de cômodos, faz mais sentido olhar <em>cômodos por domicílio</em> (<code>AveRooms / AveOccup</code>) e <em>pessoas por domicílio</em>. É um exemplo clássico de feature engineering para esse dataset. Em vez de calcular isso "na mão" numa célula, transformamos em uma peça reutilizável:</p>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/modeling/preprocessing.py
+import numpy as np
+from sklearn.base import BaseEstimator, TransformerMixin
+
+
+class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
+    """Adiciona atributos derivados (razões entre colunas) ao California Housing."""
+    AVE_ROOMS, AVE_BEDRMS, POPULATION, AVE_OCCUP = 2, 3, 4, 5
+
+    def __init__(self, add_bedrooms_per_room: bool = True):
+        self.add_bedrooms_per_room = add_bedrooms_per_room  # sem transformar nada aqui
+
+    def fit(self, X, y=None):
+        return self                                   # nada a aprender → self
+
+    def transform(self, X):
+        X = np.asarray(X, dtype=float)                # nunca alterar o array de entrada
+        rooms_per_household = X[:, self.AVE_ROOMS] / X[:, self.AVE_OCCUP]
+        pop_per_household = X[:, self.POPULATION] / X[:, self.AVE_OCCUP]
+        new = [rooms_per_household, pop_per_household]
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:, self.AVE_BEDRMS] / X[:, self.AVE_ROOMS]
+            new.append(bedrooms_per_room)
+        return np.c_[X, *new]</code></pre></div>
+
+        <p>Cada decisão desse código tem um motivo. Vale destrinchar:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title">Por que herdar de <code>BaseEstimator</code> e <code>TransformerMixin</code>?</div>
+            <p>São duas classes-base do scikit-learn. <code>TransformerMixin</code> entrega de graça o método <code>fit_transform</code> (que faz <code>fit</code> e <code>transform</code> de uma vez). <code>BaseEstimator</code> entrega <code>get_params</code>/<code>set_params</code>, usados na busca de hiperparâmetros e para clonar o objeto. Herdando das duas, o nosso transformador é tratado pelo sklearn exatamente como qualquer outro.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title">Por que <code>fit</code> só retorna <code>self</code>?</div>
+            <p>Aqui não há nada a "aprender": a conta é fixa (divisões entre colunas). Mesmo assim somos obrigados a implementar o <code>fit</code> e a devolver o próprio objeto (<code>self</code>) — é esse contrato que permite encadear <code>fit().transform()</code>. Um transformador que <em>aprendesse</em> algo (uma média, por exemplo) guardaria esse valor aqui dentro.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title">Por que índices de coluna como constantes?</div>
+            <p>O <code>transform</code> recebe um array NumPy, que não tem nomes de coluna — só posições. Dar nome aos índices (<code>AVE_ROOMS = 2</code>…) deixa o cálculo legível e evita "números mágicos" espalhados pelo código.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title">Por que <code>np.asarray</code> e não alterar a entrada?</div>
+            <p>Convertemos para array e montamos um <strong>novo</strong> array de saída com <code>np.c_</code> (que junta colunas). Nunca mexemos no <code>X</code> que chegou: alterar a entrada "no lugar" provoca efeitos colaterais difíceis de rastrear quando o mesmo dado passa por vários passos do pipeline.</p>
+          </div>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>O cuidado com o <code>__init__</code>.</strong> O <code>BaseEstimator</code> descobre os hiperparâmetros do transformador <em>lendo a assinatura</em> do <code>__init__</code>. Por isso duas regras valem sempre: (1) use parâmetros explícitos, nunca <code>*args</code>/<code>**kwargs</code> — senão <code>get_params()</code> falha e, com ele, <code>clone()</code> e o <code>GridSearchCV</code> param de funcionar; (2) no <code>__init__</code>, apenas guarde o parâmetro como recebeu (<code>self.add_bedrooms_per_room = add_bedrooms_per_room</code>), sem fazer cálculo ou transformação — toda lógica fica no <code>fit</code> e no <code>transform</code>.</p>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Transformações simples e sem estado</strong> (que não precisam aprender nada no <code>fit</code>) podem dispensar a classe e usar diretamente <code>FunctionTransformer(minha_funcao)</code>. Só evite passar uma função anônima (<code>lambda</code>): o <code>joblib</code> não consegue salvar uma <code>lambda</code> em disco, então o modelo não poderia ser persistido depois. Use sempre uma função nomeada com <code>def</code>.</p>
+        </div>
+
+        <h3><code>src/modeling/pipeline.py</code> — montando tudo com <code>ColumnTransformer</code></h3>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/modeling/pipeline.py
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+from src.config import NUMERIC_FEATURES
+from src.modeling.preprocessing import CombinedAttributesAdder
+
+
+def build_preprocessor() -&gt; ColumnTransformer:
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("attribs", CombinedAttributesAdder()),
+        ("scaler", StandardScaler()),
+    ])
+    return ColumnTransformer(
+        transformers=[("num", numeric_pipeline, NUMERIC_FEATURES)],
+        remainder="drop",
+        verbose_feature_names_out=False,        # nomes limpos: "MedInc", não "num__MedInc"
+    )
+
+
+def build_pipeline(estimator) -&gt; Pipeline:
+    return Pipeline([
+        ("preprocessor", build_preprocessor()),
+        ("model", estimator),
+    ])</code></pre></div>
+
+        <p>Esse código monta o pré-processamento inteiro como objetos do scikit-learn. Duas estruturas fazem o trabalho:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><code>Pipeline</code></div>
+            <p>Encadeia uma sequência de passos no formato <code>(nome, transformador)</code> — a <strong>saída de um passo vira a entrada do seguinte</strong>. Tratar tudo como um único objeto garante que pré-processamento e modelo andem sempre juntos.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><code>ColumnTransformer</code></div>
+            <p>Aplica transformadores <strong>diferentes a grupos de colunas diferentes</strong>, no formato <code>(nome, transformador, colunas)</code>. Aqui há um ramo só (tudo numérico); é essa estrutura que, amanhã, deixa tratar números e categorias em paralelo.</p>
+          </div>
+        </div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>O que é aquela tupla <code>("imputer", SimpleImputer(strategy="median"))</code>?</strong> Cada passo é um par <code>(nome, transformador)</code>. O <strong>nome</strong> (<code>"imputer"</code>) é apenas um rótulo — serve para referenciar o passo depois (por exemplo, ao buscar hiperparâmetros: <code>"imputer__strategy"</code>). O <strong>transformador</strong> (<code>SimpleImputer(strategy="median")</code>) é o objeto que faz o trabalho — tem <code>fit</code>/<code>transform</code>, como vimos. No <code>ColumnTransformer</code> a tupla tem <strong>três</strong> partes — <code>(nome, transformador, colunas)</code> — porque ali você também diz <em>a quais colunas</em> aquele transformador se aplica (no caso, <code>NUMERIC_FEATURES</code>, a lista com as 8 features).</p>
+        </div>
+
+        <p>Lendo o ramo numérico de cima para baixo — lembrando que cada passo recebe a saída do anterior:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">1</span> <code>SimpleImputer(strategy="median")</code></div>
+            <p><strong>Preenche valores faltantes</strong> (<code>NaN</code>) de cada coluna com a <strong>mediana</strong> daquela coluna — calculada no <code>fit</code>, só com os dados de treino. Usa-se a mediana, não a média, por ser robusta a outliers. Sem este passo, as contas seguintes quebrariam ao encontrar um <code>NaN</code>.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">2</span> <code>CombinedAttributesAdder()</code></div>
+            <p>Nosso transformador próprio: <strong>cria as features derivadas</strong> (cômodos por domicílio etc.) a partir das colunas já imputadas. É a feature engineering que estava solta no notebook, agora encapsulada e reaplicável de forma idêntica em treino e inferência.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">3</span> <code>StandardScaler()</code></div>
+            <p><strong>Padroniza</strong> cada coluna para média 0 e desvio-padrão 1 (subtrai a média e divide pelo desvio, ambos aprendidos no <code>fit</code>). Coloca todas as features na mesma escala — essencial para modelos lineares, sensíveis à magnitude dos valores.</p>
+          </div>
+        </div>
+
+        <p>Por fim, <code>build_pipeline</code> dá o passo final: junta esse pré-processador a um <strong>estimador</strong> (o modelo) num único <code>Pipeline</code> — o fluxo completo vira <code>preprocessor → model</code>, pronto para <code>fit</code> e <code>predict</code>.</p>
+        <p>Os dois parâmetros do <code>ColumnTransformer</code> também são decisões conscientes: <code>remainder="drop"</code> descarta qualquer coluna que não tenha sido listada (em vez de deixá-la passar crua, sem tratamento), e <code>verbose_feature_names_out=False</code> mantém os nomes das colunas limpos na saída (<code>MedInc</code> em vez de <code>num__MedInc</code>).</p>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Por que montar o pipeline dentro de funções (<code>build_preprocessor</code>, <code>build_pipeline</code>)?</strong> Cada chamada devolve um pipeline <em>novo e ainda não treinado</em>. Isso evita reaproveitar sem querer um objeto já ajustado entre experimentos, deixa o código fácil de testar e permite <strong>injetar qualquer estimador</strong>: <code>build_pipeline(LinearRegression())</code> hoje, <code>build_pipeline(RandomForestRegressor())</code> amanhã, sem tocar no resto. É a inversão de dependência (DIP) que vimos no SOLID, aplicada na prática.</p>
+        </div>
+
+        <div class="interactive-container">
+          <div class="interactive-label">🔀 Diagrama · Fluxo de dados do Pipeline</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+graph LR
+    X["X (DataFrame)"] --> CT
+    subgraph CT["ColumnTransformer — ramo numérico"]
+        direction LR
+        IMP["SimpleImputer(median)"] --> ADD["CombinedAttributesAdder"] --> SC["StandardScaler"]
+    end
+    CT --> LR["LinearRegression"] --> YH["ŷ predição"]
+    classDef est fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6;
+    classDef pred fill:#E8F0EB,stroke:#3D6B52,color:#1C1917;
+    class LR est;
+    class YH pred;
+            </div>
+          </div>
+          <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:0.5rem;"><code>fit()</code>: aprende em cada step só com TREINO; <code>predict()</code>: só transform + predict.</p>
+        </div>
+
+        <h3><code>src/modeling/train.py</code> — treino determinístico e avaliação</h3>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/modeling/train.py
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import root_mean_squared_error
+from sklearn.model_selection import train_test_split
+
+from src.config import SEED, TARGET
+from src.data.io import load_california, save_pipeline
+from src.modeling.pipeline import build_pipeline
+
+
+def train():
+    np.random.seed(SEED)                       # freeze seeds
+    df = load_california()
+
+    X = df.drop(TARGET)                         # Polars DataFrame
+    y = df[TARGET].to_numpy()
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X.to_pandas(), y, test_size=0.2, random_state=SEED   # determinístico
+    )
+
+    pipeline = build_pipeline(LinearRegression())
+    pipeline.fit(X_train, y_train)             # prep aprendido SÓ no treino
+
+    rmse = root_mean_squared_error(y_test, pipeline.predict(X_test))
+    print(f"RMSE: {rmse:.4f}")
+
+    save_pipeline(pipeline)
+    return pipeline
+
+
+if __name__ == "__main__":
+    train()</code></pre></div>
+
+        <p>A inferência, em produção, é trivial e <strong>nunca</strong> re-treina:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">from src.data.io import load_pipeline
+pipeline = load_pipeline()
+preds = pipeline.predict(X_novos)   # apenas transform + predict. JAMAIS .fit()</code></pre></div>
+
+        <div class="interactive-container" x-data="{ activeTab: 'antes' }">
+          <div class="interactive-label">🪟 Tabs · Mesma lógica, dois mundos</div>
+          <div class="tabs-bar">
+            <button class="tab-btn" :class="{ 'active': activeTab==='antes' }" @click="activeTab='antes'">Notebook (antes)</button>
+            <button class="tab-btn" :class="{ 'active': activeTab==='depois' }" @click="activeTab='depois'">src/ (depois)</button>
+          </div>
+          <div x-show="activeTab==='antes'">
+            <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># Notebook (antes) — acoplado, com leakage
+sc = StandardScaler()
+X = sc.fit_transform(d.drop(columns=["MedHouseVal"]))  # ⚠ leakage: fit antes do split
+y = d["MedHouseVal"].values
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)  # ⚠ sem random_state
+
+m = LinearRegression().fit(X_tr, y_tr)
+print(m.score(X_te, y_te))   # ⚠ score otimista e irreproduzível</code></pre></div>
+          </div>
+          <div x-show="activeTab==='depois'" x-cloak>
+            <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/ (depois) — modular, sem leakage
+X_train, X_test, y_train, y_test = train_test_split(
+    X.to_pandas(), y, test_size=0.2, random_state=SEED   # ✓ determinístico
+)
+
+pipeline = build_pipeline(LinearRegression())
+pipeline.fit(X_train, y_train)   # ✓ prep aprendido só no treino → sem leakage
+
+rmse = root_mean_squared_error(y_test, pipeline.predict(X_test))
+save_pipeline(pipeline)          # ✓ artefato único e versionável</code></pre></div>
+          </div>
+        </div>
+
+        <h2 id="reprodutibilidade">1.5 Reprodutibilidade e o fim do data leakage</h2>
+
+        <h3>Como o <code>Pipeline</code> previne data leakage</h3>
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Data leakage</strong> é quando informação de fora do conjunto de treino (tipicamente, do conjunto de teste) "vaza" para o processo de treinamento, inflando artificialmente a performance medida. A forma mais comum: ajustar (<code>fit</code>) um scaler, imputador ou seletor de features no dataset <strong>inteiro</strong>, antes do split treino/teste.</p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card is-danger"><div class="stat-value">0,76</div><div class="stat-label">R² <strong>falso</strong> quando o pré-processamento vaza para o teste — cai para <strong>0,50</strong> (o honesto) quando fica dentro do Pipeline</div></div>
+          <div class="stat-card is-warning"><div class="stat-value">294</div><div class="stat-label">artigos científicos com vazamento de dados documentado, em 17 áreas — não é um erro raro</div></div>
+          <div class="stat-card"><div class="stat-value">~5×</div><div class="stat-label">leitura mais rápida do Polars em relação ao pandas</div></div>
+        </div>
+
+        <p>O mecanismo do <code>Pipeline</code> é elegante e elimina a classe inteira de erro:</p>
+        <ul>
+          <li><code>pipeline.fit(X_train, y_train)</code> chama <code>fit_transform</code> em cada step <strong>exceto o último</strong>, e <code>fit</code> no estimador final. Os parâmetros (média/desvio do scaler, mediana do imputador) são aprendidos <strong>apenas</strong> com <code>X_train</code>.</li>
+          <li><code>pipeline.predict(X_test)</code> chama apenas <code>transform</code> nos steps de pré-processamento e <code>predict</code> no estimador. O teste <strong>nunca</strong> influencia os parâmetros.</li>
+        </ul>
+        <p>Em validação cruzada, o <code>Pipeline</code> faz isso automaticamente <em>em cada fold</em>. A documentação do scikit-learn (<a href="https://scikit-learn.org/stable/common_pitfalls.html">Common Pitfalls</a>) ilustra com dados puramente aleatórios: pré-processar antes do split produz um R² falso de ~0,76; feito corretamente dentro do pipeline, cai para ~0,50 — o valor honesto para ruído.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p>O leakage não é um erro acadêmico raro. O paper de <strong>Kapoor &amp; Narayanan</strong> (<em>Patterns</em>, Cell Press, 2023) catalogou vazamento de dados em <strong>294 artigos científicos de 17 áreas distintas</strong>. É uma das principais causas de resultados de ML que não se reproduzem. Encapsular o pré-processamento num <code>Pipeline</code> é a defesa estrutural mais barata contra isso.</p>
+        </div>
+
+        <h3>Reprodutibilidade: sementes, serialização e fronteiras</h3>
+        <p><strong>Sementes (<code>random_state</code>).</strong> Passar um inteiro (<code>random_state=42</code>) torna a operação <strong>determinística</strong>: mesma entrada, mesma saída, sempre. Passar uma instância de <code>np.random.RandomState</code> faz o estado <em>avançar</em> a cada uso — robusto para CV, mas <strong>não reprodutível entre execuções</strong>. Para produção, prefira o inteiro e adote o padrão <strong>"freeze seeds"</strong>: um <code>SEED = 42</code> central, propagado a todo componente estocástico.</p>
+        <p><strong>Serialização.</strong> <code>joblib.dump(pipeline, ...)</code> persiste o objeto inteiro — incluindo todos os parâmetros aprendidos e transformadores já ajustados. Na inferência, <code>joblib.load</code> + <code>.predict</code>, e nada mais.</p>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Serialize com metadados.</strong> Salve junto do artefato um pequeno manifesto: versão do scikit-learn (<code>sklearn.__version__</code>), a <code>SEED</code>, e um <em>fingerprint</em> dos dados de treino (ex.: hash do arquivo). Isso permite detectar incompatibilidades de versão e auditar com o que o modelo foi treinado.</p>
+        </div>
+
+        <h3>Polars na fronteira do scikit-learn</h3>
+        <p>Usamos <strong>Polars</strong> (colunar, baseado em Apache Arrow) para o ETL — leitura tipicamente ~5x mais rápida que pandas e menor consumo de memória, especialmente em modo <em>lazy</em> (<code>pl.scan_csv().collect()</code>). Mas o scikit-learn não consome um <code>LazyFrame</code> diretamente. Duas estratégias:</p>
+        <ol>
+          <li><strong>Converter na fronteira.</strong> Faça EDA/ETL em Polars e, ao entregar ao scikit-learn, <code>df.to_numpy()</code> (zero-copy quando numérico e sem nulos). Um <code>LazyFrame</code> precisa de <code>.collect()</code> antes.</li>
+          <li><strong>Saída Polars do scikit-learn (≥ 1.4).</strong> Desde o scikit-learn 1.4 (jan/2024): <code>preprocessor.set_output(transform="polars")</code>, ou globalmente <code>set_config(transform_output="polars")</code>.</li>
+        </ol>
+
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import polars as pl
+from sklearn import set_config
+
+set_config(transform_output="polars")   # todos os transformadores devolvem Polars
+# ...ou por objeto:
+preprocessor.set_output(transform="polars")</code></pre></div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p>Armadilhas na fronteira: (1) <code>LazyFrame</code> <strong>não</strong> passa direto — colete antes; (2) <code>OneHotEncoder</code> usa <code>sparse_output</code> (não mais <code>sparse</code>, desde sklearn 1.2); (3) <code>verbose_feature_names_out=True</code> gera nomes como <code>num__MedInc</code> — use <code>False</code>; (4) nunca altere o <code>X</code> recebido dentro de um transformador — sempre produza um array novo.</p>
+        </div>
+
+        <h3>Referências</h3>
+        <ul>
+          <li><a href="https://scikit-learn.org/stable/modules/compose.html" target="_blank">scikit-learn — Pipelines e ColumnTransformer</a></li>
+          <li><a href="https://scikit-learn.org/stable/common_pitfalls.html" target="_blank">scikit-learn — Common Pitfalls (data leakage)</a></li>
+          <li><a href="https://docs.pola.rs/" target="_blank">Polars — documentação oficial</a></li>
+          <li><a href="https://cookiecutter-data-science.drivendata.org/" target="_blank">Cookiecutter Data Science — estrutura de projeto</a></li>
+        </ul>
+
+        <nav class="chapter-nav">
+          <a href="../index.html" class="nav-btn"><span><span class="nav-btn-label">Anterior</span><span class="nav-btn-title">← Início</span></span></a>
+          <a href="02-testes.html" class="nav-btn nav-btn-next"><span><span class="nav-btn-label">Próximo</span><span class="nav-btn-title">Testes Automatizados em ML →</span></span></a>
+        </nav>
+      </article>
+    </main>
+  </div>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    /* Mapa da refatoração — notebook → módulos (estático) */
+    .refac-map { display: flex; flex-direction: column; gap: 0.7rem; }
+    .refac-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.85rem; }
+    .refac-src { display: flex; align-items: center; gap: 0.5rem; background: var(--color-surface-2); border: 1px dashed var(--color-border-strong); border-radius: 8px; padding: 0.6rem 0.75rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-text); overflow: hidden; }
+    .refac-src code { background: none; padding: 0; font-size: inherit; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .refac-n { color: var(--color-text-muted); font-weight: 700; flex-shrink: 0; }
+    .refac-to { color: var(--color-primary); font-size: 1.2rem; font-weight: 700; text-align: center; }
+    .refac-dst { display: flex; align-items: center; gap: 0.5rem; border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); border-radius: 8px; padding: 0.55rem 0.8rem; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--color-text); background: var(--color-surface); }
+    .refac-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); flex-shrink: 0; }
+    .refac-role { font-family: var(--font-sans); font-size: 0.7rem; font-weight: 400; color: var(--color-text-muted); margin-left: auto; padding-left: 0.6rem; }
+    .mod-io  { border-left-color: #7C3AED; } .mod-io  .refac-dot { background: #7C3AED; }
+    .mod-pre { border-left-color: #3D6B52; } .mod-pre .refac-dot { background: #3D6B52; }
+    .mod-pip { border-left-color: #D97706; } .mod-pip .refac-dot { background: #D97706; }
+    .mod-mod { border-left-color: #5B21B6; } .mod-mod .refac-dot { background: #5B21B6; }
+    @media (max-width: 680px) {
+      .refac-row { grid-template-columns: 1fr; gap: 0.35rem; }
+      .refac-to { transform: rotate(90deg); justify-self: start; margin: 0.1rem 0 0.1rem 0.6rem; }
+      .refac-role { display: none; }
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize(window.TB_MERMAID_THEME);
+  </script>
+
+</body>
+</html>

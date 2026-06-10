@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testes Automatizados em ML — Do Notebook à Produção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['DM Sans','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    window.TB_CHAPTERS = [
+      { id:'01', path:'01-refatoracao-pipeline.html', title:'Refatoração & Pipeline' },
+      { id:'02', path:'02-testes.html', title:'Testes em ML' },
+      { id:'03', path:'03-api-fastapi.html', title:'API com FastAPI' },
+      { id:'04', path:'04-empacotamento-tooling.html', title:'Empacotamento & Tooling' },
+    ];
+  </script>
+</head>
+<body x-data="chapterApp('02')" x-init="init()">
+  <div id="reading-progress"></div>
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <a href="../index.html" class="sb-home"><span class="sb-home-icon">←</span><span class="sb-home-lbl">Do Notebook à Produção</span></a>
+        <button class="tb" @click="toggleSidebar()" title="Recolher"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="01-refatoracao-pipeline.html" class="ch-link" :class="{ 'active': currentChapter==='01', 'visited': isVisited('01') }"><span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span><span class="ch-txt">Refatoração &amp; Pipeline</span></a>
+        <a href="02-testes.html" class="ch-link" :class="{ 'active': currentChapter==='02', 'visited': isVisited('02') }"><span class="ch-num" x-text="currentChapter==='02' ? '02' : (isVisited('02') ? '✓' : '02')"></span><span class="ch-txt">Testes em ML</span></a>
+        <a href="03-api-fastapi.html" class="ch-link" :class="{ 'active': currentChapter==='03', 'visited': isVisited('03') }"><span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span><span class="ch-txt">API com FastAPI</span></a>
+        <a href="04-empacotamento-tooling.html" class="ch-link" :class="{ 'active': currentChapter==='04', 'visited': isVisited('04') }"><span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span><span class="ch-txt">Empacotamento &amp; Tooling</span></a>
+        <div class="sb-divider"></div>
+        <div class="sb-lbl">Neste capítulo</div>
+        <a class="sec-link" href="#introducao" :class="{ 'active': activeSection==='introducao' }">Introdução: o pesadelo silencioso</a>
+        <a class="sec-link" href="#piramide" :class="{ 'active': activeSection==='piramide' }">A pirâmide de testes para ML</a>
+        <a class="sec-link" href="#pytest-basico" :class="{ 'active': activeSection==='pytest-basico' }">pytest: o básico</a>
+        <a class="sec-link" href="#camada-1-unit" :class="{ 'active': activeSection==='camada-1-unit' }">Camada 1 — Teste unitário</a>
+        <a class="sec-link" href="#camada-2-schema" :class="{ 'active': activeSection==='camada-2-schema' }">Camada 2 — Validação de schema</a>
+        <a class="sec-link" href="#camada-3-smoke" :class="{ 'active': activeSection==='camada-3-smoke' }">Camada 3 — Smoke test</a>
+        <a class="sec-link" href="#quantos-testes" :class="{ 'active': activeSection==='quantos-testes' }">Quantos testes bastam?</a>
+      </nav>
+    </aside>
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <header class="topbar"><a href="../index.html">Do Notebook à Produção</a><span class="topbar-sep">›</span><span class="topbar-current">Testes Automatizados em ML</span></header>
+      <article class="content">
+        <div class="chapter-eyebrow">Capítulo 02</div>
+        <h1>Testes Automatizados em <em>ML</em></h1>
+        <p class="chapter-objective">Escrever uma suíte de testes que dá confiança no pipeline de ML usando pytest, pandera e smoke tests.</p>
+
+        <!-- ====== CONTEÚDO ====== -->
+
+        <h2 id="introducao">Introdução: o pesadelo silencioso</h2>
+        <p>Em um notebook Jupyter, quando algo dá errado, você normalmente vê. Uma célula lança <code>KeyError</code>, o <code>traceback</code> fica vermelho e você sabe exatamente onde parar. O problema é que <strong>a classe de bugs mais perigosa em ML não lança exceção nenhuma</strong>.</p>
+        <p>Imagine que o time de dados, lá no sistema que alimenta o seu modelo, renomeia a coluna <code>median_income</code> para <code>median_household_income</code>. Seu código de pré-processamento, que esperava <code>median_income</code>, não encontra a coluna, gera <code>NaN</code> em uma feature derivada, o modelo prediz números plausíveis (só que errados), a API responde <code>200 OK</code>, e ninguém percebe — até alguém auditar os resultados meses depois.</p>
+        <blockquote><em>Um sistema de ML pode rodar até o fim sem lançar nenhuma exceção e mesmo assim produzir resultados completamente errados.</em></blockquote>
+        <p>É justamente por isso que testar código de ML não é "burocracia de engenheiro": é o mecanismo que transforma falhas silenciosas em falhas barulhentas, que aparecem na sua máquina antes de chegarem em produção.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Falha silenciosa (silent failure):</strong> quando o programa roda até o fim sem erro, mas produz um resultado incorreto. Em ML é a regra, não a exceção — dados são uma entrada que muda sozinha ao longo do tempo, fora do seu controle.</p>
+        </div>
+
+        <h3>O que quebra silenciosamente em ML</h3>
+        <ul>
+          <li><strong>Data leakage:</strong> informação do alvo "vaza" para as features. O modelo parece ótimo no papel e fracassa no mundo real.</li>
+          <li><strong>Schema drift upstream:</strong> uma coluna muda de nome, de tipo (<code>int</code> → <code>string</code>) ou some. Resultado: <code>NaN</code> silencioso ou erro de tipo mascarado.</li>
+          <li><strong>Features dropadas:</strong> uma etapa de seleção remove uma coluna sem ninguém notar.</li>
+          <li><strong>Pré-processamento inconsistente treino/serviço:</strong> você normaliza de um jeito no treino e de outro na API.</li>
+          <li><strong>Data drift / concept drift:</strong> a distribuição dos dados de entrada (ou a relação entre features e alvo) muda com o tempo.</li>
+        </ul>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>O fio comum: <strong>ML falha sem lançar exceção</strong>. O código roda, a API responde <code>200 OK</code> — e o resultado está errado. Testar é transformar essa falha silenciosa em uma falha barulhenta.</p></div>
+
+        <p>Cada um desses modos tem um tipo de teste que o pega melhor. É disso que trata a pirâmide a seguir.</p>
+
+        <h2 id="piramide">A pirâmide de testes, adaptada para ML</h2>
+        <p>A <strong>pirâmide de testes</strong> é uma ideia consagrada em engenharia de software: muitos testes rápidos e baratos na base, poucos testes lentos e caros no topo. A intuição: testes de unidade são tão baratos que você roda centenas a cada salvar; testes de ponta a ponta são caros, então você tem só um punhado.</p>
+        <p>Para ML, adaptamos as três camadas assim:</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Diagrama · Pirâmide de testes para ML</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart TB
+    SMOKE["🔥 SMOKE (poucos)<br/>pipeline carrega, .fit não lança,<br/>.predict devolve shape esperado"]
+    SCHEMA["🛡️ SCHEMA / DATA — pandera (alguns)<br/>tipos, colunas, ranges, nulos"]
+    UNIT["🧪 UNIT (muitos)<br/>transformers, funções de feature eng<br/>output shape, valores, get_params"]
+    SMOKE --- SCHEMA --- UNIT
+    classDef smoke fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52;
+    classDef schema fill:#FEF3C7,stroke:#D97706,color:#92400E;
+    classDef unit fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6;
+    class SMOKE smoke;
+    class SCHEMA schema;
+    class UNIT unit;
+            </div>
+          </div>
+        </div>
+
+        <p>Mas o que <em>é</em>, na prática, cada uma dessas camadas? Antes de descer ao código, vale fixar os três tipos de teste que vamos usar:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">unit</span>Teste unitário</div>
+            <p>Verifica uma <strong>peça isolada</strong> do código — uma função ou um transformador — com entradas pequenas e conhecidas. Ex.: "dado este DataFrame, a coluna derivada tem o valor que calculei na mão?". São rápidos e numerosos.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">schema</span>Teste de schema</div>
+            <p>Não testa o <em>código</em>, e sim os <strong>dados</strong>: confere que cada coluna existe, tem o tipo certo e cai em valores plausíveis (ex.: latitude entre 32 e 42). Pega dados corrompidos ou que mudaram de formato antes de chegarem ao modelo.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">smoke</span>Smoke test</div>
+            <p>Teste de <strong>sanidade do sistema inteiro</strong>: o pipeline carrega, treina sem estourar e devolve uma previsão com o formato esperado. Não mede qualidade — só responde "está vivo?".</p>
+          </div>
+        </div>
+        <p>A ordem da pirâmide reflete uma heurística simples: tenha <strong>muitos testes unitários e de schema</strong> (baratos e estáveis) e <strong>poucos</strong> testes mais amplos. A razão está em como cada tipo envelhece:</p>
+        <ul>
+          <li><strong>Testes de unidade são aditivos:</strong> um dado novo entrando no sistema não invalida um teste de unidade existente.</li>
+          <li><strong>Testes de integração são retroativos:</strong> dependem do estado atual do sistema e podem precisar ser revistos quando o ambiente muda.</li>
+        </ul>
+        <p>Por isso a base é unit: ela é estável e barata. Vamos construir a pirâmide de baixo para cima.</p>
+
+        <h2 id="pytest-basico"><code>pytest</code>: o básico que você precisa saber</h2>
+        <p>Se você vem do Jupyter, a transição mental é simples: um teste é só <strong>uma função que prepara dados, roda seu código e verifica o resultado</strong>. Esse padrão tem nome — <strong>Arrange-Act-Assert (AAA)</strong> — e é a espinha dorsal de todo bom teste.</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Diagrama · Anatomia de um teste (Arrange → Act → Assert)</div>
+          <div style="display:flex; flex-direction:column; gap:0.6rem; margin:1.25rem 0;">
+            <div style="border-left:4px solid #7C3AED; background:#EDE9FE; border-radius:0 8px 8px 0; padding:0.9rem 1.25rem;">
+              <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#5B21B6; margin-bottom:0.4rem;">1 · Arrange — preparar</div>
+              <pre style="margin:0.3rem 0;"><code class="language-python">df = pl.DataFrame({"total_rooms": [6.0], "households": [2.0]})</code></pre>
+              <p style="font-style:italic; margin:0.3rem 0 0; color:#5B21B6; font-size:0.85rem;">monto a entrada mínima e conhecida</p>
+            </div>
+            <div style="text-align:center; color:var(--color-text-muted); font-size:1.1rem; line-height:1;">↓</div>
+            <div style="border-left:4px solid #9C968E; background:#F0EDE6; border-radius:0 8px 8px 0; padding:0.9rem 1.25rem;">
+              <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#6B6560; margin-bottom:0.4rem;">2 · Act — executar</div>
+              <pre style="margin:0.3rem 0;"><code class="language-python">out = AddRoomsPerHousehold().transform(df)</code></pre>
+              <p style="font-style:italic; margin:0.3rem 0 0; color:#6B6560; font-size:0.85rem;">rodo exatamente o que quero testar</p>
+            </div>
+            <div style="text-align:center; color:var(--color-text-muted); font-size:1.1rem; line-height:1;">↓</div>
+            <div style="border-left:4px solid #3D6B52; background:#E8F0EB; border-radius:0 8px 8px 0; padding:0.9rem 1.25rem;">
+              <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#3D6B52; margin-bottom:0.4rem;">3 · Assert — verificar</div>
+              <pre style="margin:0.3rem 0;"><code class="language-python">assert out["rooms_per_household"][0] == pytest.approx(3.0)</code></pre>
+              <p style="font-style:italic; margin:0.3rem 0 0; color:#3D6B52; font-size:0.85rem;">confiro o resultado contra o esperado</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>Estrutura de um projeto</h3>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-bash">projeto/
+├── src/
+│   ├── data/
+│   │   └── schema.py       # contrato dos dados (pandera)
+│   └── modeling/
+│       ├── transformers.py # transformador custom
+│       └── pipeline.py     # pipeline sklearn
+├── tests/
+│   ├── conftest.py         # fixtures compartilhadas
+│   ├── test_transformers.py
+│   ├── test_schema.py
+│   └── test_smoke.py
+└── pyproject.toml</code></pre></div>
+        <p>Rodar tudo é um comando: <code>pytest</code>. O <code>pytest</code> descobre automaticamente arquivos <code>test_*.py</code> e funções <code>test_*</code>.</p>
+
+        <h3>Fixtures: dados de teste reutilizáveis</h3>
+        <p>No notebook você cria um <code>df</code> de exemplo e reaproveita em várias células. Em <code>pytest</code>, o equivalente é uma <strong>fixture</strong>: uma função decorada com <code>@pytest.fixture</code> cujo retorno é injetado em qualquer teste que a peça por nome no argumento.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import pytest
+import polars as pl
+
+@pytest.fixture
+def amostra_housing():
+    """DataFrame mínimo no schema do California Housing."""
+    return pl.DataFrame({
+        "MedInc":     [8.32, 5.64],
+        "HouseAge":   [41.0, 21.0],
+        "AveRooms":   [6.98, 6.24],
+        "AveBedrms":  [1.02, 0.97],
+        "Population": [322.0, 2401.0],
+        "AveOccup":   [2.55, 2.11],
+        "Latitude":   [37.88, 37.86],
+        "Longitude":  [-122.23, -122.22],
+    })</code></pre></div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong><code>conftest.py</code>:</strong> arquivo especial do <code>pytest</code> onde você coloca fixtures compartilhadas por <em>vários</em> arquivos de teste — sem precisar importá-las. Toda fixture definida ali fica disponível automaticamente para os testes na mesma pasta (e subpastas). É o conceito que mais confunde quem vem de Jupyter: não há <code>import</code>, o <code>pytest</code> injeta por nome.</p>
+        </div>
+
+        <h4>Escopo: com que frequência a fixture é recriada</h4>
+        <p>Toda fixture tem um <strong>escopo</strong>, que decide quantas vezes ela é executada. O padrão recria a fixture a cada teste (isolamento máximo); escopos mais amplos economizam tempo quando o preparo é caro. Declara-se no decorador: <code>@pytest.fixture(scope="session")</code>.</p>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">function</span>padrão</div><p>Recriada <strong>a cada teste</strong>. Cada teste recebe um objeto novo e limpo — sem risco de um teste contaminar o outro.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">module</span>por arquivo</div><p>Criada <strong>uma vez por arquivo</strong> de teste e compartilhada por todos os testes dele.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">session</span>uma vez só</div><p>Criada <strong>uma única vez</strong> para toda a execução. Ideal para algo caro, como treinar um modelo de brinquedo reaproveitado por vários testes.</p></div>
+        </div>
+
+        <h4>Setup e teardown com <code>yield</code></h4>
+        <p>Às vezes a fixture precisa <strong>limpar</strong> algo depois do teste — fechar uma conexão, remover um arquivo temporário. Para isso, troque o <code>return</code> por <code>yield</code>. A regra é simples: tudo <em>antes</em> do <code>yield</code> é o <strong>setup</strong> (roda antes do teste); o valor entregue no <code>yield</code> é injetado no teste; tudo <em>depois</em> do <code>yield</code> é o <strong>teardown</strong> (roda quando o teste termina, <strong>mesmo se ele falhar</strong>).</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">@pytest.fixture
+def modelo_treinado(amostra_housing):
+    modelo = treinar(amostra_housing)   # setup: roda antes do teste
+    yield modelo                        # valor injetado no teste
+    modelo.fechar_recursos()            # teardown: roda depois do teste</code></pre></div>
+        <p>Para arquivos temporários, o <code>pytest</code> já oferece a fixture embutida <code>tmp_path</code> (um diretório limpo por teste, apagado automaticamente depois) — ideal para testar <code>save()</code>/<code>load()</code> do modelo sem sujar o disco.</p>
+
+        <h3>Parametrização: muitos casos, um teste</h3>
+        <p>Em vez de copiar o mesmo teste várias vezes mudando só os números, o <code>@pytest.mark.parametrize</code> roda a <strong>mesma função uma vez para cada linha</strong> de uma tabela de casos. O primeiro argumento nomeia os parâmetros (separados por vírgula); cada tupla seguinte vira uma execução independente — e aparece separada no relatório, então você sabe exatamente qual caso falhou. É a forma mais econômica de cobrir vários cenários, inclusive os casos-limite.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">@pytest.mark.parametrize("total_rooms,households,esperado", [
+    (6.0, 2.0, 3.0),
+    (10.0, 5.0, 2.0),
+    (0.0, 1.0, 0.0),
+])
+def test_rooms_per_household(total_rooms, households, esperado):
+    df = pl.DataFrame({"total_rooms": [total_rooms], "households": [households]})
+    out = AddRoomsPerHousehold().transform(df)
+    assert out["rooms_per_household"][0] == pytest.approx(esperado)</code></pre></div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Ponto de entrada mais fácil para quem vem de Jupyter:</strong> comece testando suas funções <em>puras</em> de feature engineering com <code>parametrize</code>. São funções sem estado, e cada linha da tabela é um caso que você já checaria "no olho" em uma célula. Empilhar dois <code>@parametrize</code> gera o <strong>produto cartesiano</strong> dos casos.</p>
+        </div>
+
+        <p>E o <code>pytest.approx</code>? Comparar floats com <code>==</code> é furada (<code>0.1 + 0.2 != 0.3</code>). <code>pytest.approx</code> compara com tolerância — use sempre que o resultado for número de ponto flutuante.</p>
+
+        <h2 id="camada-1-unit">Camada 1 — Teste unitário do transformador</h2>
+        <p>Vamos testar o transformador que criamos no capítulo anterior — aquele que adiciona uma feature derivada (cômodos por domicílio). Antes, um lembrete do que é um transformador e por que ele tem uma etapa de "treino".</p>
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Transformador</strong> é um objeto com dois métodos: <code>fit</code>, que <em>aprende</em> dos dados o que precisar, e <code>transform</code>, que aplica a transformação. Por que "aprender"? Porque muitos pré-processamentos dependem de estatísticas do conjunto de treino: o <code>StandardScaler</code> calcula a média e o desvio no <code>fit</code> para depois usá-los no <code>transform</code>; um codificador de categorias precisa primeiro descobrir quais categorias existem. <strong>Treinar o transformador</strong> é exatamente esse passo de medir os parâmetros — e ele só pode olhar os dados de treino, senão reabre o data leakage do capítulo 1.</p>
+        </div>
+        <p>O nosso transformador é mais simples: a conta é fixa (uma divisão), então não há nada a aprender e o <code>fit</code> apenas devolve <code>self</code>. Ainda assim ele segue o contrato <code>fit</code>/<code>transform</code>, para poder entrar num pipeline:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/modeling/transformers.py
+import polars as pl
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class AddRoomsPerHousehold(BaseEstimator, TransformerMixin):
+    """Adiciona a feature rooms_per_household = total_rooms / households."""
+
+    def fit(self, X, y=None):
+        return self  # transformador sem estado (nada a aprender)
+
+    def transform(self, X: pl.DataFrame) -&gt; pl.DataFrame:
+        return X.with_columns(
+            (pl.col("total_rooms") / pl.col("households"))
+            .alias("rooms_per_household")
+        )</code></pre></div>
+        <p>Um bom teste unitário de transformer cobre três coisas: <strong>shape do output</strong>, <strong>valores corretos</strong> e <strong>conformidade com a API do sklearn</strong>.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># tests/test_transformers.py
+import polars as pl
+import pytest
+from sklearn.base import clone
+from src.modeling.transformers import AddRoomsPerHousehold
+
+@pytest.fixture
+def df_base():
+    return pl.DataFrame({"total_rooms": [6.0, 10.0], "households": [2.0, 5.0]})
+
+def test_adiciona_uma_coluna(df_base):
+    out = AddRoomsPerHousehold().transform(df_base)   # Act
+    assert out.shape == (2, 3)                         # +1 coluna
+    assert "rooms_per_household" in out.columns
+
+def test_valores_corretos(df_base):
+    out = AddRoomsPerHousehold().transform(df_base)
+    assert out["rooms_per_household"].to_list() == pytest.approx([3.0, 2.0])
+
+def test_clone_preserva_params():
+    # GridSearchCV depende de clone(): get_params/set_params bem comportados
+    t = AddRoomsPerHousehold()
+    assert t.get_params() == clone(t).get_params()</code></pre></div>
+        <p>Para verificar o <strong>contrato da API do sklearn</strong> (essencial dentro de <code>Pipeline</code>/<code>GridSearchCV</code>):</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">from sklearn.utils.estimator_checks import parametrize_with_checks
+from src.modeling.transformers import AddRoomsPerHousehold
+
+@parametrize_with_checks([AddRoomsPerHousehold()])
+def test_conformidade_sklearn(estimator, check):
+    check(estimator)</code></pre></div>
+        <p><code>parametrize_with_checks</code> (sklearn ≥ 1.1) roda dezenas de verificações de conformidade automaticamente.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p>Os checks automáticos do sklearn geram dados sintéticos em NumPy. Se o seu transformador aceita só um tipo específico de entrada (por exemplo, apenas DataFrames), esse teste pode falhar — o que é <em>informação útil</em>: ou você o torna mais flexível, ou cobre a conformidade com os testes manuais que já escrevemos (<code>shape</code>, <code>clone</code>, <code>get_params</code>).</p>
+        </div>
+
+        <h2 id="camada-2-schema">Camada 2 — Validação de schema com <code>pandera</code></h2>
+        <p>Testes unitários cuidam do <em>seu código</em>. Mas e os <em>dados</em> que entram? Eles vêm de fora, mudam sozinhos e são a maior fonte de falhas silenciosas. A camada do meio é um <strong>portão de dados</strong>: nada passa para o pipeline sem antes ser validado.</p>
+
+        <div class="interactive-container">
+          <div class="interactive-label">Diagrama · Validação de schema = portão de dados</div>
+          <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart LR
+    IN["Dados brutos<br/>(Polars DataFrame)"] --> GATE{"pandera valida<br/>o schema?"}
+    GATE -->|"válido ✅"| PIPE["Pipeline de ML<br/>fit / predict"]
+    GATE -->|"inválido ❌"| ERR["SchemaError<br/>(barrado)"]
+    classDef gate fill:#FEF3C7,stroke:#D97706,color:#92400E;
+    classDef ok fill:#E8F0EB,stroke:#3D6B52,color:#3D6B52;
+    classDef bad fill:#FEE2E2,stroke:#9B1C1C,color:#9B1C1C;
+    classDef pipe fill:#EDE9FE,stroke:#7C3AED,color:#5B21B6;
+    class IN ok;
+    class GATE gate;
+    class PIPE pipe;
+    class ERR bad;
+            </div>
+          </div>
+        </div>
+
+        <p>O <strong>pandera</strong> é uma biblioteca para <strong>declarar e validar o "contrato" de um DataFrame</strong>. Você descreve como os dados <em>deveriam</em> ser — colunas, tipos, faixas de valores — e o pandera confere se um DataFrame cumpre esse contrato, levantando um erro claro quando não cumpre.</p>
+        <p>Ele nasceu para o <strong>pandas</strong> (<code>import pandera as pa</code>), que continua sendo o caminho mais completo. Também há suporte a <strong>Polars</strong> (<code>import pandera.polars as pa</code>) — é o que usamos aqui —, com a mesma ideia e praticamente a mesma API.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-bash">pip install pandera            # para pandas
+pip install 'pandera[polars]'  # com suporte a Polars</code></pre></div>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Schema:</strong> o <em>contrato</em> dos seus dados — quais colunas existem, de que tipo são, e que valores são aceitáveis. Validar o schema é checar que os dados que chegaram cumprem esse contrato antes de qualquer processamento.</p>
+        </div>
+
+        <h3>Dois jeitos de declarar um schema</h3>
+        <p>O pandera oferece dois estilos — equivalentes no resultado, diferentes na forma de escrever:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><code>DataFrameSchema</code> · imperativo</div><p>Você monta um objeto passando um dicionário de colunas: <code>pa.DataFrameSchema({"MedInc": pa.Column(float, pa.Check.gt(0))})</code>. Útil quando o schema é gerado dinamicamente, em tempo de execução.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><code>DataFrameModel</code> · declarativo</div><p>Você escreve uma <strong>classe</strong> com as colunas como atributos tipados. É o que vamos usar: lê-se como documentação, aproveita os <em>type hints</em> e o autocompletar do editor.</p></div>
+        </div>
+        <p>Em formato de classe (<code>DataFrameModel</code>), o contrato do nosso dataset fica assim:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># src/data/schema.py
+import pandera.polars as pa
+from pandera.typing.polars import Series
+
+class HousingSchema(pa.DataFrameModel):
+    MedInc:     Series[float] = pa.Field(gt=0.0)
+    HouseAge:   Series[float] = pa.Field(in_range={"min_value": 0.0, "max_value": 100.0})
+    AveRooms:   Series[float] = pa.Field(gt=0.0)
+    AveBedrms:  Series[float] = pa.Field(gt=0.0)
+    Population: Series[float] = pa.Field(gt=0.0)
+    AveOccup:   Series[float] = pa.Field(gt=0.0)
+    Latitude:   Series[float] = pa.Field(in_range={"min_value": 32.0, "max_value": 42.0})
+    Longitude:  Series[float] = pa.Field(in_range={"min_value": -125.0, "max_value": -114.0})
+
+    class Config:
+        coerce = True   # tenta converter os tipos automaticamente</code></pre></div>
+
+        <h3>O que cada restrição do <code>Field</code> significa</h3>
+        <p>Cada coluna pode declarar regras dentro do <code>Field</code>. As mais usadas:</p>
+        <table>
+          <thead><tr><th>Restrição</th><th>O que exige</th></tr></thead>
+          <tbody>
+            <tr><td><code>gt</code> / <code>ge</code></td><td>maior que / maior ou igual a (<em>greater than / greater or equal</em>)</td></tr>
+            <tr><td><code>lt</code> / <code>le</code></td><td>menor que / menor ou igual a (<em>less than / less or equal</em>)</td></tr>
+            <tr><td><code>in_range</code></td><td>dentro de um intervalo <code>{"min_value":…, "max_value":…}</code></td></tr>
+            <tr><td><code>isin</code></td><td>pertence a uma lista de valores permitidos — ideal para categorias</td></tr>
+            <tr><td><code>str_length</code></td><td>comprimento do texto dentro de limites</td></tr>
+            <tr><td><code>nullable</code></td><td>permite valores nulos (por padrão, <strong>não</strong> permite)</td></tr>
+            <tr><td><code>unique</code></td><td>exige valores únicos na coluna (ex.: um id)</td></tr>
+            <tr><td><code>coerce</code></td><td>tenta converter o tipo automaticamente (ex.: texto "41" → número)</td></tr>
+          </tbody>
+        </table>
+
+        <p>Validar é uma linha — <code>validate</code> devolve o próprio DataFrame se estiver tudo certo, ou levanta um erro descrevendo a primeira violação:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import polars as pl
+from src.data.schema import HousingSchema
+
+df = pl.read_csv("housing.csv")
+HousingSchema.validate(df)   # levanta SchemaError se algo estiver fora do contrato</code></pre></div>
+        <p>Por padrão a validação para no primeiro erro. Para coletar <strong>todos</strong> de uma vez (ótimo ao depurar um dataset novo), use <code>lazy=True</code>:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python">import pandera.errors as pa_errors
+
+try:
+    HousingSchema.validate(df, lazy=True)
+except pa_errors.SchemaErrors as exc:
+    print(exc.failure_cases)   # tabela com TODAS as violações</code></pre></div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>Permitir nulos é explícito.</strong> Por padrão, uma coluna não aceita valores nulos. Se a sua pode ser nula, diga claramente — e não confie só em anotar o tipo como opcional: declare <code>pa.Field(ge=0.0, nullable=True)</code>. Esquecer o <code>nullable=True</code> é uma fonte comum de validações que passam (ou falham) quando não deveriam.</p>
+        </div>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>pandas × Polars no pandera.</strong> O backend de pandas é o mais antigo e completo. O de Polars é mais novo e tem algumas diferenças que vale conhecer: (1) você importa de <code>pandera.polars</code> em vez de <code>pandera</code>; (2) ao validar um <code>LazyFrame</code>, o pandera checa apenas o <em>schema</em> (colunas e tipos), não os valores — para validar valores, passe um <code>DataFrame</code> já materializado; (3) alguns recursos do backend pandas (como validações por grupo) ainda não existem no de Polars. Para o nosso objetivo — garantir o contrato de entrada do modelo — os dois resolvem igualmente bem.</p>
+        </div>
+        <p>Em testes:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># tests/test_schema.py
+import polars as pl
+import pytest
+import pandera.errors as pa_errors
+from src.data.schema import HousingSchema
+
+def test_schema_aceita_dados_validos(amostra_housing):
+    HousingSchema.validate(amostra_housing)   # não deve lançar
+
+def test_schema_rejeita_latitude_impossivel(amostra_housing):
+    df = amostra_housing.with_columns(pl.lit(999.0).alias("Latitude"))
+    with pytest.raises(pa_errors.SchemaError):
+        HousingSchema.validate(df)</code></pre></div>
+        <p>Esse segundo teste é o que pega o <strong>schema drift</strong> do início do capítulo: se um dado impossível chega, ele <strong>barra antes do modelo</strong>.</p>
+
+        <h3>pandera × Pydantic: quando usar cada um</h3>
+        <p>Os dois validam dados, mas em <strong>granularidades diferentes</strong> — e não competem:</p>
+        <div class="concept-grid">
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">pandera</span> a tabela inteira</div><p>Valida um <strong>DataFrame</strong> de uma vez — colunas, tipos, ranges e nulos na coluna toda, em lote. Feito para dados <strong>tabulares</strong> de ML/ETL.</p></div>
+          <div class="concept-card accent"><div class="concept-title"><span class="concept-tag">Pydantic</span> um registro</div><p>Valida <strong>um objeto/JSON por vez</strong> — campo a campo, com tipos Python. É o que usamos na borda da <strong>API</strong> (capítulo 3), a cada requisição.</p></div>
+        </div>
+        <p>São <strong>complementares</strong>: o pandera guarda a entrada do <em>pipeline de dados</em> (a tabela de treino/ETL); o Pydantic guarda a entrada da <em>API</em> (o request de inferência).</p>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong>Como usar pandera em produção.</strong> Coloque a validação <strong>logo no começo do pipeline</strong> — assim que os dados são carregados, antes de qualquer transformação (é o "portão"). No treino/batch, valide o dataset inteiro e <strong>falhe rápido</strong> (deixe o erro estourar). Em produção com muito volume, validar tudo a cada chamada pode ser caro: valide sempre o <strong>schema</strong> (tipos/colunas) e rode os checks de valor numa <strong>amostra</strong> dos dados que chegam, registrando/alertando sobre violações (sinal de <em>data drift</em>) em vez de derrubar o serviço. Use o <strong>mesmo schema</strong> nos testes e em runtime — uma única fonte de verdade do contrato de dados.</p>
+        </div>
+
+        <div class="box box-tip">
+          <div class="box-label">💡 Dica</div>
+          <p><strong><code>pandera</code> vs Great Expectations:</strong> <code>pandera</code> tem baixa curva de aprendizado, é nativo em Polars, rápido e se integra ao código de ML <em>inline</em>. Great Expectations é orientado a <em>enterprise</em>: multi-engine, governança e "Data Docs" em HTML. Para um projeto acadêmico ou um pipeline enxuto, <code>pandera</code> é a escolha pragmática.</p>
+        </div>
+
+        <h2 id="camada-3-smoke">Camada 3 — Smoke test: "o sistema está vivo?"</h2>
+        <p>No topo da pirâmide está o <strong>smoke test</strong>. O nome vem da eletrônica: liga o aparelho e vê se sai fumaça. Não mede <em>qualidade</em> do modelo (acurácia, RMSE) — mede se o <strong>pipeline inteiro funciona de ponta a ponta</strong>: carrega, treina sem lançar exceção e produz output com o <strong>shape e tipo corretos</strong>.</p>
+
+        <div class="box box-definition">
+          <div class="box-label">📖 Definição</div>
+          <p><strong>Smoke test:</strong> verificação rápida de que o sistema "está vivo" — o pipeline carrega, <code>.fit</code> não explode e <code>.predict</code> devolve algo com a forma esperada. É um teste de <em>sanidade do sistema</em>, não de qualidade do modelo.</p>
+        </div>
+
+        <p>Regra de ouro: use <strong>dados sintéticos mínimos</strong>, nunca o dataset real. Dados reais deixam o teste lento e frágil. O smoke test precisa rodar em milissegundos.</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-python"># tests/test_smoke.py
+import numpy as np
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+
+def construir_pipeline():
+    return Pipeline([("scaler", StandardScaler()), ("model", LinearRegression())])
+
+def test_pipeline_fit_predict_smoke():
+    # Arrange: dados sintéticos mínimos no shape do California Housing (8 features)
+    rng = np.random.default_rng(42)
+    X = rng.random((20, 8))
+    y = rng.random(20)
+
+    pipe = construir_pipeline()
+    pipe.fit(X, y)              # Act: carrega e treina sem lançar
+    preds = pipe.predict(X)
+
+    assert preds.shape == (20,)        # uma predição por linha
+    assert preds.dtype == np.float64
+    assert np.isfinite(preds).all()    # sem NaN/inf</code></pre></div>
+
+        <div class="box box-example">
+          <div class="box-label">🔬 Exemplo</div>
+          <p><strong>Por que esse teste vale ouro:</strong> lembra a coluna renomeada da introdução? Se o pré-processamento gerar <code>NaN</code> por causa de uma coluna faltante, <code>np.isfinite(preds).all()</code> falha imediatamente — a falha silenciosa virou um teste vermelho na sua máquina, antes do deploy.</p>
+        </div>
+
+        <h2 id="quantos-testes">Quantos testes são suficientes? (o caso acadêmico)</h2>
+        <p>A pergunta inevitável. A resposta honesta tem duas partes: a <strong>expectativa</strong> (a meta citada na maioria dos guias) e a <strong>realidade</strong> (o que projetos de ML de fato fazem).</p>
+
+        <div class="stat-grid">
+          <div class="stat-card is-success"><div class="stat-value">70–80%</div><div class="stat-label">alvo de cobertura de código mais citado como expectativa</div></div>
+          <div class="stat-card is-warning"><div class="stat-value">33%</div><div class="stat-label">dos sistemas de ML têm ao menos 1 teste unitário (arXiv 2502.17378, 2025)</div></div>
+          <div class="stat-card is-danger"><div class="stat-value">5,6%</div><div class="stat-label">mediana de funções de ML cobertas por testes em projetos reais do GitHub</div></div>
+          <div class="stat-card"><div class="stat-value">15–40</div><div class="stat-label">testes numa suíte típica de projeto acadêmico</div></div>
+        </div>
+
+        <p><strong>A expectativa</strong> mais citada gira em torno de <strong>70–80% de cobertura</strong> de código. Você mede isso com <code>pytest-cov</code>:</p>
+        <div class="code-wrap"><button class="copy-btn" onclick="tbCopyCode(this)">Copiar</button><pre><code class="language-bash">pip install pytest-cov
+pytest --cov=src --cov-report=html   # abre htmlcov/index.html</code></pre></div>
+        <p><strong>A realidade</strong> é bem mais modesta. Um estudo de 2025 sobre sistemas de ML no GitHub (arXiv 2502.17378) encontrou que <strong>apenas 33% dos sistemas de ML têm pelo menos um teste unitário</strong>, e a mediana de funções de ML cobertas é de <strong>5,6%</strong>.</p>
+
+        <div class="box box-warning">
+          <div class="box-label">⚠️ Atenção</div>
+          <p><strong>100% de cobertura ≠ corretude.</strong> Cobertura mede quais <em>linhas</em> executaram durante os testes, não se você verificou as <em>coisas certas</em>. Um teste pode executar uma função inteira e não fazer nenhum <code>assert</code> relevante. Persiga bons asserts, não o número 100.</p>
+        </div>
+
+        <p>Para um <strong>projeto acadêmico</strong>:</p>
+        <ul>
+          <li><strong>Não persiga 100%.</strong> Cubra as <strong>funções críticas</strong>: transformers, funções de feature engineering e validações de schema.</li>
+          <li>Uma suíte típica de projeto acadêmico tem entre <strong>15 e 40 testes</strong>.</li>
+          <li>Priorize a base (unit) porque ela é <strong>aditiva e estável</strong>.</li>
+        </ul>
+
+        <p><strong>Indo além — testes comportamentais</strong> verificam o <em>comportamento</em> do modelo, não só o código. São três tipos:</p>
+
+        <div class="concept-grid">
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">MFT</span>Minimum Functionality Test</div>
+            <p>Um caso fácil que o modelo <em>tem</em> que acertar.</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">INV</span>Invariance</div>
+            <p>Uma perturbação que <em>não</em> deveria mudar a predição (ex.: trocar um sinônimo).</p>
+          </div>
+          <div class="concept-card accent">
+            <div class="concept-title"><span class="concept-tag">DIR</span>Directional</div>
+            <p>Perturbação com efeito esperado (ex.: ↑idade → ↑probabilidade de churn).</p>
+          </div>
+        </div>
+
+        <div class="keypoint"><span class="kp-icon">🎯</span><p>Não são obrigatórios num projeto inicial, mas pegam bugs que <strong>cobertura nenhuma revela</strong> — porque olham para o comportamento, não para as linhas executadas.</p></div>
+
+        <h3>Referências</h3>
+        <ul>
+          <li><a href="https://docs.pytest.org/" target="_blank">pytest — documentação oficial</a></li>
+          <li><a href="https://pandera.readthedocs.io/" target="_blank">pandera — documentação (pandas e Polars)</a></li>
+          <li><a href="https://scikit-learn.org/stable/developers/develop.html" target="_blank">scikit-learn — estimadores compatíveis (fit/transform)</a></li>
+          <li><a href="https://docs.pola.rs/" target="_blank">Polars — documentação oficial</a></li>
+        </ul>
+
+        <nav class="chapter-nav">
+          <a href="01-refatoracao-pipeline.html" class="nav-btn"><span><span class="nav-btn-label">Anterior</span><span class="nav-btn-title">← Refatoração &amp; Pipeline</span></span></a>
+          <a href="03-api-fastapi.html" class="nav-btn nav-btn-next"><span><span class="nav-btn-label">Próximo</span><span class="nav-btn-title">APIs de Inferência com FastAPI →</span></span></a>
+        </nav>
+      </article>
+    </main>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="../assets/main.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize(window.TB_MERMAID_THEME);
+  </script>
+</body>
+</html>

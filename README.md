@@ -10,6 +10,7 @@ Repositório com projetos e materiais desenvolvidos durante a pós-graduação (
 | [deploy-agentes-llm](./deploy-agentes-llm/) | Como transformar um agente funcional em um serviço confiável, resiliente e deployável, passando por três padrões de comunicação e controles de produção. Inclui apostila interativa e implementação de casos de uso          |
 | [agentes-langgraph](./agentes-langgraph/)   | Implementa três padrões distintos de agentes com [LangGraph](https://langchain-ai.github.io/langgraph/), cada um demonstrando uma abordagem arquitetural diferente: prebuilt simplificado, ReAct manual e Human-in-the-Loop. |
 | [documentacao-ml](./documentacao-ml/)       | Documentação em projetos de ML — Model Cards, README, Mermaid, docstrings com IA, MLflow como documento científico e método STAR.                                                                                            |
+| [engenharia-api](./engenharia-api/)         | Engenharia de software para Data Science e APIs de inferência. Quatro capítulos que levam seu modelo de uma célula de notebook bagunçada até um pacote testado, servido por uma API e pronto para produção                   |
 
 ## Tecnologias Utilizadas
 
@@ -29,7 +30,9 @@ repositorio/
 ├── teste-hipotese/       # Teste de Hipótese em ML
 ├── deploy-agentes-llm/   # Deploy e serving de agentes LLM
 ├── agentes-langgraph/    # Padrões de agentes com LangGraph
-└── documentacao-ml/      # Documentação em projetos de ML
+├── documentacao-ml/      # Documentação em projetos de ML
+└── engenharia-api/       # Engenharia de software para Data Science e APIs de inferência
+
 ```
 
 ## Como Usar

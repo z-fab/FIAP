@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Do Notebook à Produção — Engenharia de Software para Data Science & APIs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['DM Sans','sans-serif'], mono: ['JetBrains Mono','monospace'] } } } }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+  <script>
+    window.TB_CHAPTERS = [
+      { id: '01', path: '01-refatoracao-pipeline.html', title: 'Refatoração & Pipeline' },
+      { id: '02', path: '02-testes.html',                title: 'Testes em ML' },
+      { id: '03', path: '03-api-fastapi.html',           title: 'API com FastAPI' },
+      { id: '04', path: '04-empacotamento-tooling.html', title: 'Empacotamento & Tooling' },
+    ];
+  </script>
+</head>
+<body x-data="indexApp()" x-init="init()">
+  <div class="shell">
+    <aside class="sb" :class="{ 'col': sidebarCollapsed }">
+      <div class="sb-head">
+        <div class="sb-brand">
+          <div class="sb-icon">NP</div>
+          <span class="sb-title">Do Notebook à Produção</span>
+        </div>
+        <button class="tb" @click="toggleSidebar()" title="Recolher">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 1.5L3 6L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-lbl">Capítulos</div>
+        <a href="capitulos/01-refatoracao-pipeline.html" class="ch-link" :class="{ 'visited': isVisited('01') }">
+          <span class="ch-num" x-text="isVisited('01') ? '✓' : '01'"></span>
+          <span class="ch-txt">Refatoração &amp; Pipeline</span>
+        </a>
+        <a href="capitulos/02-testes.html" class="ch-link" :class="{ 'visited': isVisited('02') }">
+          <span class="ch-num" x-text="isVisited('02') ? '✓' : '02'"></span>
+          <span class="ch-txt">Testes em ML</span>
+        </a>
+        <a href="capitulos/03-api-fastapi.html" class="ch-link" :class="{ 'visited': isVisited('03') }">
+          <span class="ch-num" x-text="isVisited('03') ? '✓' : '03'"></span>
+          <span class="ch-txt">API com FastAPI</span>
+        </a>
+        <a href="capitulos/04-empacotamento-tooling.html" class="ch-link" :class="{ 'visited': isVisited('04') }">
+          <span class="ch-num" x-text="isVisited('04') ? '✓' : '04'"></span>
+          <span class="ch-txt">Empacotamento &amp; Tooling</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main" :class="{ 'col': sidebarCollapsed }">
+      <section class="hero">
+        <div class="overline-tag"><span class="overline-dot"></span>PosTech · ML Engineering</div>
+        <h1>Do Notebook à <em>Produção</em></h1>
+        <p>Engenharia de software para Data Science &amp; APIs de inferência. Quatro capítulos que levam seu modelo de uma célula de notebook bagunçada até um pacote testado, servido por uma API e pronto para produção — usando o dataset California Housing como fio condutor.</p>
+        <div class="meta">
+          <span class="meta-item">4 capítulos</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">~55 min de leitura</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">Intermediário</span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">+ pasta <code style="font-family:var(--font-mono);font-size:0.85em;">codigos/</code> para a prática</span>
+        </div>
+      </section>
+
+      <section class="prog-section">
+        <div class="prog-track"><div class="prog-fill" :style="`width: ${progressPct}%`"></div></div>
+        <span class="prog-lbl" x-text="`${visitedCount} de ${totalChapters} capítulos lidos`"></span>
+      </section>
+
+      <section class="cards-section">
+        <div class="cards-grid">
+          <a href="capitulos/01-refatoracao-pipeline.html" class="card" :class="{ 'visited': isVisited('01') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 01</div>
+            <div class="card-title">Do Notebook à Produção: Refatoração &amp; Pipeline</div>
+            <div class="card-obj">Transforme código de notebook em módulos <code style="font-family:var(--font-mono);font-size:0.85em;">src/</code> limpos com SOLID, e encapsule o pré-processamento num Pipeline reprodutível.</div>
+            <div class="card-foot">
+              <span class="card-time">~16 min</span>
+              <span class="card-badge" x-text="isVisited('01') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+          <a href="capitulos/02-testes.html" class="card" :class="{ 'visited': isVisited('02') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 02</div>
+            <div class="card-title">Testes Automatizados em ML</div>
+            <div class="card-obj">Escreva uma suíte de testes que dá confiança no pipeline: unitários com pytest, schema com pandera e smoke tests.</div>
+            <div class="card-foot">
+              <span class="card-time">~13 min</span>
+              <span class="card-badge" x-text="isVisited('02') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+          <a href="capitulos/03-api-fastapi.html" class="card" :class="{ 'visited': isVisited('03') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 03</div>
+            <div class="card-title">APIs de Inferência com FastAPI</div>
+            <div class="card-obj">Exponha o modelo como API REST: validação com Pydantic, endpoints /predict e /health, logging, latência e padrões de serving.</div>
+            <div class="card-foot">
+              <span class="card-time">~15 min</span>
+              <span class="card-badge" x-text="isVisited('03') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+          <a href="capitulos/04-empacotamento-tooling.html" class="card" :class="{ 'visited': isVisited('04') }">
+            <div class="card-stripe"></div>
+            <div class="card-num">Capítulo 04</div>
+            <div class="card-title">Empacotamento e Tooling Profissional</div>
+            <div class="card-obj">Configure o projeto como pacote reutilizável com uv, ruff, taskipy e Makefile, e versione modelo + API juntos.</div>
+            <div class="card-foot">
+              <span class="card-time">~11 min</span>
+              <span class="card-badge" x-text="isVisited('04') ? '✓ Lido' : 'Não lido'"></span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/main.js"></script>
+</body>
+</html>
