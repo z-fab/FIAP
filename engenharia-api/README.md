@@ -66,19 +66,15 @@ engenharia-api/
 │       ├── 03-api-fastapi.html
 │       └── 04-empacotamento-tooling.html
 ├── codigos/                       # implementação prática (em breve)
-├── Makefile                       # atalhos para textbook e código
+├── Makefile                       # atalhos para servir o textbook
 └── README.md                      # este arquivo
 ```
 
 ## Comandos Disponíveis
 
 ```bash
-make help             # lista todos os alvos
-make textbook         # serve o textbook e abre no navegador
-make codigos-install  # instala dependências da pasta codigos/ (uv sync)
-make codigos-train    # treina o modelo (codigos/)
-make codigos-test     # roda os testes (codigos/)
-make codigos-run      # sobe a API FastAPI (codigos/)
+make help       # lista todos os alvos
+make textbook   # serve o textbook e abre no navegador
 ```
 
 Variável configurável: `PORT` (padrão `8000`).
