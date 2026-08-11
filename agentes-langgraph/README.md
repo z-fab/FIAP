@@ -7,7 +7,7 @@ Projeto prático da pós-graduação em **ML Engineering** da **FIAP**. Implemen
 | Agente | Padrão | Descrição |
 |---|---|---|
 | **Financeiro** | `create_agent` (prebuilt) | Cotações de moedas, preços de ações, cálculo de retornos e comparações |
-| **Pesquisa** | `StateGraph` manual (ReAct explícito) | Busca acadêmica, pesquisa web e resumo de textos |
+| **Estúdio de Roteiro** | `StateGraph` workflow + loop de crítica | Brief → pesquisa web (Tavily no nó) → roteiro → validação (até 2 revisões) → entrega |
 | **Pokémon Trade Center** | ReAct + `interrupt()` (HITL) | Trocas de Pokémon com aprovação humana e fluxo administrativo |
 
 ## Arquitetura dos Grafos
@@ -18,11 +18,27 @@ Usa `create_agent` do LangGraph, que abstrai o loop ReAct internamente. Ideal pa
 
 **Ferramentas:** cotação de moeda (AwesomeAPI), preço de ação (yfinance), cálculo de retorno, comparação de ativos.
 
-### Pesquisa — StateGraph Manual
+### Estúdio de Roteiro — Workflow Multi-nó
 
-Constrói o ciclo ReAct explicitamente com `StateGraph`, definindo nós e arestas condicionais. Estado customizado com `ResearchState` (query, sources_found).
+Pipeline explícito com nós especializados e aresta condicional de revisão. A tool Tavily é chamada **pelo nó `pesquisar`**, não escolhida pelo LLM — contraste pedagógico com os Agentes 1 e 3 (ReAct).
 
-**Ferramentas:** busca de artigos (Semantic Scholar), pesquisa web (Tavily), resumo de texto.
+```
+START → brief → pesquisar → roteirizar → validar
+                                    ↘ (rejeitado e revision_count < 2) → roteirizar
+validar → (aprovado OU revision_count >= 2) → finalizar → END
+```
+
+| Nó | Papel |
+|---|---|
+| `brief` | Extrai gênero, tom, logline e restrições do pedido |
+| `pesquisar` | Gera queries e chama Tavily **no nó** |
+| `roteirizar` | Escreve ou revisa o draft |
+| `validar` | Crítico aprova/rejeita e incrementa `revision_count` |
+| `finalizar` | Empacota roteiro + fontes (sem nova chamada ao LLM) |
+
+**Estado real** (não decorativo): `brief`, `research_notes`, `draft`, `critique`, `revision_count`, `approved` (+ `messages`).
+
+**Ferramenta:** `buscar_web` (Tavily).
 
 ### Pokémon Trade Center — ReAct + Human-in-the-Loop
 
