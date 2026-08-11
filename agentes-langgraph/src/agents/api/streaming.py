@@ -30,7 +30,7 @@ logger = logging.getLogger("agents.stream")
 
 async def stream_agent_events(
     graph: Any,
-    input_data: dict,
+    input_data: Any,
     config: dict,
     thread_id: str,
 ) -> AsyncIterator[ServerSentEvent]:
@@ -46,7 +46,7 @@ async def stream_agent_events(
 
     Args:
         graph: Grafo LangGraph compilado.
-        input_data: Dados de entrada para o grafo.
+        input_data: Dict de estado ou Command(resume=…) para HITL.
         config: Configuração com thread_id.
         thread_id: ID da sessão para incluir nos eventos.
     """
@@ -60,10 +60,12 @@ async def stream_agent_events(
             if not node_name.startswith("_"):
                 logger.info("Nó iniciado: %s", node_name)
                 yield ServerSentEvent(
-                    data=dict({
-                        "node": node_name,
-                        "thread_id": thread_id,
-                    }),
+                    data=dict(
+                        {
+                            "node": node_name,
+                            "thread_id": thread_id,
+                        }
+                    ),
                     event="node_start",
                 )
 
@@ -73,12 +75,39 @@ async def stream_agent_events(
             if not node_name.startswith("_"):
                 logger.info("Nó finalizado: %s", node_name)
                 yield ServerSentEvent(
-                    data=dict({
-                        "node": node_name,
-                        "thread_id": thread_id,
-                    }),
+                    data=dict(
+                        {
+                            "node": node_name,
+                            "thread_id": thread_id,
+                        }
+                    ),
                     event="node_end",
                 )
+                # `finalizar` monta a entrega sem LLM — não há eventos `token`.
+                # Emite o texto completo para clientes SSE do Estúdio de Roteiro.
+                if node_name == "finalizar":
+                    output = event.get("data", {}).get("output") or {}
+                    messages = output.get("messages") if isinstance(output, dict) else None
+                    if messages:
+                        last = messages[-1]
+                        content = last.content if hasattr(last, "content") else last
+                        if isinstance(content, list):
+                            content = "".join(
+                                b["text"]
+                                for b in content
+                                if isinstance(b, dict) and "text" in b
+                            )
+                        if content:
+                            yield ServerSentEvent(
+                                data=dict(
+                                    {
+                                        "token": str(content),
+                                        "thread_id": thread_id,
+                                        "source": "finalizar",
+                                    }
+                                ),
+                                event="token",
+                            )
 
         # --- Chamada de ferramenta (agente decidiu usar tool) ---
         elif event_type == "on_tool_start":
@@ -86,11 +115,13 @@ async def stream_agent_events(
             tool_input = event.get("data", {}).get("input", {})
             logger.info("Tool chamada: %s(%s)", tool_name, tool_input)
             yield ServerSentEvent(
-                data=dict({
-                    "tool": tool_name,
-                    "input": tool_input,
-                    "thread_id": thread_id,
-                }),
+                data=dict(
+                    {
+                        "tool": tool_name,
+                        "input": tool_input,
+                        "thread_id": thread_id,
+                    }
+                ),
                 event="tool_call",
             )
 
@@ -107,11 +138,13 @@ async def stream_agent_events(
                 output_str = output_str[:500] + "..."
             logger.info("Tool resultado: %s → %s", tool_name, output_str[:100])
             yield ServerSentEvent(
-                data=dict({
-                    "tool": tool_name,
-                    "output": output_str,
-                    "thread_id": thread_id,
-                }),
+                data=dict(
+                    {
+                        "tool": tool_name,
+                        "output": output_str,
+                        "thread_id": thread_id,
+                    }
+                ),
                 event="tool_result",
             )
 

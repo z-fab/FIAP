@@ -11,7 +11,7 @@ import logging
 
 from fastapi import FastAPI
 
-from agents.api.routers import financial, research, trade
+from agents.api.routers import financial, roteiro, trade
 
 # Configurar logging para ver execução dos nós e tools no terminal
 logging.basicConfig(
@@ -26,16 +26,15 @@ app = FastAPI(
         "API do projeto prático de Agentes de IA com LangGraph.\n\n"
         "Três agentes demonstrando padrões diferentes:\n"
         "- **Financeiro**: create_agent (abordagem simplificada)\n"
-        "- **Pesquisa Acadêmica**: ReAct manual com StateGraph\n"
-        "- **Pokémon Trade Center**: Human-in-the-Loop + "
-        "Roteamento Condicional"
+        "- **Estúdio de Roteiro**: workflow multi-nó + loop de crítica\n"
+        "- **Pokémon Trade Center**: Human-in-the-Loop (interrupt)"
     ),
     version="0.1.0",
 )
 
 # Montar routers — cada agente tem seu próprio prefixo e tag
 app.include_router(financial.router, prefix="/financial", tags=["Agente Financeiro"])
-app.include_router(research.router, prefix="/research", tags=["Agente de Pesquisa"])
+app.include_router(roteiro.router, prefix="/roteiro", tags=["Estúdio de Roteiro"])
 app.include_router(trade.router, prefix="/trade", tags=["Pokémon Trade Center"])
 
 
@@ -52,14 +51,14 @@ async def root():
                 "pattern": "create_agent",
             },
             {
-                "name": "Pesquisa",
-                "prefix": "/research",
-                "pattern": "ReAct manual",
+                "name": "Estúdio de Roteiro",
+                "prefix": "/roteiro",
+                "pattern": "workflow + critique loop",
             },
             {
                 "name": "Pokémon Trade",
                 "prefix": "/trade",
-                "pattern": "HiTL + Roteamento",
+                "pattern": "ReAct + HITL",
             },
         ],
     }

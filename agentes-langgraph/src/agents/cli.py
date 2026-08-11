@@ -28,22 +28,35 @@ AGENTS = {
         "name": "Agente Financeiro",
         "description": "Cotações de moedas e ações em tempo real",
         "loader": "agents.financial.agent",
+        "kind": "financial",
     },
     "2": {
-        "name": "Agente de Pesquisa",
-        "description": "Busca acadêmica e web com resumo",
-        "loader": "agents.research.agent",
+        "name": "Estúdio de Roteiro",
+        "description": "Pipeline criativo: brief → pesquisa → roteiro → crítica",
+        "loader": "agents.roteiro.agent",
+        "kind": "roteiro",
     },
     "3": {
         "name": "Pokémon Trade Center",
         "description": "Trocas de Pokémon com aprovação humana",
         "loader": "agents.trade.agent",
+        "kind": "trade",
     },
 }
 
+# Estado inicial do Estúdio de Roteiro (campos reais do pipeline)
+_ROTEIRO_ESTADO_INICIAL = {
+    "brief": "",
+    "research_notes": "",
+    "draft": "",
+    "critique": "",
+    "revision_count": 0,
+    "approved": False,
+}
 
-def _select_agent() -> tuple[str, object, bool]:
-    """Mostra menu e retorna (nome, graph, usa_checkpointer)."""
+
+def _select_agent() -> tuple[str, object, str]:
+    """Mostra menu e retorna (nome, graph, kind)."""
     console.print()
     console.print(Panel("[bold]Agentes disponíveis[/bold]", border_style="cyan"))
     for key, info in AGENTS.items():
@@ -57,41 +70,107 @@ def _select_agent() -> tuple[str, object, bool]:
     module = __import__(agent_info["loader"], fromlist=["graph"])
     graph = module.graph
 
-    # Apenas o agente Trade (3) usa checkpointer/HITL.
-    # Os outros são stateless: cada turno é independente.
-    uses_checkpointer = choice == "3"
     console.print(
-        f"\n[bold green]{agent_info['name']}[/bold green] conectado. "
-        "Digite 'sair' para encerrar.\n"
+        f"\n[bold green]{agent_info['name']}[/bold green] conectado. Digite 'sair' para encerrar.\n"
     )
-    return agent_info["name"], graph, uses_checkpointer
+    return agent_info["name"], graph, agent_info["kind"]
 
 
-async def _stream_response(graph, input_data: dict, config: dict) -> None:
+def _message_text(msg) -> str:
+    """Extrai texto de uma mensagem LangChain / dict (Gemini pode devolver lista)."""
+    if msg is None:
+        return ""
+    content = msg.content if hasattr(msg, "content") else msg
+    if isinstance(content, dict) and "content" in content:
+        content = content["content"]
+    if isinstance(content, list):
+        return "".join(
+            b["text"] if isinstance(b, dict) and "text" in b else str(b) for b in content
+        )
+    return str(content) if content is not None else ""
+
+
+def _texto_finalizar(output) -> str:
+    """Pega o AIMessage empacotado pelo nó `finalizar` (sem streaming de LLM)."""
+    if not isinstance(output, dict):
+        return ""
+    messages = output.get("messages") or []
+    if not messages:
+        return ""
+    return _message_text(messages[-1]).strip()
+
+
+async def _stream_response(graph, input_data: dict | Command, config: dict) -> None:
     """Processa stream de eventos do agente e exibe no terminal.
 
     Usa astream_events v2, que emite eventos granulares durante a execução
     do grafo: início/fim de tools, tokens do LLM, início/fim de nós, etc.
     Aqui filtramos apenas os eventos relevantes para a UX da CLI.
+
+    Nota: o nó `finalizar` do Estúdio de Roteiro monta a entrega sem chamar
+    o LLM — não há on_chat_model_stream. Por isso lemos on_chain_end.
     """
     token_buffer = ""
+
+    def _flush_token_line() -> None:
+        """Garante quebra de linha após stream de tokens (evita 'texto ● nó')."""
+        nonlocal token_buffer
+        if token_buffer:
+            if not token_buffer.endswith("\n"):
+                console.file.write("\n")
+                console.file.flush()
+            token_buffer = ""
 
     # astream_events itera sobre eventos do grafo em tempo real (streaming)
     async for event in graph.astream_events(input_data, config=config, version="v2"):
         event_type = event["event"]
 
+        # --- Nó do grafo iniciado (útil no pipeline do Estúdio de Roteiro) ---
+        if event_type == "on_chain_start" and event.get("name"):
+            node_name = event["name"]
+            if node_name in {
+                "brief",
+                "pesquisar",
+                "roteirizar",
+                "validar",
+                "finalizar",
+                "model",  # create_agent (Agente Financeiro)
+                "assistant",  # ReAct manual (Trade)
+                "tools",
+            }:
+                _flush_token_line()
+                console.print(f"  [dim cyan]● {node_name}[/dim cyan]")
+
+        # --- Entrega do Estúdio: mensagem montada no nó (sem tokens de LLM) ---
+        elif event_type == "on_chain_end" and event.get("name") == "finalizar":
+            entrega = _texto_finalizar(event.get("data", {}).get("output"))
+            if entrega:
+                _flush_token_line()
+                console.print()
+                console.print(Panel(entrega, border_style="green", title="Entrega final"))
+
         # --- Tool foi chamada: mostra a chamada (estilo "trace") ---
-        if event_type == "on_tool_start":
+        elif event_type == "on_tool_start":
+            _flush_token_line()
             tool_name = event.get("name", "?")
             tool_input = event.get("data", {}).get("input", {})
             if isinstance(tool_input, dict):
-                args = ", ".join(f'{v}' for v in tool_input.values())
+                # Só args do LLM (config injetado pelo runtime não entra no schema)
+                public = {k: v for k, v in tool_input.items() if k != "config"}
+                args = ", ".join(f"{k}={v!r}" for k, v in public.items())
             else:
                 args = str(tool_input)
+            # Tools de trade: thread_id vem do config da sessão, não do LLM
+            if tool_name in {"propor_troca", "check_professor_approval"}:
+                tid = config.get("configurable", {}).get("thread_id")
+                if tid:
+                    suffix = f", thread_id={tid!r} [injetado]"
+                    args = f"{args}{suffix}" if args else f"thread_id={tid!r} [injetado]"
             console.print(f"  [dim yellow]>> {tool_name}({args})[/dim yellow]")
 
         # --- Tool retornou: mostra o resultado truncado ---
         elif event_type == "on_tool_end":
+            _flush_token_line()
             tool_name = event.get("name", "?")
             tool_output = event.get("data", {}).get("output", "")
             if hasattr(tool_output, "content"):
@@ -119,8 +198,7 @@ async def _stream_response(graph, input_data: dict, config: dict) -> None:
                     console.file.write(content)
                     console.file.flush()
 
-    if token_buffer:
-        console.print()
+    _flush_token_line()
 
 
 async def _handle_interrupt(graph, config: dict) -> bool:
@@ -141,17 +219,15 @@ async def _handle_interrupt(graph, config: dict) -> bool:
             # O valor passado para interrupt() vem aqui como .value
             interrupt_value = str(task.interrupts[0].value)
             console.print()
-            console.print(Panel(
-                interrupt_value,
-                border_style="yellow",
-                title="Confirmação necessária",
-            ))
-            approved = Confirm.ask("[bold yellow]Aprovar troca?[/bold yellow]")
-            response = (
-                "sim, eu confirmo a troca"
-                if approved
-                else "não, cancele a troca"
+            console.print(
+                Panel(
+                    interrupt_value,
+                    border_style="yellow",
+                    title="Confirmação necessária",
+                )
             )
+            approved = Confirm.ask("[bold yellow]Aprovar troca?[/bold yellow]")
+            response = "sim, eu confirmo a troca" if approved else "não, cancele a troca"
 
             # Command(resume=...) retoma o grafo do ponto exato do interrupt.
             # O valor passado vira o retorno da função interrupt() no nó.
@@ -167,17 +243,27 @@ async def _handle_interrupt(graph, config: dict) -> bool:
 def _print_help() -> None:
     """Mostra os comandos disponíveis no chat."""
     console.print()
-    console.print(Panel(
-        "[bold]Comandos disponíveis:[/bold]\n"
-        "  [cyan]/agent[/cyan]  — trocar de agente\n"
-        "  [cyan]/help[/cyan]   — mostrar esta ajuda\n"
-        "  [cyan]/exit[/cyan]   — sair do chat",
-        border_style="dim",
-        title="Ajuda",
-    ))
+    console.print(
+        Panel(
+            "[bold]Comandos disponíveis:[/bold]\n"
+            "  [cyan]/agent[/cyan]  — trocar de agente\n"
+            "  [cyan]/help[/cyan]   — mostrar esta ajuda\n"
+            "  [cyan]/exit[/cyan]   — sair do chat",
+            border_style="dim",
+            title="Ajuda",
+        )
+    )
 
 
-async def _chat_loop(agent_name: str, graph, uses_checkpointer: bool) -> str:
+def _build_input(kind: str, user_input: str) -> dict:
+    """Monta o dict de entrada adequado ao agente escolhido."""
+    input_data: dict = {"messages": [{"role": "user", "content": user_input}]}
+    if kind == "roteiro":
+        input_data.update(_ROTEIRO_ESTADO_INICIAL)
+    return input_data
+
+
+async def _chat_loop(agent_name: str, graph, kind: str) -> str:
     """Loop principal do chat.
 
     Returns:
@@ -185,10 +271,20 @@ async def _chat_loop(agent_name: str, graph, uses_checkpointer: bool) -> str:
     """
     from agents.trade.db import generate_thread_id
 
+    uses_checkpointer = kind == "trade"
+
     # thread_id identifica esta CONVERSA no checkpointer.
     # Sem ele, o grafo não consegue carregar/salvar estado entre turnos.
+    # Para trocas lendárias, o MESMO id é a chave no JSON (data/trades.json).
     thread_id = generate_thread_id() if uses_checkpointer else ""
     config = {"configurable": {"thread_id": thread_id}} if uses_checkpointer else {}
+
+    if uses_checkpointer:
+        console.print(
+            f"[dim]Sessão trade — thread_id: [cyan]{thread_id}[/cyan] "
+            "(use este id em GET /trade/admin/pending e "
+            "POST /trade/admin/{{thread_id}}/review)[/dim]"
+        )
 
     console.print("[dim]Comandos: /agent (trocar) · /help · /exit[/dim]")
 
@@ -227,10 +323,7 @@ async def _chat_loop(agent_name: str, graph, uses_checkpointer: bool) -> str:
                 await _handle_interrupt(graph, config)
                 continue
 
-        input_data = {"messages": [{"role": "user", "content": user_input}]}
-        if uses_checkpointer:
-            input_data["pending_trade_id"] = ""
-
+        input_data = _build_input(kind, user_input)
         await _stream_response(graph, input_data, config)
 
         if uses_checkpointer:
@@ -249,8 +342,8 @@ def main():
     try:
         # Loop de seleção: cada vez que o usuário digita /agent, voltamos pro menu
         while True:
-            agent_name, graph, uses_checkpointer = _select_agent()
-            result = asyncio.run(_chat_loop(agent_name, graph, uses_checkpointer))
+            agent_name, graph, kind = _select_agent()
+            result = asyncio.run(_chat_loop(agent_name, graph, kind))
             if result == "exit":
                 break
     except KeyboardInterrupt:

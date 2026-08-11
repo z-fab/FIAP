@@ -53,10 +53,13 @@ model = ChatGoogleGenerativeAI(
 # Criação do agente — é só isso!
 # --------------------------------------------------------------------------
 # O create_agent é a abordagem PREBUILT — recomendada para a maioria dos
-# casos. Internamente ele monta o mesmo grafo ReAct que construímos
-# manualmente em research/agent.py:
+# casos. Internamente ele monta o loop ReAct clássico:
 #
-#   START → assistant → [tools_condition] → tools → assistant → ... → END
+#   START → model → [tools_condition] → tools → model → ... → END
+#
+# Compare com:
+#   - roteiro/agent.py — workflow multi-nó + loop de crítico (sem ReAct)
+#   - trade/agent.py — ReAct manual + HITL via interrupt()
 #
 # Quando usar create_agent vs construção manual?
 #   - Use create_agent quando você só precisa do loop ReAct padrão

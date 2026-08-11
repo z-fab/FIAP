@@ -4,7 +4,7 @@ Endpoints para o treinador (chat) e admin para o Professor Oak.
 
 Este router demonstra como expor um agente HITL via REST:
     - /invoke      → unifica primeira mensagem e resume de interrupt
-    - /stream      → streaming SSE para UX em tempo real
+    - /stream      → streaming SSE (mesmo caminho de resume do invoke)
     - /admin/...   → endpoints separados para o Professor Oak (workflow async)
 """
 
@@ -24,7 +24,65 @@ router = APIRouter()
 class AdminReviewRequest(BaseModel):
     """Request do Professor Oak para aprovar/rejeitar uma troca."""
 
-    decision: str = Field(description="approve ou reject")
+    decision: str = Field(
+        description=(
+            "Aprovar ou rejeitar. Aceita: approve/aprovado/true/sim "
+            "ou deny/denie/negado/false/nao (e aliases reject/rejected/no)."
+        )
+    )
+
+
+_APPROVE_TOKENS = frozenset(
+    {
+        "approve",
+        "approved",
+        "aprovado",
+        "aprova",
+        "true",
+        "sim",
+        "s",
+        "yes",
+        "y",
+        "1",
+    }
+)
+_REJECT_TOKENS = frozenset(
+    {
+        "deny",
+        "denie",  # typo comum
+        "denied",
+        "reject",
+        "rejected",
+        "negado",
+        "nega",
+        "false",
+        "nao",
+        "não",
+        "n",
+        "no",
+        "0",
+    }
+)
+
+
+def _normalize_admin_decision(raw: str) -> str:
+    """Converte string livre do admin em 'approved' | 'rejected'.
+
+    Raises:
+        HTTPException 400 se o valor não for reconhecido.
+    """
+    token = raw.strip().lower()
+    if token in _APPROVE_TOKENS:
+        return "approved"
+    if token in _REJECT_TOKENS:
+        return "rejected"
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            f"Decisão inválida: {raw!r}. Use approve/aprovado/true/sim "
+            "ou deny/denie/negado/false/nao."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -58,7 +116,6 @@ async def invoke(request: AgentRequest) -> AgentResponse:
         result = await graph.ainvoke(
             {
                 "messages": [{"role": "user", "content": request.message}],
-                "pending_trade_id": "",
             },
             config=config,
         )
@@ -90,13 +147,21 @@ async def invoke(request: AgentRequest) -> AgentResponse:
 
 @router.post("/stream", response_class=EventSourceResponse)
 async def stream(request: AgentRequest):
-    """Streaming SSE para o treinador."""
+    """Streaming SSE para o treinador.
+
+    Espelha o /invoke: se há interrupt pendente, retoma com Command(resume=…).
+    """
     thread_id = request.thread_id or db.generate_thread_id()
     config = {"configurable": {"thread_id": thread_id}}
-    input_data = {
-        "messages": [{"role": "user", "content": request.message}],
-        "pending_trade_id": "",
-    }
+
+    snapshot = graph.get_state(config)
+    if snapshot and snapshot.next:
+        input_data: dict | Command = Command(resume=request.message)
+    else:
+        input_data = {
+            "messages": [{"role": "user", "content": request.message}],
+        }
+
     async for event in stream_agent_events(graph, input_data, config, thread_id):
         yield event
 
@@ -115,7 +180,7 @@ async def list_pending() -> dict:
 async def review_trade(thread_id: str, request: AdminReviewRequest) -> dict:
     """Professor Oak aprova ou rejeita uma troca lendária.
 
-    Apenas muda o status no SQLite. O treinador verifica
+    Apenas muda o status no JSON (`data/trades.json`). O treinador verifica
     o resultado via check_professor_approval tool.
 
     Padrão arquitetural importante: este endpoint NÃO interage com o grafo
@@ -132,14 +197,15 @@ async def review_trade(thread_id: str, request: AdminReviewRequest) -> dict:
             detail=f"Nenhuma troca pendente para thread '{thread_id}'.",
         )
 
-    status = "approved" if request.decision == "approve" else "rejected"
+    status = _normalize_admin_decision(request.decision)
     db.update_trade_status(thread_id, status)
 
     return {
         "thread_id": thread_id,
         "decision": request.decision,
+        "status": status,
         "message": (
-            f"Troca {'aprovada' if request.decision == 'approve' else 'rejeitada'} "
+            f"Troca {'aprovada' if status == 'approved' else 'rejeitada'} "
             "pelo Professor Oak."
         ),
     }

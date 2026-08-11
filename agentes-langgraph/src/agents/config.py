@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     # google_api_key NÃO tem default → é OBRIGATÓRIA. Se faltar, o app
     # falha no startup com mensagem clara — melhor que erros crípticos depois.
     google_api_key: str
-    # tavily_api_key tem default vazio → o agente de pesquisa pode rodar
-    # sem ela (com funcionalidade reduzida).
+    # tavily_api_key tem default vazio → o Estúdio de Roteiro pode rodar
+    # sem ela (com pesquisa web desabilitada / mensagem de erro na tool).
     tavily_api_key: str = ""
 
     # --- Modelo LLM ---

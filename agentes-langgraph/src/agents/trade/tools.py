@@ -12,6 +12,7 @@ direcionados ao LLM, não para humanos.
 import uuid
 
 import httpx
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langgraph.types import interrupt
 
@@ -21,6 +22,23 @@ from agents.trade.db import (
     save_completed_trade,
     save_pending_trade,
 )
+
+
+def _thread_id_from_config(config: RunnableConfig) -> str:
+    """Extrai o thread_id real da sessão (injetado pelo runtime, não pelo LLM).
+
+    O checkpointer e o JSON de trocas lendárias usam a MESMA chave:
+    `config["configurable"]["thread_id"]` (ex.: trade-a1b2c3).
+
+    Por isso a CLI mostra `check_professor_approval()` sem argumentos —
+    o id NÃO é tool arg do LLM; vem do config da sessão.
+    """
+    configurable = (config or {}).get("configurable") or {}
+    thread_id = configurable.get("thread_id") or ""
+    if not thread_id:
+        return ""
+    return str(thread_id)
+
 
 # URL base da PokéAPI
 _POKEAPI_BASE = "https://pokeapi.co/api/v2"
@@ -271,7 +289,7 @@ def registrar_troca(offered: str, requested: str) -> str:
 
 
 @tool
-def propor_troca(offered: str, requested: str, thread_id: str) -> str:
+def propor_troca(offered: str, requested: str, config: RunnableConfig) -> str:
     """Propõe uma troca de Pokémon e classifica automaticamente o nível de aprovação.
 
     Consulta a PokéAPI para determinar se a troca é comum, rara ou lendária:
@@ -282,15 +300,16 @@ def propor_troca(offered: str, requested: str, thread_id: str) -> str:
       Professor Oak aprovar de forma assíncrona via endpoint admin.
 
     Use esta ferramenta quando o treinador propuser uma troca concreta.
+    NÃO invente thread_id — a sessão é injetada automaticamente via config.
 
     Args:
         offered: Nome do Pokémon que o treinador oferece.
         requested: Nome do Pokémon que o treinador deseja receber.
-        thread_id: ID da conversa atual (para rastrear aprovações pendentes).
 
     Returns:
         Resultado final da troca: registrada, cancelada ou pendente.
     """
+    thread_id = _thread_id_from_config(config)
     poke_offered = _fetch_pokemon(offered)
     poke_requested = _fetch_pokemon(requested)
 
@@ -362,33 +381,41 @@ def propor_troca(offered: str, requested: str, thread_id: str) -> str:
     # esperando um endpoint admin (Professor Oak) mudar o status.
     # O treinador continua conversando livremente e pode perguntar o status
     # depois — o LLM então chamará check_professor_approval.
+    if not thread_id:
+        return (
+            "Não foi possível registrar a troca lendária: thread_id da sessão "
+            "ausente. Reinicie a conversa pela CLI/API (com checkpointer)."
+        )
     save_pending_trade(thread_id, offered, requested, analise)
     return (
         f"TROCA LENDÁRIA — Requer aprovação do Professor Oak.\n\n"
         f"{analise}\n\n"
         f"Esta troca envolve um Pokémon lendário ou mítico. "
-        f"Foi registrada como pendente e o Professor Oak será notificado. "
-        f"O treinador pode continuar conversando e perguntar pelo status depois."
+        f"Foi registrada como pendente (chave: {thread_id}) e o Professor Oak "
+        f"será notificado. O treinador pode continuar conversando e perguntar "
+        f"pelo status depois."
     )
 
 
 @tool
-def check_professor_approval(thread_id: str) -> str:
+def check_professor_approval(config: RunnableConfig) -> str:
     """Verifica se o Professor Oak já aprovou uma troca lendária pendente.
 
     Use quando o treinador perguntar sobre o status de uma troca
     que está aguardando aprovação do Professor Oak.
-
-    Args:
-        thread_id: ID da conversa com a troca pendente.
+    NÃO invente thread_id — a sessão é injetada automaticamente via config.
 
     Returns:
         Status da aprovação: aprovado, rejeitado ou pendente.
     """
+    thread_id = _thread_id_from_config(config)
+    if not thread_id:
+        return "Não há thread_id de sessão para consultar trocas pendentes."
+
     # Busca a troca pendente associada a este thread_id (conversa)
     trade = get_pending_trade(thread_id)
     if trade is None:
-        return "Não há troca pendente de aprovação nesta conversa."
+        return f"Não há troca pendente de aprovação para a sessão `{thread_id}`."
 
     status = trade["status"]
     # --- Aprovado: efetiva a troca AGORA ---
@@ -402,18 +429,19 @@ def check_professor_approval(thread_id: str) -> str:
         save_completed_trade(trade_id, offered, requested)
         remove_pending_trade(thread_id)
         return (
-            f"Professor Oak APROVOU a troca! "
+            f"[sessão `{thread_id}`] Professor Oak APROVOU a troca! "
             f"Troca registrada com ID: {trade_id}. "
             f"{offered.capitalize()} por {requested.capitalize()} — concluída!"
         )
     if status == "rejected":
         remove_pending_trade(thread_id)
         return (
-            "Professor Oak REJEITOU a troca. "
+            f"[sessão `{thread_id}`] Professor Oak REJEITOU a troca. "
             "Ele acredita que não seria uma troca justa. "
             "O treinador pode propor outra troca."
         )
     return (
-        "A troca ainda está PENDENTE. "
+        f"[sessão `{thread_id}`] A troca ainda está PENDENTE "
+        f"(status no JSON: `{status}`). "
         "O Professor Oak ainda não tomou uma decisão. Aguarde."
     )

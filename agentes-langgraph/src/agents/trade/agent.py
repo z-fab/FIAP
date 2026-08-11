@@ -71,11 +71,12 @@ Diretrizes:
 - Ao receber uma proposta de troca, use a ferramenta propor_troca
 - Para trocas raras, após receber o resultado da tool, peça confirmação \
 ao treinador antes de prosseguir
-- Para trocas lendárias, informe que o Professor Oak precisa aprovar
+- Para trocas lendárias, informe que o Professor Oak precisa aprovar \
+e mencione o código da sessão se a tool devolver (chave no JSON admin)
 - Quando o treinador perguntar sobre uma troca pendente, use \
 check_professor_approval
-- IMPORTANTE: passe sempre o thread_id para as ferramentas que pedem. \
-O thread_id da conversa atual é fornecido no estado.
+- NÃO invente nem peça thread_id: a sessão é injetada automaticamente \
+nas tools pelo runtime (RunnableConfig)
 """
 
 # --- Ferramentas disponíveis para o agente ---
@@ -108,10 +109,10 @@ model_with_tools = model.bind_tools(tools)
 def assistant(state: TradeState) -> dict:
     """Nó do assistente — invoca o LLM com o histórico de mensagens.
 
-    Padrão ReAct simples (idêntico ao agente de pesquisa). O HITL é
-    transparente do ponto de vista deste nó: quando a tool propor_troca
-    chama interrupt() internamente, o grafo pausa naturalmente na execução
-    da tool. Após resume, a tool retorna seu valor e o ReAct continua.
+    Padrão ReAct simples. O HITL é transparente do ponto de vista deste
+    nó: quando a tool propor_troca chama interrupt() internamente, o
+    grafo pausa naturalmente na execução da tool. Após resume, a tool
+    retorna seu valor e o ReAct continua.
     """
     logger.info("Nó 'assistant' — processando mensagem")
 
